@@ -8,6 +8,7 @@ import { SubmissionsModel } from './models/submissions.js';
 import multer from 'multer';
 import fs from 'fs';
 import { uploadToS3 } from './setup-s3.js';
+import { sendNotificationEmail, sendCustomerConfirmationEmail, sendCustomerStatusEmail } from './services/email.js';
 
 dotenv.config();
 
@@ -107,6 +108,20 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           .container {
             max-width: 1000px;
             margin: 0 auto;
+          }         
+          td {
+            padding: 12px;
+            border-bottom: 1px solid #e1e3e5;
+            font-size: 14px;
+            vertical-align: top;
+            word-break: break-word;
+            max-width: 350px; /* Adjust as needed */
+          }
+
+          .review-content {
+            white-space: pre-line;
+            word-break: break-word;
+            max-width: 350px;
           }
           .card {
             background: white;
@@ -308,7 +323,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                           <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
                           <td>\${sub.customerEmail}</td>
                           <td>\${sub.type}</td>
-                          <td>\${sub.content ? sub.content.substring(0, 50) + '...' : 'No content'}</td>
+                          <td class="review-content">\${sub.content || 'No content'}</td>
                           <td>
                             \${sub.mediaUrl ? (
                               sub.type === 'video' 
@@ -484,6 +499,20 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
 
     console.log('Saved submission:', submission);
 
+    // Send notification email to admin
+    await sendNotificationEmail({
+      subject: 'New UGC Submission Received',
+      text: `A new submission was received from ${customerEmail}.\nType: ${type}\nContent: ${content}`,
+      html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p>Type: ${type}</p><p>Content: ${content}</p>`
+    });
+
+    // Send confirmation email to customer
+    await sendCustomerConfirmationEmail({
+      to: customerEmail,
+      customerName: customerEmail,
+      type
+    });
+
     res.json({
       success: true,
       message: 'Submission received!',
@@ -536,6 +565,13 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
     // Update status to approved
     await SubmissionsModel.updateStatus(submissionId, 'approved');
     console.log('Approved submission ' + submissionId);
+
+    // Send status update email to customer
+    await sendCustomerStatusEmail({
+      to: submission.customer_email,
+      status: 'approved',
+      type: submission.type
+    });
     
     res.json({ success: true, message: 'Submission approved' });
   } catch (error) {
@@ -558,6 +594,13 @@ app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), a
     // Update status to rejected
     await SubmissionsModel.updateStatus(submissionId, 'rejected');
     console.log('Rejected submission ' + submissionId);
+
+    // Send status update email to customer
+    await sendCustomerStatusEmail({
+      to: submission.customer_email,
+      status: 'rejected',
+      type: submission.type
+    });
     
     res.json({ success: true, message: 'Submission rejected' });
   } catch (error) {
