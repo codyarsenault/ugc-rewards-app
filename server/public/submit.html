@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Share Your Experience - UGC Rewards</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      background: #5c6ac4;
+      color: white;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #4a5ab3;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .file-upload {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+      width: 100%;
+    }
+    .file-upload input[type="file"] {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    .file-upload-label {
+      display: block;
+      padding: 10px;
+      background: #f8f9fa;
+      border: 2px dashed #dee2e6;
+      border-radius: 4px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    .file-upload-label:hover {
+      background: #e9ecef;
+      border-color: #adb5bd;
+    }
+    .file-info {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #666;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Share Your Experience & Get Rewarded!</h1>
+  
+  <div id="message"></div>
+  
+  <form id="ugcForm">
+    <div class="form-group">
+      <label for="email">Email Address*</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    
+    <div class="form-group">
+      <label for="type">What would you like to share?*</label>
+      <select id="type" name="type" required>
+        <option value="review">Written Review (10% off)</option>
+        <option value="photo">Photo (20% off)</option>
+        <option value="video">Video (20% off)</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label for="content">Your Review/Description*</label>
+      <textarea id="content" name="content" rows="4" required></textarea>
+    </div>
+    
+    <div class="form-group" id="mediaGroup" style="display:none;">
+      <label>Upload Photo/Video</label>
+      <div class="file-upload">
+        <input type="file" id="media" name="media" accept="image/*,video/*">
+        <label for="media" class="file-upload-label">
+          <span id="fileLabel">Choose file or drag and drop here</span>
+        </label>
+      </div>
+      <div id="fileInfo" class="file-info"></div>
+    </div>
+    
+    <div class="form-group">
+      <label>
+        <input type="checkbox" required>
+        I agree to allow this business to use my content for marketing purposes
+      </label>
+    </div>
+    
+    <button type="submit" id="submitBtn">Submit & Get Reward</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('ugcForm');
+    const typeSelect = document.getElementById('type');
+    const mediaGroup = document.getElementById('mediaGroup');
+    const messageDiv = document.getElementById('message');
+    const fileInput = document.getElementById('media');
+    const fileLabel = document.getElementById('fileLabel');
+    const fileInfo = document.getElementById('fileInfo');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    // Get shop from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const shop = urlParams.get('shop');
+    
+    // Show/hide media upload based on type
+    typeSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'photo' || e.target.value === 'video') {
+        mediaGroup.style.display = 'block';
+        fileInput.required = true;
+      } else {
+        mediaGroup.style.display = 'none';
+        fileInput.required = false;
+        fileInput.value = '';
+        fileLabel.textContent = 'Choose file or drag and drop here';
+        fileInfo.textContent = '';
+      }
+    });
+    
+    // Handle file selection
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        fileLabel.textContent = file.name;
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        fileInfo.textContent = `File size: ${sizeMB} MB`;
+        
+        // Validate file size (50MB limit)
+        if (file.size > 50 * 1024 * 1024) {
+          fileInfo.style.color = 'red';
+          fileInfo.textContent += ' (File too large! Maximum size is 50MB)';
+          submitBtn.disabled = true;
+        } else {
+          fileInfo.style.color = '#666';
+          submitBtn.disabled = false;
+        }
+      }
+    });
+    
+    // Handle form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Show loading state
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading"></span> Submitting...';
+      
+      // Create FormData object
+      const formData = new FormData();
+      formData.append('customerEmail', document.getElementById('email').value);
+      formData.append('type', document.getElementById('type').value);
+      formData.append('content', document.getElementById('content').value);
+      
+      // Add file if present
+      if (fileInput.files[0]) {
+        formData.append('media', fileInput.files[0]);
+      }
+      
+      try {
+        const response = await fetch('/api/public/submit', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          messageDiv.innerHTML = '<div class="success">Thank you! Your submission has been received. You\'ll receive your discount code via email within 24 hours.</div>';
+          form.reset();
+          fileLabel.textContent = 'Choose file or drag and drop here';
+          fileInfo.textContent = '';
+          mediaGroup.style.display = 'none';
+        } else {
+          messageDiv.innerHTML = '<div class="error">There was an error submitting your content. Please try again.</div>';
+        }
+      } catch (error) {
+        messageDiv.innerHTML = '<div class="error">There was an error submitting your content. Please try again.</div>';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Submit & Get Reward';
+      }
+    });
+    
+    // Drag and drop functionality
+    const fileUploadLabel = document.querySelector('.file-upload-label');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      fileUploadLabel.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+      fileUploadLabel.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+      fileUploadLabel.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight(e) {
+      fileUploadLabel.style.backgroundColor = '#e9ecef';
+      fileUploadLabel.style.borderColor = '#6c757d';
+    }
+    
+    function unhighlight(e) {
+      fileUploadLabel.style.backgroundColor = '#f8f9fa';
+      fileUploadLabel.style.borderColor = '#dee2e6';
+    }
+    // Handle dropped files
+   fileUploadLabel.addEventListener('drop', handleDrop, false);
+   
+   function handleDrop(e) {
+     const dt = e.dataTransfer;
+     const files = dt.files;
+     
+     if (files.length > 0) {
+       fileInput.files = files;
+       const event = new Event('change', { bubbles: true });
+       fileInput.dispatchEvent(event);
+     }
+   }
+ </script>
+</body>
+</html>
