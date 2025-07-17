@@ -4,9 +4,10 @@ export const SubmissionsModel = {
   // Get all submissions
   async getAll() {
     const query = `
-      SELECT id, customer_email, type, content, media_url, status, created_at 
-      FROM submissions 
-      ORDER BY created_at DESC
+      SELECT s.*, j.title as job_title
+      FROM submissions s
+      LEFT JOIN jobs j ON s.job_id = j.id
+      ORDER BY s.created_at DESC
     `;
     const result = await pool.query(query);
     return result.rows;
@@ -29,8 +30,8 @@ export const SubmissionsModel = {
   // Create new submission
   async create(submission) {
     const query = `
-      INSERT INTO submissions (customer_email, type, content, media_url, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, NOW())
+      INSERT INTO submissions (customer_email, type, content, media_url, status, job_id, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
       RETURNING *
     `;
     const values = [
@@ -38,9 +39,22 @@ export const SubmissionsModel = {
       submission.type, 
       submission.content, 
       submission.mediaUrl,
-      submission.status || 'pending'
+      submission.status || 'pending',
+      submission.jobId || null
     ];
     const result = await pool.query(query, values);
+    return result.rows[0];
+  },
+
+  // Create job submission link
+  async linkToJob(submissionId, jobId) {
+    const query = `
+      INSERT INTO job_submissions (job_id, submission_id)
+      VALUES ($1, $2)
+      ON CONFLICT (job_id, submission_id) DO NOTHING
+      RETURNING *
+    `;
+    const result = await pool.query(query, [jobId, submissionId]);
     return result.rows[0];
   }
 };
