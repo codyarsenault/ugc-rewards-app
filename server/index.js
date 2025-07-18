@@ -367,6 +367,15 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             font-size: 12px;
             font-weight: 500;
           }
+          .job-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            cursor: pointer;
+            color: #2c6ecb;
+          }
+          .job-info h3:hover {
+            text-decoration: underline;
+          }
           .status-active {
             background: #e3f1df;
             color: #4b5943;
@@ -533,6 +542,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                     <option value="percentage">Percentage Discount</option>
                     <option value="fixed">Fixed Amount Off</option>
                     <option value="product">Free Product</option>
+                    <option value="giftcard">Gift Card</option>
                   </select>
                 </div>
 
@@ -546,6 +556,11 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   <label for="rewardProduct">Product Name*</label>
                   <input type="text" id="rewardProduct" name="rewardProduct" 
                          placeholder="Product name">
+                </div>
+
+                <div class="form-group" id="rewardGiftCardGroup" style="display:none;">
+                  <label for="rewardGiftCardAmount">Gift Card Amount*</label>
+                  <input type="number" id="rewardGiftCardAmount" name="rewardGiftCardAmount" min="1" placeholder="Amount in $">
                 </div>
               </div>
 
@@ -574,6 +589,77 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 <button type="submit" class="btn btn-primary" id="submitJobBtn">Create Job</button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- Job View Modal -->
+        <div id="jobViewModal" class="modal">
+          <div class="modal-content">
+            <span class="close" onclick="closeJobViewModal()">&times;</span>
+            <h2 id="viewModalTitle">Job Details</h2>
+            
+            <div style="margin-top: 20px;">
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Title</label>
+                <p id="viewJobTitle" style="margin: 5px 0; color: #616161;"></p>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Description</label>
+                <p id="viewJobDescription" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Requirements</label>
+                <p id="viewJobRequirements" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                  <label style="font-weight: 600; color: #202223;">Content Type</label>
+                  <p id="viewJobType" style="margin: 5px 0; color: #616161;"></p>
+                </div>
+                
+                <div class="form-group">
+                  <label style="font-weight: 600; color: #202223;">Status</label>
+                  <p><span id="viewJobStatus" class="job-status"></span></p>
+                </div>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                  <label style="font-weight: 600; color: #202223;">Spots</label>
+                  <p id="viewJobSpots" style="margin: 5px 0; color: #616161;"></p>
+                </div>
+                
+                <div class="form-group">
+                  <label style="font-weight: 600; color: #202223;">Reward</label>
+                  <p id="viewJobReward" style="margin: 5px 0; color: #616161;"></p>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Deadline</label>
+                <p id="viewJobDeadline" style="margin: 5px 0; color: #616161;"></p>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Example Content URLs</label>
+                <p id="viewJobExample" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Direct Link for this Job</label>
+                <p style="margin: 5px 0;">
+                  <a id="viewJobLink" href="#" target="_blank" style="color: #2c6ecb; text-decoration: none;"></a>
+                </p>
+              </div>
+              
+              <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                <button type="button" class="btn btn-secondary" onclick="closeJobViewModal()">Close</button>
+                <button type="button" class="btn btn-primary" id="editFromViewBtn" onclick="">Edit Job</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -635,6 +721,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 document.getElementById('rewardType').value = job.reward_type;
                 document.getElementById('rewardValue').value = job.reward_value;
                 document.getElementById('rewardProduct').value = job.reward_product || '';
+                document.getElementById('rewardGiftCardAmount').value = job.reward_giftcard_amount || '';
                 document.getElementById('deadline').value = job.deadline ? new Date(job.deadline).toISOString().slice(0, 10) : '';
                 document.getElementById('exampleContent').value = job.example_content || '';
                 document.getElementById('status').value = job.status;
@@ -664,18 +751,29 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             const rewardType = document.getElementById('rewardType').value;
             const valueGroup = document.getElementById('rewardValueGroup');
             const productGroup = document.getElementById('rewardProductGroup');
+            const giftCardGroup = document.getElementById('rewardGiftCardGroup');
             
             if (rewardType === 'product') {
               valueGroup.style.display = 'none';
               productGroup.style.display = 'block';
+              giftCardGroup.style.display = 'none';
               document.getElementById('rewardValue').required = false;
               document.getElementById('rewardProduct').required = true;
+              document.getElementById('rewardGiftCardAmount').required = false;
+            } else if (rewardType === 'giftcard') {
+              valueGroup.style.display = 'none';
+              productGroup.style.display = 'none';
+              giftCardGroup.style.display = 'block';
+              document.getElementById('rewardValue').required = false;
+              document.getElementById('rewardProduct').required = false;
+              document.getElementById('rewardGiftCardAmount').required = true;
             } else {
               valueGroup.style.display = 'block';
               productGroup.style.display = 'none';
+              giftCardGroup.style.display = 'none';
               document.getElementById('rewardValue').required = true;
               document.getElementById('rewardProduct').required = false;
-              
+              document.getElementById('rewardGiftCardAmount').required = false;
               // Update label based on type
               const label = rewardType === 'percentage' ? 'Discount Percentage' : 'Amount Off ($)';
               valueGroup.querySelector('label').textContent = label + '*';
@@ -758,23 +856,23 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 \`;
               } else {
                 jobsList.innerHTML = currentJobs.map(job => \`
-                  <div class="job-card">
-                    <div class="job-info">
-                      <h3>\${job.title}</h3>
-                      <div class="job-meta">
-                        <span>Type: \${job.type}</span>
-                        <span>Spots: \${job.spots_filled}/\${job.spots_available}</span>
-                        <span>Reward: \${formatReward(job)}</span>
-                        \${job.deadline ? \`<span>Deadline: \${new Date(job.deadline).toLocaleDateString()}</span>\` : ''}
-                      </div>
-                    </div>
-                    <div class="job-actions">
-                      <span class="job-status status-\${job.status}">\${job.status}</span>
-                      <button class="btn btn-sm btn-secondary" onclick="openJobModal(\${job.id})">Edit</button>
-                      <button class="btn btn-sm btn-danger" onclick="deleteJob(\${job.id})">Delete</button>
+                <div class="job-card">
+                  <div class="job-info">
+                    <h3 onclick="viewJobDetails(\${job.id})">\${job.title}</h3>
+                    <div class="job-meta">
+                      <span>Type: \${job.type}</span>
+                      <span>Spots: \${job.spots_filled}/\${job.spots_available}</span>
+                      <span>Reward: \${formatReward(job)}</span>
+                      \${job.deadline ? \`<span>Deadline: \${new Date(job.deadline).toLocaleDateString()}</span>\` : ''}
                     </div>
                   </div>
-                \`).join('');
+                  <div class="job-actions">
+                    <span class="job-status status-\${job.status}">\${job.status}</span>
+                    <button class="btn btn-sm btn-secondary" onclick="openJobModal(\${job.id})">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteJob(\${job.id})">Delete</button>
+                  </div>
+                </div>
+              \`).join('');
               }
             } catch (error) {
               console.error('Error loading jobs:', error);
@@ -810,12 +908,50 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             }
           }
 
+          // View job details
+          function viewJobDetails(jobId) {
+            const job = currentJobs.find(j => j.id === jobId);
+            if (!job) return;
+            
+            // Populate the view modal
+            document.getElementById('viewJobTitle').textContent = job.title;
+            document.getElementById('viewJobDescription').textContent = job.description;
+            document.getElementById('viewJobRequirements').textContent = job.requirements || 'No specific requirements';
+            document.getElementById('viewJobType').textContent = job.type.charAt(0).toUpperCase() + job.type.slice(1);
+            document.getElementById('viewJobStatus').textContent = job.status;
+            document.getElementById('viewJobStatus').className = 'job-status status-' + job.status;
+            document.getElementById('viewJobSpots').textContent = job.spots_filled + ' filled out of ' + job.spots_available + ' spots';
+            document.getElementById('viewJobReward').textContent = formatReward(job);
+            document.getElementById('viewJobDeadline').textContent = job.deadline ? new Date(job.deadline).toLocaleDateString() : 'No deadline';
+            document.getElementById('viewJobExample').textContent = job.example_content || 'No examples provided';
+            
+            // Set the direct link
+            const jobLink = '${process.env.HOST}/submit?jobId=' + job.id;
+            document.getElementById('viewJobLink').href = jobLink;
+            document.getElementById('viewJobLink').textContent = jobLink;
+            
+            // Set up the edit button
+            document.getElementById('editFromViewBtn').onclick = function() {
+              closeJobViewModal();
+              openJobModal(jobId);
+            };
+            
+            // Show the modal
+            document.getElementById('jobViewModal').classList.add('open');
+          }
+
+          function closeJobViewModal() {
+            document.getElementById('jobViewModal').classList.remove('open');
+          }
+
           // Format reward display
           function formatReward(job) {
             if (job.reward_type === 'percentage') {
               return job.reward_value + '% off';
             } else if (job.reward_type === 'fixed') {
               return '$' + job.reward_value + ' off';
+            } else if (job.reward_type === 'giftcard') {
+              return '$' + job.reward_giftcard_amount + ' gift card';
             } else {
               return 'Free ' + (job.reward_product || 'product');
             }
@@ -970,6 +1106,8 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 closeJobModal();
               } else if (event.target.id === 'mediaModal') {
                 closeModal();
+              } else if (event.target.id === 'jobViewModal') {
+                closeJobViewModal();
               }
             }
           }

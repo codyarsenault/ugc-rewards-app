@@ -6,10 +6,10 @@ export const JobsModel = {
     const query = `
       INSERT INTO jobs (
         shop_domain, title, description, requirements, type, 
-        reward_type, reward_value, reward_product, spots_available, 
+        reward_type, reward_value, reward_product, reward_giftcard_amount, spots_available, 
         deadline, example_content
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `;
     const values = [
@@ -21,6 +21,7 @@ export const JobsModel = {
       job.rewardType || 'percentage',
       job.rewardValue,
       job.rewardProduct,
+      job.rewardGiftCardAmount, // <-- add this line
       job.spotsAvailable || 1,
       job.deadline,
       job.exampleContent
@@ -76,6 +77,7 @@ export const JobsModel = {
       spotsFilled: 'spots_filled',
       exampleContent: 'example_content',
       createdAt: 'created_at',
+      rewardGiftCardAmount: 'reward_giftcard_amount',
       updatedAt: 'updated_at'
       // Add more mappings as needed
     };

@@ -343,6 +343,8 @@
         return job.reward_value + '% off';
       } else if (job.reward_type === 'fixed') {
         return '$' + job.reward_value + ' off';
+      } else if (job.reward_type === 'giftcard') {
+        return '$' + (job.reward_giftcard_amount || '') + ' gift card';
       } else {
         return 'Free ' + (job.reward_product || 'product');
       }
