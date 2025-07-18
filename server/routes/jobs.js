@@ -1,13 +1,33 @@
 import express from 'express';
 import { JobsModel } from '../models/jobs.js';
-import { shopifyApp } from '@shopify/shopify-app-express';
 
 const router = express.Router();
 
-// Get all jobs for the current shop (admin)
+// PUBLIC ROUTES (no auth required)
+router.get('/public/jobs', async (req, res) => {
+  try {
+    const jobs = await JobsModel.getActiveJobs();
+    res.json({ jobs });
+  } catch (error) {
+    console.error('Error fetching active jobs:', error);
+    res.status(500).json({ error: 'Failed to fetch jobs' });
+  }
+});
+
+router.get('/public/jobs/:id', async (req, res) => {
+  try {
+    const job = await JobsModel.getById(req.params.id);
+    res.json({ job });
+  } catch (error) {
+    console.error('Error fetching job:', error);
+    res.status(500).json({ error: 'Failed to fetch job' });
+  }
+});
+
+// ADMIN ROUTES (auth required - handled in index.js)
 router.get('/admin/jobs', async (req, res) => {
   try {
-    const shopDomain = res.locals.shopify.session.shop;
+    const shopDomain = res.locals.shopify?.session?.shop || 'default-shop';
     const jobs = await JobsModel.getByShop(shopDomain);
     res.json({ jobs });
   } catch (error) {
@@ -16,10 +36,9 @@ router.get('/admin/jobs', async (req, res) => {
   }
 });
 
-// Create a new job (admin)
 router.post('/admin/jobs', async (req, res) => {
   try {
-    const shopDomain = res.locals.shopify.session.shop;
+    const shopDomain = res.locals.shopify?.session?.shop || 'default-shop';
     const job = await JobsModel.create({
       shopDomain,
       ...req.body

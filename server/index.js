@@ -9,6 +9,8 @@ import multer from 'multer';
 import fs from 'fs';
 import { uploadToS3 } from './setup-s3.js';
 import { sendNotificationEmail, sendCustomerConfirmationEmail, sendCustomerStatusEmail } from './services/email.js';
+import jobRoutes from './routes/jobs.js';
+import { JobsModel } from './models/jobs.js';
 
 dotenv.config();
 
@@ -82,14 +84,23 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 // Serve uploaded files
 app.use('/uploads', express.static(uploadsDir));
 
+// Add job routes - without the middleware here since it's applied in the routes file
+app.use('/api', jobRoutes);
+
 // Route to show submission form
 app.get('/submit', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'submit.html'));
 });
 
-// Root route - modified to handle Shopify admin properly
+// Route to show jobs browsing page
+app.get('/jobs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'jobs.html'));
+});
+
+// Root route - Admin dashboard with jobs functionality
 app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
-  const submitLink = `${process.env.HOST}/submit`;
+  const submitLink = `${process.env.HOST}/jobs`;
+  
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -106,22 +117,38 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             background: #f6f6f7;
           }
           .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
-          }         
-          td {
-            padding: 12px;
-            border-bottom: 1px solid #e1e3e5;
-            font-size: 14px;
-            vertical-align: top;
-            word-break: break-word;
-            max-width: 350px; /* Adjust as needed */
           }
-
-          .review-content {
-            white-space: pre-line;
-            word-break: break-word;
-            max-width: 350px;
+          .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e1e3e5;
+          }
+          .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #616161;
+            transition: all 0.2s;
+          }
+          .tab:hover {
+            color: #202223;
+          }
+          .tab.active {
+            color: #008060;
+            border-bottom-color: #008060;
+          }
+          .tab-content {
+            display: none;
+          }
+          .tab-content.active {
+            display: block;
           }
           .card {
             background: white;
@@ -133,6 +160,11 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           h1 {
             margin: 0 0 20px 0;
             font-size: 20px;
+            font-weight: 600;
+          }
+          h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
             font-weight: 600;
           }
           .stats {
@@ -173,10 +205,154 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             padding: 12px;
             border-bottom: 1px solid #e1e3e5;
             font-size: 14px;
+            vertical-align: top;
+            word-break: break-word;
+            max-width: 350px;
+          }
+          .review-content {
+            white-space: pre-line;
+            word-break: break-word;
+            max-width: 350px;
           }
           .empty-state {
             text-align: center;
             padding: 60px 20px;
+            color: #616161;
+          }
+          .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+          }
+          .btn-primary {
+            background: #008060;
+            color: white;
+          }
+          .btn-primary:hover {
+            background: #006e52;
+          }
+          .btn-secondary {
+            background: #f6f6f7;
+            color: #202223;
+            border: 1px solid #c9cccf;
+          }
+          .btn-secondary:hover {
+            background: #e4e5e7;
+          }
+          .btn-danger {
+            background: #d72c0d;
+            color: white;
+          }
+          .form-group {
+            margin-bottom: 20px;
+          }
+          .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #202223;
+          }
+          .form-group input,
+          .form-group textarea,
+          .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #c9cccf;
+            border-radius: 4px;
+            font-size: 14px;
+          }
+          .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+          }
+          .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+          }
+          .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+          }
+          .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+          }
+          .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #616161;
+          }
+          .close:hover {
+            color: #202223;
+          }
+          .media-preview {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+          }
+          .job-card {
+            border: 1px solid #e1e3e5;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+          }
+          .job-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+          }
+          .job-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #616161;
+          }
+          .job-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+          }
+          .status-active {
+            background: #e3f1df;
+            color: #4b5943;
+          }
+          .status-paused {
+            background: #fff4e5;
+            color: #b86e00;
+          }
+          .status-completed {
+            background: #f1f1f1;
             color: #616161;
           }
           .submission-form-link {
@@ -189,26 +365,8 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             color: #2c6ecb;
             text-decoration: none;
           }
-          .media-preview {
-            max-width: 100px;
-            max-height: 100px;
-            object-fit: cover;
-            border-radius: 4px;
-            cursor: pointer;
-          }
-          .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.9);
-          }
-          .modal-content {
-            margin: auto;
-            display: block;
+          #mediaModal img,
+          #mediaModal video {
             max-width: 90%;
             max-height: 90%;
             position: absolute;
@@ -216,53 +374,171 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             left: 50%;
             transform: translate(-50%, -50%);
           }
-          .close {
-            position: absolute;
-            top: 15px;
-            right: 35px;
-            color: #f1f1f1;
-            font-size: 40px;
-            font-weight: bold;
-            cursor: pointer;
-          }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="card">
-            <h1>UGC Rewards Dashboard</h1>
-            <div class="submission-form-link">
-              Share this link with customers:
-              <a href="${submitLink}" target="_blank">${submitLink}</a>
+          <!-- Navigation Tabs -->
+          <div class="tabs">
+            <button class="tab active" onclick="switchTab('submissions')">All Submissions</button>
+            <button class="tab" onclick="switchTab('jobs')">Jobs</button>
+          </div>
+
+          <!-- Submissions Tab -->
+          <div id="submissions-tab" class="tab-content active">
+            <div class="card">
+              <h1>UGC Jobs Submission Dashboard</h1>
+              <div class="submission-form-link">
+                Link to UGC Jobs:
+                <a href="${submitLink}" target="_blank">${submitLink}</a>
+              </div>
+
+              <div class="stats">
+                <div class="stat">
+                  <div class="stat-value" id="totalCount">0</div>
+                  <div class="stat-label">Total Submissions</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="pendingCount">0</div>
+                  <div class="stat-label">Pending Review</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="approvedCount">0</div>
+                  <div class="stat-label">Approved</div>
+                </div>
+              </div>
             </div>
 
-            <div class="stats">
-              <div class="stat">
-                <div class="stat-value" id="totalCount">0</div>
-                <div class="stat-label">Total Submissions</div>
-              </div>
-              <div class="stat">
-                <div class="stat-value" id="pendingCount">0</div>
-                <div class="stat-label">Pending Review</div>
-              </div>
-              <div class="stat">
-                <div class="stat-value" id="approvedCount">0</div>
-                <div class="stat-label">Approved</div>
+            <div class="card">
+              <h1>Recent Submissions</h1>
+              <div id="submissionsTable">
+                <div class="empty-state">
+                  <p>Loading submissions...</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="card">
-            <h1>Recent Submissions</h1>
-            <div id="submissionsTable">
-              <div class="empty-state">
-                <p>Loading submissions...</p>
+          <!-- Jobs Tab -->
+          <div id="jobs-tab" class="tab-content">
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>UGC Jobs</h1>
+                <button class="btn btn-primary" onclick="openJobModal()">Create New Job</button>
+              </div>
+              
+              <div class="stats">
+                <div class="stat">
+                  <div class="stat-value" id="totalJobs">0</div>
+                  <div class="stat-label">Total Jobs</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="activeJobs">0</div>
+                  <div class="stat-label">Active Jobs</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="completedJobs">0</div>
+                  <div class="stat-label">Completed</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Your Jobs</h2>
+              <div id="jobsList">
+                <div class="empty-state">
+                  <p>Loading jobs...</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Modal for full-size media preview -->
+        <!-- Job Creation Modal -->
+        <div id="jobModal" class="modal">
+          <div class="modal-content">
+            <span class="close" onclick="closeJobModal()">&times;</span>
+            <h2>Create New UGC Job</h2>
+            
+            <form id="jobForm">
+              <div class="form-group">
+                <label for="jobTitle">Job Title*</label>
+                <input type="text" id="jobTitle" name="title" required 
+                       placeholder="e.g., 15-second video wearing our shoes at the park">
+              </div>
+
+              <div class="form-group">
+                <label for="jobDescription">Description*</label>
+                <textarea id="jobDescription" name="description" required
+                          placeholder="Describe what you're looking for in detail..."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="jobRequirements">Specific Requirements</label>
+                <textarea id="jobRequirements" name="requirements"
+                          placeholder="e.g., Must show product in use, natural lighting, include our hashtag..."></textarea>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="jobType">Content Type*</label>
+                  <select id="jobType" name="type" required>
+                    <option value="video">Video</option>
+                    <option value="photo">Photo</option>
+                    <option value="review">Review</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="spotsAvailable">Number of Spots*</label>
+                  <input type="number" id="spotsAvailable" name="spotsAvailable" 
+                         min="1" value="5" required>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rewardType">Reward Type*</label>
+                  <select id="rewardType" name="rewardType" onchange="updateRewardFields()">
+                    <option value="percentage">Percentage Discount</option>
+                    <option value="fixed">Fixed Amount Off</option>
+                    <option value="product">Free Product</option>
+                  </select>
+                </div>
+
+                <div class="form-group" id="rewardValueGroup">
+                  <label for="rewardValue">Discount Percentage*</label>
+                  <input type="number" id="rewardValue" name="rewardValue" 
+                         min="1" value="20" required>
+                </div>
+
+                <div class="form-group" id="rewardProductGroup" style="display:none;">
+                  <label for="rewardProduct">Product Name*</label>
+                  <input type="text" id="rewardProduct" name="rewardProduct" 
+                         placeholder="Product name">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="deadline">Deadline*</label>
+                <input type="datetime-local" id="deadline" name="deadline">
+              </div>
+
+              <div class="form-group">
+                <label for="exampleContent">Example Content URLs (Optional)</label>
+                <textarea id="exampleContent" name="exampleContent"
+                          placeholder="Links to examples or inspiration..."></textarea>
+              </div>
+
+              <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeJobModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Job</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Media Preview Modal -->
         <div id="mediaModal" class="modal">
           <span class="close" onclick="closeModal()">&times;</span>
           <img class="modal-content" id="modalImage">
@@ -277,6 +553,163 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             apiKey: '${process.env.SHOPIFY_API_KEY}',
             host: new URLSearchParams(location.search).get("host"),
           });
+
+          // Tab switching
+          function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+            
+            // Load data for the tab
+            if (tab === 'jobs') {
+              loadJobs();
+            } else {
+              loadSubmissions();
+            }
+          }
+
+          // Job Modal Functions
+          function openJobModal() {
+            document.getElementById('jobModal').style.display = 'block';
+          }
+
+          function closeJobModal() {
+            document.getElementById('jobModal').style.display = 'none';
+            document.getElementById('jobForm').reset();
+          }
+
+          function updateRewardFields() {
+            const rewardType = document.getElementById('rewardType').value;
+            const valueGroup = document.getElementById('rewardValueGroup');
+            const productGroup = document.getElementById('rewardProductGroup');
+            
+            if (rewardType === 'product') {
+              valueGroup.style.display = 'none';
+              productGroup.style.display = 'block';
+              document.getElementById('rewardValue').required = false;
+              document.getElementById('rewardProduct').required = true;
+            } else {
+              valueGroup.style.display = 'block';
+              productGroup.style.display = 'none';
+              document.getElementById('rewardValue').required = true;
+              document.getElementById('rewardProduct').required = false;
+              
+              // Update label based on type
+              const label = rewardType === 'percentage' ? 'Discount Percentage' : 'Amount Off ($)';
+              valueGroup.querySelector('label').textContent = label + '*';
+            }
+          }
+
+          // Create Job
+          document.getElementById('jobForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const jobData = Object.fromEntries(formData);
+            
+            // Convert deadline to ISO format if provided
+            if (jobData.deadline) {
+              jobData.deadline = new Date(jobData.deadline).toISOString();
+            }
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await fetch('/api/admin/jobs' + queryParams, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(jobData)
+              });
+              
+              if (response.ok) {
+                closeJobModal();
+                loadJobs();
+                alert('Job created successfully!');
+              } else {
+                alert('Failed to create job');
+              }
+            } catch (error) {
+              console.error('Error creating job:', error);
+              alert('Error creating job');
+            }
+          });
+
+          // Load Jobs
+          async function loadJobs() {
+            try {
+              const queryParams = window.location.search;
+              const response = await fetch('/api/admin/jobs' + queryParams);
+              const data = await response.json();
+              
+              const jobs = data.jobs || [];
+              
+              // Update stats
+              document.getElementById('totalJobs').textContent = jobs.length;
+              document.getElementById('activeJobs').textContent = 
+                jobs.filter(j => j.status === 'active').length;
+              document.getElementById('completedJobs').textContent = 
+                jobs.filter(j => j.status === 'completed').length;
+              
+              // Update jobs list
+              const jobsList = document.getElementById('jobsList');
+              
+              if (jobs.length === 0) {
+                jobsList.innerHTML = \`
+                  <div class="empty-state">
+                    <p>No jobs created yet.</p>
+                    <p>Create your first job to start receiving targeted UGC!</p>
+                  </div>
+                \`;
+              } else {
+                jobsList.innerHTML = jobs.map(job => \`
+                  <div class="job-card">
+                    <div class="job-info">
+                      <h3>\${job.title}</h3>
+                      <div class="job-meta">
+                        <span>Type: \${job.type}</span>
+                        <span>Spots: \${job.spots_filled}/\${job.spots_available}</span>
+                        <span>Reward: \${formatReward(job)}</span>
+                        \${job.deadline ? \`<span>Deadline: \${new Date(job.deadline).toLocaleDateString()}</span>\` : ''}
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                      <span class="job-status status-\${job.status}">\${job.status}</span>
+                      <button class="btn btn-secondary" onclick="viewJob(\${job.id})">View</button>
+                    </div>
+                  </div>
+                \`).join('');
+              }
+            } catch (error) {
+              console.error('Error loading jobs:', error);
+              document.getElementById('jobsList').innerHTML = \`
+                <div class="empty-state">
+                  <p>Error loading jobs. Please refresh the page.</p>
+                </div>
+              \`;
+            }
+          }
+
+          // Format reward display
+          function formatReward(job) {
+            if (job.reward_type === 'percentage') {
+              return job.reward_value + '% off';
+            } else if (job.reward_type === 'fixed') {
+              return '$' + job.reward_value + ' off';
+            } else {
+              return 'Free ' + (job.reward_product || 'product');
+            }
+          }
+
+          // View job details (placeholder for now)
+          function viewJob(jobId) {
+            // In a future update, this could open a modal with job details and submissions
+            alert('Job details view coming soon! Job ID: ' + jobId);
+          }
 
           // Load submissions
           async function loadSubmissions() {
@@ -312,6 +745,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                         <th>Date</th>
                         <th>Customer</th>
                         <th>Type</th>
+                        <th>Job</th>
                         <th>Content</th>
                         <th>Media</th>
                         <th>Actions</th>
@@ -323,6 +757,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                           <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
                           <td>\${sub.customerEmail}</td>
                           <td>\${sub.type}</td>
+                          <td>\${sub.job_title || '-'}</td>
                           <td class="review-content">\${sub.content || 'No content'}</td>
                           <td>
                             \${sub.mediaUrl ? (
@@ -333,8 +768,8 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                           </td>
                           <td>
                             \${sub.status === 'pending' ? \`
-                              <button onclick="approveSubmission(\${sub.id})" style="background: #008060; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Approve</button>
-                              <button onclick="rejectSubmission(\${sub.id})" style="background: #d72c0d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Reject</button>
+                              <button onclick="approveSubmission(\${sub.id})" class="btn btn-primary">Approve</button>
+                              <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger">Reject</button>
                             \` : sub.status}
                           </td>
                         </tr>
@@ -380,9 +815,6 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             modalVideo.src = '';
           }
 
-          // Load on page load
-          loadSubmissions();
-
           // Approve submission function
           async function approveSubmission(submissionId) {
             try {
@@ -421,13 +853,19 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             }
           }
 
-          // Close modal when clicking outside
+          // Close modals when clicking outside
           window.onclick = function(event) {
-            const modal = document.getElementById('mediaModal');
-            if (event.target == modal) {
-              closeModal();
+            if (event.target.classList.contains('modal')) {
+              if (event.target.id === 'jobModal') {
+                closeJobModal();
+              } else if (event.target.id === 'mediaModal') {
+                closeModal();
+              }
             }
           }
+
+          // Load initial data
+          loadSubmissions();
         </script>
       </body>
     </html>
@@ -450,15 +888,26 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       });
     }
 
+    // Prevent submissions to full jobs
+    if (req.body.jobId) {
+      const job = await JobsModel.getById(req.body.jobId);
+      if (!job) {
+        return res.status(400).json({
+          success: false,
+          message: 'Job not found'
+        });
+      }
+      if (job.spots_filled >= job.spots_available) {
+        return res.status(400).json({
+          success: false,
+          message: 'This job is no longer accepting submissions'
+        });
+      }
+    }
+
     // Prepare media URL if file was uploaded
     let mediaUrl = null;
     if (req.file) {
-     /* console.log('S3 credentials detected:', {
-        AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
-        AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
-        AWS_REGION: process.env.AWS_REGION,
-        S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
-      });*/
       const hasS3Creds = (
         process.env.AWS_ACCESS_KEY_ID &&
         process.env.AWS_SECRET_ACCESS_KEY &&
@@ -466,7 +915,7 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
         process.env.S3_BUCKET_NAME
       );
       if (hasS3Creds) {
-        // S3 upload as before
+        // S3 upload
         try {
           mediaUrl = await uploadToS3(req.file, req.file.originalname);
           console.log('Uploaded to S3:', mediaUrl);
@@ -487,32 +936,33 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       }
       console.log('File uploaded:', mediaUrl);
     }
-
+ 
     // Save to database
     const submission = await SubmissionsModel.create({
       customerEmail,
       type,
       content,
       mediaUrl,
-      status: 'pending'
+      status: 'pending',
+      jobId: req.body.jobId || null
     });
-
+ 
     console.log('Saved submission:', submission);
-
+ 
     // Send notification email to admin
     await sendNotificationEmail({
       subject: 'New UGC Submission Received',
       text: `A new submission was received from ${customerEmail}.\nType: ${type}\nContent: ${content}`,
       html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p>Type: ${type}</p><p>Content: ${content}</p>`
     });
-
+ 
     // Send confirmation email to customer
     await sendCustomerConfirmationEmail({
       to: customerEmail,
       customerName: customerEmail,
       type
     });
-
+ 
     res.json({
       success: true,
       message: 'Submission received!',
@@ -526,10 +976,10 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       error: error.message
     });
   }
-});
-
-// Get submissions endpoint
-app.get('/api/admin/submissions', shopify.ensureInstalledOnShop(), async (req, res) => {
+ });
+ 
+ // Get submissions endpoint
+ app.get('/api/admin/submissions', shopify.ensureInstalledOnShop(), async (req, res) => {
   try {
     const submissions = await SubmissionsModel.getAll();
     
@@ -541,7 +991,8 @@ app.get('/api/admin/submissions', shopify.ensureInstalledOnShop(), async (req, r
       content: sub.content,
       status: sub.status,
       mediaUrl: sub.media_url,
-      createdAt: sub.created_at
+      createdAt: sub.created_at,
+      job_title: sub.job_title
     }));
     
     res.json({ submissions: transformedSubmissions });
@@ -549,8 +1000,8 @@ app.get('/api/admin/submissions', shopify.ensureInstalledOnShop(), async (req, r
     console.error('Error fetching submissions:', error);
     res.status(500).json({ error: 'Failed to fetch submissions' });
   }
-});
-
+ });
+ 
 // Approve submission endpoint
 app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), async (req, res) => {
   try {
@@ -566,6 +1017,17 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
     await SubmissionsModel.updateStatus(submissionId, 'approved');
     console.log('Approved submission ' + submissionId);
 
+    // If this submission is for a job, increment the spots filled
+    if (submission.job_id) {
+      await JobsModel.incrementSpotsFilled(submission.job_id);
+      
+      // Check if job is now full and update status if needed
+      const job = await JobsModel.getById(submission.job_id);
+      if (job && job.spots_filled >= job.spots_available) {
+        await JobsModel.updateStatus(submission.job_id, 'completed');
+      }
+    }
+
     // Send status update email to customer
     await sendCustomerStatusEmail({
       to: submission.customer_email,
@@ -579,8 +1041,8 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
     res.status(500).json({ success: false, message: 'Failed to approve submission' });
   }
 });
-
-// Reject submission endpoint
+ 
+ // Reject submission endpoint
 app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), async (req, res) => {
   try {
     const submissionId = req.params.id;
@@ -589,6 +1051,17 @@ app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), a
     const submission = await SubmissionsModel.getById(submissionId);
     if (!submission) {
       return res.status(404).json({ success: false, message: 'Submission not found' });
+    }
+    
+    // If this was previously approved and is for a job, decrement the spots filled
+    if (submission.status === 'approved' && submission.job_id) {
+      await JobsModel.decrementSpotsFilled(submission.job_id);
+      
+      // If job was completed, set it back to active
+      const job = await JobsModel.getById(submission.job_id);
+      if (job && job.status === 'completed' && job.spots_filled < job.spots_available) {
+        await JobsModel.updateStatus(submission.job_id, 'active');
+      }
     }
     
     // Update status to rejected
@@ -608,17 +1081,17 @@ app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), a
     res.status(500).json({ success: false, message: 'Failed to reject submission' });
   }
 });
-
-// Error handling
-app.use((err, req, res, next) => {
+ 
+ // Error handling
+ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
-});
-
-const PORT = parseInt(process.env.PORT || '3000', 10);
-
-app.listen(PORT, () => {
+ });
+ 
+ const PORT = parseInt(process.env.PORT || '3000', 10);
+ 
+ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Ngrok URL: ${process.env.HOST}`);
   console.log(`Install URL: ${process.env.HOST}/api/auth?shop=YOUR-SHOP.myshopify.com`);
-});
+ });

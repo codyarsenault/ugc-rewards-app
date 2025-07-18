@@ -12,6 +12,21 @@
       margin: 0 auto;
       padding: 20px;
     }
+    .job-info {
+      background: #e3f1df;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    .job-info h2 {
+      margin: 0 0 10px 0;
+      font-size: 20px;
+      color: #4b5943;
+    }
+    .job-info p {
+      margin: 5px 0;
+      color: #4b5943;
+    }
     .form-group {
       margin-bottom: 20px;
     }
@@ -100,10 +115,28 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    .browse-jobs {
+      text-align: center;
+      margin: 30px 0;
+      padding: 20px;
+      background: #f6f6f7;
+      border-radius: 8px;
+    }
+    .browse-jobs a {
+      color: #5c6ac4;
+      text-decoration: none;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
   <h1>Share Your Experience & Get Rewarded!</h1>
+  
+  <div id="jobInfo" class="job-info" style="display:none;">
+    <h2 id="jobTitle"></h2>
+    <p id="jobDescription"></p>
+    <p><strong>Reward:</strong> <span id="jobReward"></span></p>
+  </div>
   
   <div id="message"></div>
   
@@ -113,7 +146,7 @@
       <input type="email" id="email" name="email" required>
     </div>
     
-    <div class="form-group">
+    <div class="form-group" id="typeGroup">
       <label for="type">What would you like to share?*</label>
       <select id="type" name="type" required>
         <option value="review">Written Review (10% off)</option>
@@ -148,6 +181,11 @@
     <button type="submit" id="submitBtn">Submit & Get Reward</button>
   </form>
 
+  <div class="browse-jobs">
+    <p>Looking for specific content requests?</p>
+    <a href="/jobs">Browse Available UGC Jobs →</a>
+  </div>
+
   <script>
     const form = document.getElementById('ugcForm');
     const typeSelect = document.getElementById('type');
@@ -158,9 +196,59 @@
     const fileInfo = document.getElementById('fileInfo');
     const submitBtn = document.getElementById('submitBtn');
     
-    // Get shop from URL params
+    // Get URL params
     const urlParams = new URLSearchParams(window.location.search);
     const shop = urlParams.get('shop');
+    const jobId = urlParams.get('jobId');
+    
+    // If job ID is provided, load job details
+    if (jobId) {
+      loadJobDetails(jobId);
+    }
+    
+    // Load job details
+    async function loadJobDetails(id) {
+      try {
+        const response = await fetch(`/api/public/jobs/${id}`);
+        const data = await response.json();
+        const job = data.job;
+        
+        // Display job info
+        document.getElementById('jobInfo').style.display = 'block';
+        document.getElementById('jobTitle').textContent = job.title;
+        document.getElementById('jobDescription').textContent = job.description;
+        document.getElementById('jobReward').textContent = formatReward(job);
+        
+        // Set the content type and lock it
+        document.getElementById('type').value = job.type;
+        document.getElementById('type').disabled = true;
+        document.getElementById('typeGroup').style.display = 'none';
+        
+        // Show media upload if needed
+        if (job.type === 'photo' || job.type === 'video') {
+          mediaGroup.style.display = 'block';
+          fileInput.required = true;
+        }
+        
+        // Add job requirements to content placeholder
+        if (job.requirements) {
+          document.getElementById('content').placeholder = `Requirements:\n${job.requirements}\n\nYour description...`;
+        }
+      } catch (error) {
+        console.error('Error loading job details:', error);
+      }
+    }
+    
+    // Format reward
+    function formatReward(job) {
+      if (job.reward_type === 'percentage') {
+        return job.reward_value + '% off';
+      } else if (job.reward_type === 'fixed') {
+        return '$' + job.reward_value + ' off';
+      } else {
+        return 'Free ' + (job.reward_product || 'product');
+      }
+    }
     
     // Show/hide media upload based on type
     typeSelect.addEventListener('change', (e) => {
@@ -210,6 +298,11 @@
       formData.append('type', document.getElementById('type').value);
       formData.append('content', document.getElementById('content').value);
       
+      // Add job ID if present
+      if (jobId) {
+        formData.append('jobId', jobId);
+      }
+      
       // Add file if present
       if (fileInput.files[0]) {
         formData.append('media', fileInput.files[0]);
@@ -229,6 +322,11 @@
           fileLabel.textContent = 'Choose file or drag and drop here';
           fileInfo.textContent = '';
           mediaGroup.style.display = 'none';
+          
+          // Hide form after successful submission for job
+          if (jobId) {
+            form.style.display = 'none';
+          }
         } else {
           messageDiv.innerHTML = '<div class="error">There was an error submitting your content. Please try again.</div>';
         }
@@ -269,19 +367,20 @@
       fileUploadLabel.style.backgroundColor = '#f8f9fa';
       fileUploadLabel.style.borderColor = '#dee2e6';
     }
+    
     // Handle dropped files
-   fileUploadLabel.addEventListener('drop', handleDrop, false);
-   
-   function handleDrop(e) {
-     const dt = e.dataTransfer;
-     const files = dt.files;
-     
-     if (files.length > 0) {
-       fileInput.files = files;
-       const event = new Event('change', { bubbles: true });
-       fileInput.dispatchEvent(event);
-     }
-   }
- </script>
+    fileUploadLabel.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      
+      if (files.length > 0) {
+        fileInput.files = files;
+        const event = new Event('change', { bubbles: true });
+        fileInput.dispatchEvent(event);
+      }
+    }
+  </script>
 </body>
 </html>

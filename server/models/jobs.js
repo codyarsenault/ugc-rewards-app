@@ -105,6 +105,18 @@ export const JobsModel = {
     return result.rows[0];
   },
 
+  // Add this method to your JobsModel
+async decrementSpotsFilled(id) {
+  const query = `
+    UPDATE jobs 
+    SET spots_filled = GREATEST(spots_filled - 1, 0) 
+    WHERE id = $1
+    RETURNING *
+  `;
+  const result = await pool.query(query, [id]);
+  return result.rows[0];
+},
+
   // Get submissions for a job
   async getJobSubmissions(jobId) {
     const query = `

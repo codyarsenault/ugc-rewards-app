@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Browse UGC Jobs - Get Rewarded for Your Content</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+    }
+    .header {
+      background: linear-gradient(135deg, #5c6ac4 0%, #4a5ab3 100%);
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+    }
+    .header p {
+      margin: 0;
+      font-size: 18px;
+      opacity: 0.9;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .filters {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .filters h3 {
+      margin: 0 0 15px 0;
+      font-size: 18px;
+    }
+    .filter-group {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    .filter-btn:hover {
+      border-color: #5c6ac4;
+      color: #5c6ac4;
+    }
+    .filter-btn.active {
+      background: #5c6ac4;
+      color: white;
+      border-color: #5c6ac4;
+    }
+    .jobs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+    .job-card {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+    .job-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .job-type {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #e3f2fd;
+      color: #1976d2;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .job-type.photo {
+      background: #f3e5f5;
+      color: #7b1fa2;
+    }
+    .job-type.video {
+      background: #e8f5e9;
+      color: #388e3c;
+    }
+    .job-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 10px 0;
+      color: #202223;
+    }
+    .job-description {
+      color: #616161;
+      margin-bottom: 15px;
+      font-size: 15px;
+    }
+    .job-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e1e3e5;
+    }
+    .reward {
+      font-size: 18px;
+      font-weight: 600;
+      color: #388e3c;
+    }
+    .spots-left {
+      font-size: 14px;
+      color: #616161;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #616161;
+    }
+    .empty-state h3 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      overflow-y: auto;
+    }
+    .modal-content {
+      background: white;
+      margin: 50px auto;
+      padding: 0;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 700px;
+      position: relative;
+    }
+    .modal-header {
+      padding: 30px;
+      border-bottom: 1px solid #e1e3e5;
+    }
+    .modal-body {
+      padding: 30px;
+    }
+    .close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #616161;
+      background: none;
+      border: none;
+    }
+    .close:hover {
+      color: #202223;
+    }
+    .requirements {
+      background: #f6f6f7;
+      padding: 20px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .requirements h4 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+    }
+    .requirements ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .requirements li {
+      margin-bottom: 8px;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #5c6ac4;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #4a5ab3;
+    }
+    .deadline {
+      color: #d72c0d;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Browse UGC Jobs</h1>
+    <p>Create content brands are looking for and get rewarded!</p>
+  </div>
+
+  <div class="container">
+    <div class="filters">
+      <h3>Filter by content type:</h3>
+      <div class="filter-group">
+        <button class="filter-btn active" onclick="filterJobs('all')">All Jobs</button>
+        <button class="filter-btn" onclick="filterJobs('video')">Video</button>
+        <button class="filter-btn" onclick="filterJobs('photo')">Photo</button>
+        <button class="filter-btn" onclick="filterJobs('review')">Review</button>
+      </div>
+    </div>
+
+    <div id="jobsGrid" class="jobs-grid">
+      <div class="empty-state">
+        <p>Loading available jobs...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Job Details Modal -->
+  <div id="jobModal" class="modal">
+    <div class="modal-content">
+      <button class="close" onclick="closeModal()">&times;</button>
+      <div class="modal-header">
+        <span id="modalJobType" class="job-type"></span>
+        <h2 id="modalJobTitle" class="job-title"></h2>
+        <p id="modalJobDescription" class="job-description"></p>
+      </div>
+      <div class="modal-body">
+        <div id="modalRequirements" class="requirements"></div>
+        <div id="modalJobMeta" style="margin: 20px 0;">
+          <p><strong>Reward:</strong> <span id="modalReward" class="reward"></span></p>
+          <p><strong>Spots available:</strong> <span id="modalSpots"></span></p>
+          <p id="modalDeadline" class="deadline"></p>
+        </div>
+        <div id="modalExample" style="margin: 20px 0;"></div>
+        <div style="text-align: center; margin-top: 30px;">
+          <button id="submitBtn" class="btn btn-primary" onclick="submitForJob()">Submit Content for This Job</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allJobs = [];
+    let currentFilter = 'all';
+    let selectedJob = null;
+
+    // Load jobs on page load
+    async function loadJobs() {
+      try {
+        const response = await fetch('/api/public/jobs');
+        const data = await response.json();
+        allJobs = data.jobs || [];
+        displayJobs();
+      } catch (error) {
+        console.error('Error loading jobs:', error);
+        document.getElementById('jobsGrid').innerHTML = `
+          <div class="empty-state">
+            <h3>Unable to load jobs</h3>
+            <p>Please try refreshing the page.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Display jobs based on filter
+    function displayJobs() {
+      const filteredJobs = currentFilter === 'all' 
+        ? allJobs 
+        : allJobs.filter(job => job.type === currentFilter);
+
+      const jobsGrid = document.getElementById('jobsGrid');
+
+      if (filteredJobs.length === 0) {
+        jobsGrid.innerHTML = `
+          <div class="empty-state">
+            <h3>No jobs available</h3>
+            <p>Check back soon for new opportunities!</p>
+          </div>
+        `;
+        return;
+      }
+
+      jobsGrid.innerHTML = filteredJobs.map(job => `
+        <div class="job-card" onclick="openJobModal(${job.id})">
+          <span class="job-type ${job.type}">${job.type}</span>
+          <h3 class="job-title">${job.title}</h3>
+          <p class="job-description">${job.description.substring(0, 150)}${job.description.length > 150 ? '...' : ''}</p>
+          <div class="job-meta">
+            <span class="reward">${formatReward(job)}</span>
+            <span class="spots-left">${job.spots_available - job.spots_filled} spots left</span>
+          </div>
+          ${job.deadline ? `<p class="deadline">Deadline: ${new Date(job.deadline).toLocaleDateString()}</p>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // Filter jobs
+    function filterJobs(type) {
+      currentFilter = type;
+      
+      // Update active button
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      displayJobs();
+    }
+
+    // Format reward display
+    function formatReward(job) {
+      if (job.reward_type === 'percentage') {
+        return job.reward_value + '% off';
+      } else if (job.reward_type === 'fixed') {
+        return '$' + job.reward_value + ' off';
+      } else {
+        return 'Free ' + (job.reward_product || 'product');
+      }
+    }
+
+    // Open job modal
+    async function openJobModal(jobId) {
+      try {
+        const response = await fetch(`/api/public/jobs/${jobId}`);
+        const data = await response.json();
+        selectedJob = data.job;
+
+        // Populate modal
+        document.getElementById('modalJobType').textContent = selectedJob.type;
+        document.getElementById('modalJobType').className = `job-type ${selectedJob.type}`;
+        document.getElementById('modalJobTitle').textContent = selectedJob.title;
+        document.getElementById('modalJobDescription').textContent = selectedJob.description;
+        
+        // Requirements
+        if (selectedJob.requirements) {
+          const reqList = selectedJob.requirements.split('\n').filter(r => r.trim());
+          document.getElementById('modalRequirements').innerHTML = `
+            <h4>Requirements:</h4>
+            <ul>
+              ${reqList.map(req => `<li>${req}</li>`).join('')}
+            </ul>
+          `;
+        } else {
+          document.getElementById('modalRequirements').innerHTML = '';
+        }
+
+        // Meta info
+        document.getElementById('modalReward').textContent = formatReward(selectedJob);
+        document.getElementById('modalSpots').textContent = `${selectedJob.spots_available - selectedJob.spots_filled} of ${selectedJob.spots_available}`;
+        
+        if (selectedJob.deadline) {
+          document.getElementById('modalDeadline').textContent = `Deadline: ${new Date(selectedJob.deadline).toLocaleDateString()}`;
+        } else {
+          document.getElementById('modalDeadline').textContent = '';
+        }
+
+        // Example content
+        if (selectedJob.example_content) {
+          document.getElementById('modalExample').innerHTML = `
+            <h4>Example/Inspiration:</h4>
+            <p>${selectedJob.example_content}</p>
+          `;
+        } else {
+          document.getElementById('modalExample').innerHTML = '';
+        }
+
+        // Show modal
+        document.getElementById('jobModal').style.display = 'block';
+      } catch (error) {
+        console.error('Error loading job details:', error);
+        alert('Failed to load job details');
+      }
+    }
+
+    // Close modal
+    function closeModal() {
+      document.getElementById('jobModal').style.display = 'none';
+      selectedJob = null;
+    }
+
+    // Submit for job
+    function submitForJob() {
+      if (selectedJob) {
+        // Redirect to submission form with job ID
+        window.location.href = `/submit?jobId=${selectedJob.id}`;
+      }
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      if (event.target.classList.contains('modal')) {
+        closeModal();
+      }
+    }
+
+    // Load jobs on page load
+    loadJobs();
+  </script>
+</body>
+</html>
