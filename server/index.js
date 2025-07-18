@@ -499,7 +499,6 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   <select id="jobType" name="type" required>
                     <option value="video">Video</option>
                     <option value="photo">Photo</option>
-                    <option value="review">Review</option>
                   </select>
                 </div>
 
