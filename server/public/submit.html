@@ -12,6 +12,9 @@
       margin: 0 auto;
       padding: 20px;
     }
+    input[type="checkbox"] {
+       width: auto;
+     }
     .job-info {
       background: #e3f1df;
       padding: 20px;
@@ -156,7 +159,7 @@
     </div>
     
     <div class="form-group">
-      <label for="content">Your Review/Description*</label>
+      <label for="content">Additional comments about your submission</label>
       <textarea id="content" name="content" rows="4" required></textarea>
     </div>
     
@@ -172,7 +175,7 @@
     </div>
     
     <div class="form-group">
-      <label>
+      <label style="display: inline-flex; align-items: center; gap: 8px; width: auto; justify-content: flex-start;">
         <input type="checkbox" required>
         I agree to allow this business to use my content for marketing purposes
       </label>
