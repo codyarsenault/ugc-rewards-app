@@ -117,6 +117,14 @@ async decrementSpotsFilled(id) {
   return result.rows[0];
 },
 
+// Add this method to your JobsModel
+async delete(id) {
+  // This will cascade delete related job_submissions due to ON DELETE CASCADE
+  const query = 'DELETE FROM jobs WHERE id = $1 RETURNING *';
+  const result = await pool.query(query, [id]);
+  return result.rows[0];
+},
+
   // Get submissions for a job
   async getJobSubmissions(jobId) {
     const query = `

@@ -249,6 +249,13 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             background: #d72c0d;
             color: white;
           }
+          .btn-danger:hover {
+            background: #bc2200;
+          }
+          .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+          }
           .form-group {
             margin-bottom: 20px;
           }
@@ -374,6 +381,11 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             left: 50%;
             transform: translate(-50%, -50%);
           }
+          .job-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+          }
         </style>
       </head>
       <body>
@@ -454,13 +466,15 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           </div>
         </div>
 
-        <!-- Job Creation Modal -->
+        <!-- Job Creation/Edit Modal -->
         <div id="jobModal" class="modal">
           <div class="modal-content">
             <span class="close" onclick="closeJobModal()">&times;</span>
-            <h2>Create New UGC Job</h2>
+            <h2 id="modalTitle">Create New UGC Job</h2>
             
             <form id="jobForm">
+              <input type="hidden" id="jobId" name="jobId">
+              
               <div class="form-group">
                 <label for="jobTitle">Job Title*</label>
                 <input type="text" id="jobTitle" name="title" required 
@@ -530,9 +544,18 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                           placeholder="Links to examples or inspiration..."></textarea>
               </div>
 
+              <div class="form-group" id="statusGroup" style="display:none;">
+                <label for="status">Status*</label>
+                <select id="status" name="status">
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
               <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button type="button" class="btn btn-secondary" onclick="closeJobModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Job</button>
+                <button type="submit" class="btn btn-primary" id="submitJobBtn">Create Job</button>
               </div>
             </form>
           </div>
@@ -554,6 +577,8 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             host: new URLSearchParams(location.search).get("host"),
           });
 
+          let editingJobId = null;
+
           // Tab switching
           function switchTab(tab) {
             // Update tab buttons
@@ -573,13 +598,50 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           }
 
           // Job Modal Functions
-          function openJobModal() {
+          function openJobModal(jobId = null) {
+            editingJobId = jobId;
+            
+            if (jobId) {
+              // Edit mode
+              document.getElementById('modalTitle').textContent = 'Edit UGC Job';
+              document.getElementById('submitJobBtn').textContent = 'Update Job';
+              document.getElementById('statusGroup').style.display = 'block';
+              
+              // Load job data
+              const job = currentJobs.find(j => j.id === jobId);
+              if (job) {
+                document.getElementById('jobId').value = job.id;
+                document.getElementById('jobTitle').value = job.title;
+                document.getElementById('jobDescription').value = job.description;
+                document.getElementById('jobRequirements').value = job.requirements || '';
+                document.getElementById('jobType').value = job.type;
+                document.getElementById('spotsAvailable').value = job.spots_available;
+                document.getElementById('rewardType').value = job.reward_type;
+                document.getElementById('rewardValue').value = job.reward_value;
+                document.getElementById('rewardProduct').value = job.reward_product || '';
+                document.getElementById('deadline').value = job.deadline ? new Date(job.deadline).toISOString().slice(0, 16) : '';
+                document.getElementById('exampleContent').value = job.example_content || '';
+                document.getElementById('status').value = job.status;
+                
+                // Update reward fields visibility
+                updateRewardFields();
+              }
+            } else {
+              // Create mode
+              document.getElementById('modalTitle').textContent = 'Create New UGC Job';
+              document.getElementById('submitJobBtn').textContent = 'Create Job';
+              document.getElementById('statusGroup').style.display = 'none';
+              document.getElementById('jobForm').reset();
+              document.getElementById('jobId').value = '';
+            }
+            
             document.getElementById('jobModal').style.display = 'block';
           }
 
           function closeJobModal() {
             document.getElementById('jobModal').style.display = 'none';
             document.getElementById('jobForm').reset();
+            editingJobId = null;
           }
 
           function updateRewardFields() {
@@ -604,12 +666,14 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             }
           }
 
-          // Create Job
+          // Create/Update Job
           document.getElementById('jobForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const formData = new FormData(e.target);
             const jobData = Object.fromEntries(formData);
+            const jobId = jobData.jobId;
+            delete jobData.jobId;
             
             // Convert deadline to ISO format if provided
             if (jobData.deadline) {
@@ -618,8 +682,13 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             
             try {
               const queryParams = window.location.search;
-              const response = await fetch('/api/admin/jobs' + queryParams, {
-                method: 'POST',
+              const url = jobId 
+                ? '/api/admin/jobs/' + jobId + queryParams
+                : '/api/admin/jobs' + queryParams;
+              const method = jobId ? 'PUT' : 'POST';
+              
+              const response = await fetch(url, {
+                method: method,
                 headers: {
                   'Content-Type': 'application/json',
                 },
@@ -629,15 +698,17 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               if (response.ok) {
                 closeJobModal();
                 loadJobs();
-                alert('Job created successfully!');
+                alert(jobId ? 'Job updated successfully!' : 'Job created successfully!');
               } else {
-                alert('Failed to create job');
+                alert('Failed to ' + (jobId ? 'update' : 'create') + ' job');
               }
             } catch (error) {
-              console.error('Error creating job:', error);
-              alert('Error creating job');
+              console.error('Error saving job:', error);
+              alert('Error saving job');
             }
           });
+
+          let currentJobs = [];
 
           // Load Jobs
           async function loadJobs() {
@@ -646,19 +717,19 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               const response = await fetch('/api/admin/jobs' + queryParams);
               const data = await response.json();
               
-              const jobs = data.jobs || [];
+              currentJobs = data.jobs || [];
               
               // Update stats
-              document.getElementById('totalJobs').textContent = jobs.length;
+              document.getElementById('totalJobs').textContent = currentJobs.length;
               document.getElementById('activeJobs').textContent = 
-                jobs.filter(j => j.status === 'active').length;
+                currentJobs.filter(j => j.status === 'active').length;
               document.getElementById('completedJobs').textContent = 
-                jobs.filter(j => j.status === 'completed').length;
+                currentJobs.filter(j => j.status === 'completed').length;
               
               // Update jobs list
               const jobsList = document.getElementById('jobsList');
               
-              if (jobs.length === 0) {
+              if (currentJobs.length === 0) {
                 jobsList.innerHTML = \`
                   <div class="empty-state">
                     <p>No jobs created yet.</p>
@@ -666,7 +737,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   </div>
                 \`;
               } else {
-                jobsList.innerHTML = jobs.map(job => \`
+                jobsList.innerHTML = currentJobs.map(job => \`
                   <div class="job-card">
                     <div class="job-info">
                       <h3>\${job.title}</h3>
@@ -677,9 +748,10 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                         \${job.deadline ? \`<span>Deadline: \${new Date(job.deadline).toLocaleDateString()}</span>\` : ''}
                       </div>
                     </div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
+                    <div class="job-actions">
                       <span class="job-status status-\${job.status}">\${job.status}</span>
-                      <button class="btn btn-secondary" onclick="viewJob(\${job.id})">View</button>
+                      <button class="btn btn-sm btn-secondary" onclick="openJobModal(\${job.id})">Edit</button>
+                      <button class="btn btn-sm btn-danger" onclick="deleteJob(\${job.id})">Delete</button>
                     </div>
                   </div>
                 \`).join('');
@@ -694,6 +766,30 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             }
           }
 
+          // Delete job
+          async function deleteJob(jobId) {
+            if (!confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+              return;
+            }
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await fetch('/api/admin/jobs/' + jobId + queryParams, {
+                method: 'DELETE'
+              });
+              
+              if (response.ok) {
+                loadJobs();
+                alert('Job deleted successfully!');
+              } else {
+                alert('Failed to delete job');
+              }
+            } catch (error) {
+              console.error('Error deleting job:', error);
+              alert('Error deleting job');
+            }
+          }
+
           // Format reward display
           function formatReward(job) {
             if (job.reward_type === 'percentage') {
@@ -703,12 +799,6 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             } else {
               return 'Free ' + (job.reward_product || 'product');
             }
-          }
-
-          // View job details (placeholder for now)
-          function viewJob(jobId) {
-            // In a future update, this could open a modal with job details and submissions
-            alert('Job details view coming soon! Job ID: ' + jobId);
           }
 
           // Load submissions

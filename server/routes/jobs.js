@@ -72,6 +72,33 @@ router.get('/public/jobs', async (req, res) => {
   }
 });
 
+// Delete job (admin)
+router.delete('/admin/jobs/:id', async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    
+    // Check if job exists
+    const job = await JobsModel.getById(jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    // Check if job belongs to this shop
+    const shopDomain = res.locals.shopify?.session?.shop || 'default-shop';
+    if (job.shop_domain !== shopDomain) {
+      return res.status(403).json({ error: 'Unauthorized to delete this job' });
+    }
+    
+    // Delete the job
+    await JobsModel.delete(jobId);
+    
+    res.json({ success: true, message: 'Job deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting job:', error);
+    res.status(500).json({ error: 'Failed to delete job' });
+  }
+ });
+
 // Get specific job details (public)
 router.get('/public/jobs/:id', async (req, res) => {
   try {
