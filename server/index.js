@@ -110,6 +110,9 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
         <style>
+          *, *::before, *::after {
+            box-sizing: border-box;
+          }
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
@@ -284,18 +287,31 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             gap: 20px;
           }
           .modal {
-            display: none;
+            display: none; /* Hide by default */
+            align-items: center;
+            justify-content: center;
             position: fixed;
             z-index: 1000;
             left: 0;
             top: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             background-color: rgba(0,0,0,0.5);
+          }
+          .modal-content form {
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+          }
+          .modal.open {
+            display: flex;
+            justify-content: center;
+            align-items: center;
           }
           .modal-content {
             background: white;
-            margin: 50px auto;
+        +   margin: auto;            /* horizontally & vertically center in the flex container */
             padding: 30px;
             border-radius: 8px;
             width: 90%;
@@ -303,6 +319,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             max-height: 90vh;
             overflow-y: auto;
             position: relative;
+        +   box-sizing: border-box;  /* makes padding count _inside_ your 600px max-width */
           }
           .close {
             position: absolute;
@@ -634,11 +651,11 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               document.getElementById('jobId').value = '';
             }
             
-            document.getElementById('jobModal').style.display = 'block';
+            document.getElementById('jobModal').classList.add('open');
           }
 
           function closeJobModal() {
-            document.getElementById('jobModal').style.display = 'none';
+            document.getElementById('jobModal').classList.remove('open');
             document.getElementById('jobForm').reset();
             editingJobId = null;
           }
@@ -887,7 +904,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             const modalImg = document.getElementById('modalImage');
             const modalVideo = document.getElementById('modalVideo');
             
-            modal.style.display = 'block';
+            modal.classList.add('open');
             
             if (type === 'video') {
               modalImg.style.display = 'none';
@@ -903,7 +920,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           function closeModal() {
             const modal = document.getElementById('mediaModal');
             const modalVideo = document.getElementById('modalVideo');
-            modal.style.display = 'none';
+            modal.classList.remove('open');
             modalVideo.pause();
             modalVideo.src = '';
           }
