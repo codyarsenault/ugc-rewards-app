@@ -159,7 +159,7 @@
     </div>
     
     <div class="form-group">
-      <label for="content">Additional comments about your submission</label>
+      <label for="content">Any additional comments about your submission?</label>
       <textarea id="content" name="content" rows="4" required></textarea>
     </div>
     
@@ -185,8 +185,8 @@
   </form>
 
   <div class="browse-jobs">
-    <p>Looking for specific content requests?</p>
-    <a href="/jobs">Browse Available UGC Jobs →</a>
+    <p>Want to reply to a different content requests?</p>
+    <a href="/jobs">Browse All Available UGC Jobs →</a>
   </div>
 
   <script>
@@ -234,9 +234,9 @@
         }
         
         // Add job requirements to content placeholder
-        if (job.requirements) {
-          document.getElementById('content').placeholder = `Requirements:\n${job.requirements}\n\nYour description...`;
-        }
+        //if (job.requirements) {
+        //  document.getElementById('content').placeholder = `Requirements:\n${job.requirements}\n\nYour description...`;
+        //}
       } catch (error) {
         console.error('Error loading job details:', error);
       }
