@@ -66,12 +66,26 @@ export const JobsModel = {
 
   // Update job
   async update(id, updates) {
+    // Map camelCase keys to snake_case for DB columns
+    const mapping = {
+      shopDomain: 'shop_domain',
+      rewardType: 'reward_type',
+      rewardValue: 'reward_value',
+      rewardProduct: 'reward_product',
+      spotsAvailable: 'spots_available',
+      spotsFilled: 'spots_filled',
+      exampleContent: 'example_content',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at'
+      // Add more mappings as needed
+    };
     const fields = [];
     const values = [];
     let paramCount = 1;
 
     Object.entries(updates).forEach(([key, value]) => {
-      fields.push(`${key} = $${paramCount}`);
+      const dbKey = mapping[key] || key;
+      fields.push(`${dbKey} = $${paramCount}`);
       values.push(value);
       paramCount++;
     });

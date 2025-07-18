@@ -535,7 +535,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
               <div class="form-group">
                 <label for="deadline">Deadline*</label>
-                <input type="datetime-local" id="deadline" name="deadline">
+                <input type="date" id="deadline" name="deadline">
               </div>
 
               <div class="form-group">
@@ -619,7 +619,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 document.getElementById('rewardType').value = job.reward_type;
                 document.getElementById('rewardValue').value = job.reward_value;
                 document.getElementById('rewardProduct').value = job.reward_product || '';
-                document.getElementById('deadline').value = job.deadline ? new Date(job.deadline).toISOString().slice(0, 16) : '';
+                document.getElementById('deadline').value = job.deadline ? new Date(job.deadline).toISOString().slice(0, 10) : '';
                 document.getElementById('exampleContent').value = job.example_content || '';
                 document.getElementById('status').value = job.status;
                 
@@ -675,8 +675,12 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             const jobId = jobData.jobId;
             delete jobData.jobId;
             
-            // Convert deadline to ISO format if provided
+            // Convert deadline to end of day ISO format if provided
             if (jobData.deadline) {
+              // If deadline is just a date (YYYY-MM-DD), append time
+              if (/^\d{4}-\d{2}-\d{2}$/.test(jobData.deadline)) {
+                jobData.deadline = jobData.deadline + 'T23:59:59';
+              }
               jobData.deadline = new Date(jobData.deadline).toISOString();
             }
             
