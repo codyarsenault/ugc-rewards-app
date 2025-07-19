@@ -944,6 +944,28 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             document.getElementById('jobViewModal').classList.remove('open');
           }
 
+          // View job from submission link
+          async function viewJobFromSubmission(event, jobId) {
+            event.preventDefault();
+            
+            // If we're not on the jobs tab, we need to fetch the job data
+            if (!currentJobs || currentJobs.length === 0) {
+              try {
+                const queryParams = window.location.search;
+                const response = await fetch('/api/admin/jobs' + queryParams);
+                const data = await response.json();
+                currentJobs = data.jobs || [];
+              } catch (error) {
+                console.error('Error loading jobs:', error);
+                alert('Failed to load job details');
+                return;
+              }
+            }
+            
+            // Now show the job details
+            viewJobDetails(jobId);
+          }
+
           // Format reward display
           function formatReward(job) {
             if (job.reward_type === 'percentage') {
@@ -1003,7 +1025,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                           <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
                           <td>\${sub.customerEmail}</td>
                           <td>\${sub.type}</td>
-                          <td>\${sub.job_title || '-'}</td>
+                          <td>\${sub.job_title ? \`<a href="#" onclick="viewJobFromSubmission(event, \${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">\${sub.job_title}</a>\` : '-'}</td>
                           <td class="review-content">\${sub.content || 'No content'}</td>
                           <td>
                             \${sub.mediaUrl ? (
@@ -1240,7 +1262,8 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       status: sub.status,
       mediaUrl: sub.media_url,
       createdAt: sub.created_at,
-      job_title: sub.job_title
+      job_title: sub.job_title,
+      job_id: sub.job_id
     }));
     
     res.json({ submissions: transformedSubmissions });
