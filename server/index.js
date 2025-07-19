@@ -140,6 +140,45 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             color: #616161;
             transition: all 0.2s;
           }
+          .requirements-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+          }
+          .requirement-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+          }
+          .requirement-item input {
+            flex: 1;
+          }
+          .btn-remove {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+          }
+          .btn-remove:hover {
+            background: #c82333;
+          }
+          .btn-add {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+          }
+          .btn-add:hover {
+            background: #218838;
+          }
           .tab:hover {
             color: #202223;
           }
@@ -514,10 +553,15 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               </div>
 
               <div class="form-group">
-                <label for="jobRequirements">Specific Requirements</label>
-                <textarea id="jobRequirements" name="requirements"
-                          placeholder="e.g., Must show product in use, natural lighting, include our hashtag..."></textarea>
-              </div>
+                 <label>Specific Requirements</label>
+                 <ul id="requirementsList" class="requirements-list">
+                   <li class="requirement-item">
+                     <input type="text" class="requirement-input" placeholder="e.g., Must show product in use">
+                     <button type="button" class="btn-remove" onclick="removeRequirement(this)">Remove</button>
+                   </li>
+                 </ul>
+                 <button type="button" class="btn-add" onclick="addRequirement()">+ Add Requirement</button>
+               </div>
 
               <div class="form-row">
                 <div class="form-group">
@@ -715,7 +759,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 document.getElementById('jobId').value = job.id;
                 document.getElementById('jobTitle').value = job.title;
                 document.getElementById('jobDescription').value = job.description;
-                document.getElementById('jobRequirements').value = job.requirements || '';
+                setRequirementsFromString(job.requirements || '');
                 document.getElementById('jobType').value = job.type;
                 document.getElementById('spotsAvailable').value = job.spots_available;
                 document.getElementById('rewardType').value = job.reward_type;
@@ -736,6 +780,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               document.getElementById('statusGroup').style.display = 'none';
               document.getElementById('jobForm').reset();
               document.getElementById('jobId').value = '';
+              setRequirementsFromString(''); // This will create one empty requirement input
             }
             
             document.getElementById('jobModal').classList.add('open');
@@ -784,8 +829,12 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           document.getElementById('jobForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            // Get requirements as a newline-separated string
+            const requirementsString = getRequirementsString();
+            
             const formData = new FormData(e.target);
             const jobData = Object.fromEntries(formData);
+            jobData.requirements = requirementsString; // Add this line
             const jobId = jobData.jobId;
             delete jobData.jobId;
             
@@ -916,7 +965,21 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             // Populate the view modal
             document.getElementById('viewJobTitle').textContent = job.title;
             document.getElementById('viewJobDescription').textContent = job.description;
-            document.getElementById('viewJobRequirements').textContent = job.requirements || 'No specific requirements';
+            
+            // Display requirements as bullet points
+            const requirementsElement = document.getElementById('viewJobRequirements');
+            if (job.requirements) {
+              const requirements = job.requirements.split('\\n').filter(r => r.trim());
+              if (requirements.length > 0) {
+                requirementsElement.innerHTML = '<ul style="margin: 5px 0; padding-left: 20px;">' + 
+                  requirements.map(req => \`<li>\${req}</li>\`).join('') + 
+                  '</ul>';
+              } else {
+                requirementsElement.textContent = 'No specific requirements';
+              }
+            } else {
+              requirementsElement.textContent = 'No specific requirements';
+            }
             document.getElementById('viewJobType').textContent = job.type.charAt(0).toUpperCase() + job.type.slice(1);
             document.getElementById('viewJobStatus').textContent = job.status;
             document.getElementById('viewJobStatus').className = 'job-status status-' + job.status;
@@ -1131,6 +1194,60 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               } else if (event.target.id === 'jobViewModal') {
                 closeJobViewModal();
               }
+            }
+          }
+
+          // Add new requirement input
+          function addRequirement() {
+            const requirementsList = document.getElementById('requirementsList');
+            const newItem = document.createElement('li');
+            newItem.className = 'requirement-item';
+            newItem.innerHTML = \`
+              <input type="text" class="requirement-input" placeholder="Enter requirement">
+              <button type="button" class="btn-remove" onclick="removeRequirement(this)">Remove</button>
+            \`;
+            requirementsList.appendChild(newItem);
+          }
+
+          // Remove requirement input
+          function removeRequirement(button) {
+            const requirementsList = document.getElementById('requirementsList');
+            // Always keep at least one requirement input
+            if (requirementsList.children.length > 1) {
+              button.parentElement.remove();
+            }
+          }
+
+          // Get requirements as formatted string
+          function getRequirementsString() {
+            const inputs = document.querySelectorAll('.requirement-input');
+            const requirements = Array.from(inputs)
+              .map(input => input.value.trim())
+              .filter(value => value !== '');
+            return requirements.join('\\n');
+          }
+
+          // Set requirements from string
+          function setRequirementsFromString(requirementsString) {
+            const requirementsList = document.getElementById('requirementsList');
+            requirementsList.innerHTML = ''; // Clear existing
+            
+            if (requirementsString) {
+              const requirements = requirementsString.split('\\n').filter(r => r.trim());
+              requirements.forEach(req => {
+                const newItem = document.createElement('li');
+                newItem.className = 'requirement-item';
+                newItem.innerHTML = \`
+                  <input type="text" class="requirement-input" value="\${req}" placeholder="Enter requirement">
+                  <button type="button" class="btn-remove" onclick="removeRequirement(this)">Remove</button>
+                \`;
+                requirementsList.appendChild(newItem);
+              });
+            }
+            
+            // If no requirements or empty, add one empty input
+            if (requirementsList.children.length === 0) {
+              addRequirement();
             }
           }
 
