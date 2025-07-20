@@ -7,9 +7,10 @@ export const JobsModel = {
       INSERT INTO jobs (
         shop_domain, title, description, requirements, type, 
         reward_type, reward_value, reward_product, reward_giftcard_amount, spots_available, 
-        deadline, example_content
+        deadline, example_content, reward_product_id, reward_product_handle, 
+        reward_product_image, reward_product_price
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `;
     const values = [
@@ -19,12 +20,16 @@ export const JobsModel = {
       job.requirements,
       job.type,
       job.rewardType || 'percentage',
-      job.rewardValue,
-      job.rewardProduct,
-      job.rewardGiftCardAmount, // <-- add this line
+      job.rewardValue || null,  // Convert empty string to null
+      job.rewardProduct || null,
+      job.rewardGiftCardAmount || null,  // Convert empty string to null
       job.spotsAvailable || 1,
-      job.deadline,
-      job.exampleContent
+      job.deadline || null,
+      job.exampleContent || null,
+      job.rewardProductId || null,
+      job.rewardProductHandle || null,
+      job.rewardProductImage || null,
+      job.rewardProductPrice || null
     ];
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -78,6 +83,10 @@ export const JobsModel = {
       exampleContent: 'example_content',
       createdAt: 'created_at',
       rewardGiftCardAmount: 'reward_giftcard_amount',
+      rewardProductId: 'reward_product_id',           // Add this
+      rewardProductHandle: 'reward_product_handle',   // Add this
+      rewardProductImage: 'reward_product_image',     // Add this
+      rewardProductPrice: 'reward_product_price',     // Add this
       updatedAt: 'updated_at'
       // Add more mappings as needed
     };
@@ -88,7 +97,14 @@ export const JobsModel = {
     Object.entries(updates).forEach(([key, value]) => {
       const dbKey = mapping[key] || key;
       fields.push(`${dbKey} = $${paramCount}`);
-      values.push(value);
+      
+      // Convert empty strings to null for numeric fields
+      let processedValue = value;
+      if (value === '' && ['reward_value', 'spots_available', 'spots_filled', 'reward_giftcard_amount', 'reward_product_price'].includes(dbKey)) {
+        processedValue = null;
+      }
+      
+      values.push(processedValue);
       paramCount++;
     });
 

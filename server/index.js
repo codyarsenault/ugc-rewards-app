@@ -597,9 +597,23 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 </div>
 
                 <div class="form-group" id="rewardProductGroup" style="display:none;">
-                  <label for="rewardProduct">Product Name*</label>
-                  <input type="text" id="rewardProduct" name="rewardProduct" 
-                         placeholder="Product name">
+                  <label for="rewardProduct">Product*</label>
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="rewardProduct" name="rewardProduct" 
+                          placeholder="Select a product" readonly style="flex: 1;">
+                    <input type="hidden" id="rewardProductId" name="rewardProductId">
+                    <input type="hidden" id="rewardProductHandle" name="rewardProductHandle">
+                    <button type="button" class="btn btn-secondary" onclick="openProductPicker()">Browse Products</button>
+                  </div>
+                  <div id="selectedProductInfo" style="margin-top: 10px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <img id="productImage" src="" alt="" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                      <div>
+                        <div id="productTitle" style="font-weight: 500;"></div>
+                        <div id="productPrice" style="font-size: 13px; color: #616161;"></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="form-group" id="rewardGiftCardGroup" style="display:none;">
@@ -723,6 +737,64 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             host: new URLSearchParams(location.search).get("host"),
           });
 
+          // Initialize Shopify App Bridge ResourcePicker
+          const ResourcePicker = window['app-bridge'].actions.ResourcePicker;
+
+          // Open product picker
+          function openProductPicker() {
+            const productPicker = ResourcePicker.create(app, {
+              resourceType: ResourcePicker.ResourceType.Product,
+              options: {
+                selectMultiple: false,
+                showVariants: false
+              }
+            });
+
+            productPicker.subscribe(ResourcePicker.Action.SELECT, (selectPayload) => {
+              const selection = selectPayload.selection;
+              if (selection && selection.length > 0) {
+                const product = selection[0];
+                
+                // Set the product information
+                document.getElementById('rewardProduct').value = product.title;
+                document.getElementById('rewardProductId').value = product.id;
+                document.getElementById('rewardProductHandle').value = product.handle;
+                
+                // Show product info
+                const productInfo = document.getElementById('selectedProductInfo');
+                productInfo.style.display = 'block';
+                
+                // Set product image
+                const productImage = document.getElementById('productImage');
+                if (product.images && product.images.length > 0) {
+                  productImage.src = product.images[0].originalSrc;
+                  productImage.alt = product.title;
+                } else {
+                  productImage.src = '';
+                }
+                
+                // Set product title and price
+                document.getElementById('productTitle').textContent = product.title;
+                
+                // Get the price from variants
+                if (product.variants && product.variants.length > 0) {
+                  const price = product.variants[0].price;
+                  document.getElementById('productPrice').textContent = '$' + price;
+                }
+              }
+            });
+
+            productPicker.dispatch(ResourcePicker.Action.OPEN);
+          }
+
+          // Clear product selection
+          function clearProductSelection() {
+            document.getElementById('rewardProduct').value = '';
+            document.getElementById('rewardProductId').value = '';
+            document.getElementById('rewardProductHandle').value = '';
+            document.getElementById('selectedProductInfo').style.display = 'none';
+          }
+
           let editingJobId = null;
 
           // Tab switching
@@ -766,6 +838,30 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 document.getElementById('rewardValue').value = job.reward_value;
                 document.getElementById('rewardProduct').value = job.reward_product || '';
                 document.getElementById('rewardGiftCardAmount').value = job.reward_giftcard_amount || '';
+                
+                // Handle product data when editing
+                if (job.reward_type === 'product' && job.reward_product) {
+                  document.getElementById('rewardProduct').value = job.reward_product;
+                  document.getElementById('rewardProductId').value = job.reward_product_id || '';
+                  document.getElementById('rewardProductHandle').value = job.reward_product_handle || '';
+                  
+                  // Show product info if we have the data
+                  if (job.reward_product_image || job.reward_product_price) {
+                    const productInfo = document.getElementById('selectedProductInfo');
+                    productInfo.style.display = 'block';
+                    
+                    if (job.reward_product_image) {
+                      document.getElementById('productImage').src = job.reward_product_image;
+                      document.getElementById('productImage').alt = job.reward_product;
+                    }
+                    
+                    document.getElementById('productTitle').textContent = job.reward_product;
+                    if (job.reward_product_price) {
+                      document.getElementById('productPrice').textContent = '$' + job.reward_product_price;
+                    }
+                  }
+                }
+                
                 document.getElementById('deadline').value = job.deadline ? new Date(job.deadline).toISOString().slice(0, 10) : '';
                 document.getElementById('exampleContent').value = job.example_content || '';
                 document.getElementById('status').value = job.status;
@@ -793,37 +889,41 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           }
 
           function updateRewardFields() {
-            const rewardType = document.getElementById('rewardType').value;
-            const valueGroup = document.getElementById('rewardValueGroup');
-            const productGroup = document.getElementById('rewardProductGroup');
-            const giftCardGroup = document.getElementById('rewardGiftCardGroup');
-            
-            if (rewardType === 'product') {
-              valueGroup.style.display = 'none';
-              productGroup.style.display = 'block';
-              giftCardGroup.style.display = 'none';
-              document.getElementById('rewardValue').required = false;
-              document.getElementById('rewardProduct').required = true;
-              document.getElementById('rewardGiftCardAmount').required = false;
-            } else if (rewardType === 'giftcard') {
-              valueGroup.style.display = 'none';
-              productGroup.style.display = 'none';
-              giftCardGroup.style.display = 'block';
-              document.getElementById('rewardValue').required = false;
-              document.getElementById('rewardProduct').required = false;
-              document.getElementById('rewardGiftCardAmount').required = true;
-            } else {
-              valueGroup.style.display = 'block';
-              productGroup.style.display = 'none';
-              giftCardGroup.style.display = 'none';
-              document.getElementById('rewardValue').required = true;
-              document.getElementById('rewardProduct').required = false;
-              document.getElementById('rewardGiftCardAmount').required = false;
-              // Update label based on type
-              const label = rewardType === 'percentage' ? 'Discount Percentage' : 'Amount Off ($)';
-              valueGroup.querySelector('label').textContent = label + '*';
-            }
+          const rewardType = document.getElementById('rewardType').value;
+          const valueGroup = document.getElementById('rewardValueGroup');
+          const productGroup = document.getElementById('rewardProductGroup');
+          const giftCardGroup = document.getElementById('rewardGiftCardGroup');
+          
+          if (rewardType === 'product') {
+            valueGroup.style.display = 'none';
+            productGroup.style.display = 'block';
+            giftCardGroup.style.display = 'none';
+            document.getElementById('rewardValue').required = false;
+            document.getElementById('rewardProduct').required = true;
+            document.getElementById('rewardGiftCardAmount').required = false;
+          } else if (rewardType === 'giftcard') {
+            valueGroup.style.display = 'none';
+            productGroup.style.display = 'none';
+            giftCardGroup.style.display = 'block';
+            document.getElementById('rewardValue').required = false;
+            document.getElementById('rewardProduct').required = false;
+            document.getElementById('rewardGiftCardAmount').required = true;
+            // Clear product selection when switching away
+            clearProductSelection();
+          } else {
+            valueGroup.style.display = 'block';
+            productGroup.style.display = 'none';
+            giftCardGroup.style.display = 'none';
+            document.getElementById('rewardValue').required = true;
+            document.getElementById('rewardProduct').required = false;
+            document.getElementById('rewardGiftCardAmount').required = false;
+            // Update label based on type
+            const label = rewardType === 'percentage' ? 'Discount Percentage' : 'Amount Off ($)';
+            valueGroup.querySelector('label').textContent = label + '*';
+            // Clear product selection when switching away
+            clearProductSelection();
           }
+        }
 
           // Create/Update Job
           document.getElementById('jobForm').addEventListener('submit', async (e) => {
