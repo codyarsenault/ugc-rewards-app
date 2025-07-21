@@ -8,9 +8,11 @@ import { SubmissionsModel } from './models/submissions.js';
 import multer from 'multer';
 import fs from 'fs';
 import { uploadToS3 } from './setup-s3.js';
-import { sendNotificationEmail, sendCustomerConfirmationEmail, sendCustomerStatusEmail } from './services/email.js';
+import { sendNotificationEmail, sendCustomerConfirmationEmail, sendCustomerStatusEmail, sendRewardCodeEmail } from './services/email.js';
 import jobRoutes from './routes/jobs.js';
 import { JobsModel } from './models/jobs.js';
+import { ShopifyDiscountService } from './services/shopifyDiscount.js';
+import { RewardsModel } from './models/rewards.js';
 
 dotenv.config();
 
@@ -45,7 +47,7 @@ const shopify = shopifyApp({
   api: {
     apiKey: process.env.SHOPIFY_API_KEY,
     apiSecretKey: process.env.SHOPIFY_API_SECRET,
-    scopes: ['write_discounts', 'read_customers'],
+    scopes: ['write_discounts', 'read_customers', 'write_price_rules'], // Add write_price_rules here
     hostName: (process.env.HOST || 'localhost:3000').replace(/https?:\/\//, ''),
     apiVersion: '2023-10',
   },
@@ -1490,7 +1492,8 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
   }
  });
  
-// Approve submission endpoint
+// Approve submissions endpoint
+// Update your approval endpoint
 app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), async (req, res) => {
   try {
     const submissionId = req.params.id;
@@ -1505,14 +1508,153 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
     await SubmissionsModel.updateStatus(submissionId, 'approved');
     console.log('Approved submission ' + submissionId);
 
-    // If this submission is for a job, increment the spots filled
+    // If this submission is for a job, handle the reward
     if (submission.job_id) {
+      // Increment spots filled
       await JobsModel.incrementSpotsFilled(submission.job_id);
       
-      // Check if job is now full and update status if needed
+      // Get job details
       const job = await JobsModel.getById(submission.job_id);
+      console.log('Job details:', job);
+      
+      // Check if job is now full and update status if needed
       if (job && job.spots_filled >= job.spots_available) {
         await JobsModel.updateStatus(submission.job_id, 'completed');
+      }
+      
+      // Handle automatic rewards for discount codes
+      if (job && (job.reward_type === 'percentage' || job.reward_type === 'fixed')) {
+        console.log('Attempting to create discount code for job:', job.id);
+        
+        try {
+          // Get the shop domain from the job
+          const shopDomain = job.shop_domain;
+          console.log('Shop domain:', shopDomain);
+          
+          // Load the session from the database
+          const sessions = await shopify.sessionStorage.findSessionsByShop(shopDomain);
+          console.log('Found sessions:', sessions.length);
+          
+          if (!sessions || sessions.length === 0) {
+            throw new Error('No session found for shop: ' + shopDomain);
+          }
+          
+          // Use the first valid session
+          const session = sessions[0];
+          console.log('Using session:', session.id);
+          console.log('Session shop:', session.shop);
+          console.log('Session has access token:', !!session.accessToken);
+          
+          // Create GraphQL client
+          const client = new shopify.api.clients.Graphql({ session });
+          
+          // Create discount code
+          const code = `UGC${submission.id}${Date.now().toString(36).toUpperCase()}`;
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          
+          const mutation = `
+            mutation discountCodeBasicCreate($basicCodeDiscount: DiscountCodeBasicInput!) {
+              discountCodeBasicCreate(basicCodeDiscount: $basicCodeDiscount) {
+                codeDiscountNode {
+                  id
+                  codeDiscount {
+                    ... on DiscountCodeBasic {
+                      codes(first: 1) {
+                        nodes {
+                          id
+                          code
+                        }
+                      }
+                    }
+                  }
+                }
+                userErrors {
+                  field
+                  code
+                  message
+                }
+              }
+            }
+          `;
+
+          const variables = {
+            basicCodeDiscount: {
+              title: `UGC Reward - ${submission.customer_email}`,
+              code: code,
+              startsAt: new Date().toISOString(),
+              endsAt: expiresAt.toISOString(),
+              usageLimit: 1,
+              combinesWith: {
+                orderDiscounts: false,
+                productDiscounts: true,
+                shippingDiscounts: false
+              },
+              customerSelection: {
+                all: true
+              },
+              customerGets: {
+                value: job.reward_type === 'percentage' 
+                  ? { percentage: job.reward_value / 100 }
+                  : { discountAmount: { amount: parseFloat(job.reward_value), appliesOnEachItem: false } },
+                items: {
+                  all: true
+                }
+              }
+            }
+          };
+
+          console.log('Creating discount with code:', code);
+          const response = await client.query({
+            data: {
+              query: mutation,
+              variables: variables,
+            },
+          });
+
+          console.log('Shopify response:', JSON.stringify(response.body, null, 2));
+
+          if (response.body.data.discountCodeBasicCreate.userErrors.length > 0) {
+            throw new Error(response.body.data.discountCodeBasicCreate.userErrors[0].message);
+          }
+
+          const discountNode = response.body.data.discountCodeBasicCreate.codeDiscountNode;
+          
+          // Save to database
+          await RewardsModel.create({
+            submissionId: submission.id,
+            jobId: job.id,
+            type: 'discount_code',
+            code: code,
+            value: job.reward_value,
+            status: 'pending',
+            expiresAt: expiresAt,
+            shopifyPriceRuleId: discountNode.id,
+            shopifyDiscountCodeId: discountNode.codeDiscount.codes.nodes[0].id
+          });
+          
+          // Send reward email
+          await sendRewardCodeEmail({
+            to: submission.customer_email,
+            code: code,
+            value: job.reward_value,
+            type: job.reward_type,
+            expiresIn: '30 days'
+          });
+          
+          // Mark reward as sent
+          const reward = await RewardsModel.getBySubmissionId(submission.id);
+          if (reward) {
+            await RewardsModel.markAsSent(reward.id);
+          }
+          await RewardsModel.updateSubmissionRewardStatus(submission.id);
+          
+          console.log(`Reward sent to ${submission.customer_email}: ${code}`);
+        } catch (error) {
+          console.error('Error creating/sending reward:', error);
+          console.error('Error details:', error.message);
+          console.error('Error stack:', error.stack);
+          // Don't fail the approval if reward fails - log it for manual handling
+        }
       }
     }
 
