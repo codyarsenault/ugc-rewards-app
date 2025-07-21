@@ -217,6 +217,16 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             color: #008060;
             border-bottom-color: #008060;
           }
+          .filter-btn {
+            background: #f6f6f7;
+            color: #202223;
+            border: 1px solid #c9cccf;
+          }
+          .filter-btn.active {
+            background: #008060;
+            color: white;
+            border-color: #008060;
+          }
           .tab-content {
             display: none;
           }
@@ -519,6 +529,16 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
             <div class="card">
               <h1>Recent Submissions</h1>
+              <!-- Add this filter section -->
+              <div style="margin-bottom: 20px;">
+                <div class="filter-group" style="display: flex; gap: 10px;">
+                  <button class="btn btn-sm filter-btn active" onclick="filterSubmissions('pending')">Pending Review</button>
+                  <button class="btn btn-sm filter-btn" onclick="filterSubmissions('approved')">Approved</button>
+                  <button class="btn btn-sm filter-btn" onclick="filterSubmissions('rejected')">Rejected</button>
+                  <button class="btn btn-sm filter-btn" onclick="filterSubmissions('all')">All</button>
+                </div>
+              </div>
+              <!-- End of filter section -->
               <div id="submissionsTable">
                 <div class="empty-state">
                   <p>Loading submissions...</p>
@@ -1178,73 +1198,27 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             }
           }
 
-          // Load submissions
+          let allSubmissions = [];
+          let currentSubmissionFilter = 'pending';
+          
+          // Update the loadSubmissions function
           async function loadSubmissions() {
             try {
               const queryParams = window.location.search;
               const response = await fetch('/api/admin/submissions' + queryParams);
               const data = await response.json();
 
-              const submissions = data.submissions || [];
-
-              // Update stats
-              document.getElementById('totalCount').textContent = submissions.length;
+              allSubmissions = data.submissions || [];
+              
+              // Update stats for all submissions
+              document.getElementById('totalCount').textContent = allSubmissions.length;
               document.getElementById('pendingCount').textContent =
-                submissions.filter(s => s.status === 'pending').length;
+                allSubmissions.filter(s => s.status === 'pending').length;
               document.getElementById('approvedCount').textContent =
-                submissions.filter(s => s.status === 'approved').length;
+                allSubmissions.filter(s => s.status === 'approved').length;
 
-              // Update table
-              const tableDiv = document.getElementById('submissionsTable');
-
-              if (submissions.length === 0) {
-                tableDiv.innerHTML = \`
-                  <div class="empty-state">
-                    <p>No submissions yet.</p>
-                    <p>Share your submission form link with customers to start collecting content!</p>
-                  </div>
-                \`;
-              } else {
-                tableDiv.innerHTML = \`
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Customer</th>
-                        <th>Type</th>
-                        <th>Job</th>
-                        <th>Content</th>
-                        <th>Media</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      \${submissions.map(sub => \`
-                        <tr>
-                          <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
-                          <td>\${sub.customerEmail}</td>
-                          <td>\${sub.type}</td>
-                          <td>\${sub.job_title ? \`<a href="#" onclick="viewJobFromSubmission(event, \${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">\${sub.job_title}</a>\` : '-'}</td>
-                          <td class="review-content">\${sub.content || 'No content'}</td>
-                          <td>
-                            \${sub.mediaUrl ? (
-                              sub.type === 'video' 
-                                ? \`<video class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'video')" src="\${sub.mediaUrl}"></video>\`
-                                : \`<img class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'image')" src="\${sub.mediaUrl}" alt="Submission media">\`
-                            ) : '-'}
-                          </td>
-                          <td>
-                            \${sub.status === 'pending' ? \`
-                              <button onclick="approveSubmission(\${sub.id})" class="btn btn-primary">Approve</button>
-                              <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger">Reject</button>
-                            \` : sub.status}
-                          </td>
-                        </tr>
-                      \`).join('')}
-                    </tbody>
-                  </table>
-                \`;
-              }
+              // Display filtered submissions
+              displaySubmissions();
             } catch (error) {
               console.error('Error loading submissions:', error);
               document.getElementById('submissionsTable').innerHTML = \`
@@ -1252,6 +1226,100 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   <p>Error loading submissions. Please refresh the page.</p>
                 </div>
               \`;
+            }
+          }
+
+          // New function to display filtered submissions
+          function displaySubmissions() {
+            const filteredSubmissions = currentSubmissionFilter === 'all'
+              ? allSubmissions
+              : allSubmissions.filter(s => s.status === currentSubmissionFilter);
+
+            const tableDiv = document.getElementById('submissionsTable');
+
+            if (filteredSubmissions.length === 0) {
+              tableDiv.innerHTML = \`
+                <div class="empty-state">
+                  <p>No \${currentSubmissionFilter === \'all' ? '' : currentSubmissionFilter} submissions.</p>
+                </div>
+              \`;
+              return;
+            }
+
+            tableDiv.innerHTML = \`
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Type</th>
+                    <th>Job</th>
+                    <th>Content</th>
+                    <th>Media</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  \${filteredSubmissions.map(sub => \`
+                    <tr>
+                      <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
+                      <td>\${sub.customerEmail}</td>
+                      <td>\${sub.type}</td>
+                      <td>\${sub.job_title ? \`<a href="#" onclick="viewJobFromSubmission(event, \${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">\${sub.job_title}</a>\` : '-'}</td>
+                      <td class="review-content">\${sub.content || 'No content'}</td>
+                      <td>
+                        \${sub.mediaUrl ? (
+                          sub.type === 'video' 
+                            ? \`<video class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'video')" src="\${sub.mediaUrl}"></video>\`
+                            : \`<img class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'image')" src="\${sub.mediaUrl}" alt="Submission media">\`
+                        ) : '-'}
+                      </td>
+                      <td>
+                        \${sub.status === 'pending' ? \`
+                          <button onclick="approveSubmission(\${sub.id})" class="btn btn-primary btn-sm">Approve</button>
+                          <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger btn-sm">Reject</button>
+                        \` : \`<span class="status-\${sub.status}">\${sub.status}</span>\`}
+                      </td>
+                    </tr>
+                  \`).join('')}
+                </tbody>
+              </table>
+            \`;
+          }
+
+          // New function to filter submissions
+          function filterSubmissions(filter) {
+            currentSubmissionFilter = filter;
+            
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+              btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            displaySubmissions();
+          }
+
+          // Update approve/reject functions to refresh the display
+          async function approveSubmission(submissionId) {
+            if (!confirm('Are you sure you want to approve this submission? This will trigger any associated rewards.')) {
+              return;
+            }
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await fetch('/api/admin/submissions/' + submissionId + '/approve' + queryParams, {
+                method: 'POST'
+              });
+              
+              if (response.ok) {
+                loadSubmissions(); // This will refresh and maintain the current filter
+              } else {
+                alert('Failed to approve submission');
+              }
+            } catch (error) {
+              console.error('Error approving submission:', error);
+              alert('Error approving submission');
             }
           }
 
