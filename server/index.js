@@ -908,6 +908,9 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               document.getElementById('jobForm').reset();
               document.getElementById('jobId').value = '';
               setRequirementsFromString(''); // This will create one empty requirement input
+
+              // Add this line to ensure correct fields are shown
+              updateRewardFields();
             }
             
             document.getElementById('jobModal').classList.add('open');
