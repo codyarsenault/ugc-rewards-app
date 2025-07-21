@@ -1284,6 +1284,11 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
           // Approve submission function
           async function approveSubmission(submissionId) {
+            // Add confirmation dialog
+            if (!confirm('Are you sure you want to approve this submission? This will trigger any associated rewards.')) {
+              return;
+            }
+            
             try {
               const queryParams = window.location.search;
               const response = await fetch('/api/admin/submissions/' + submissionId + '/approve' + queryParams, {
@@ -1303,6 +1308,11 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
           // Reject submission function
           async function rejectSubmission(submissionId) {
+            // Add confirmation dialog
+            if (!confirm('Are you sure you want to reject this submission?')) {
+              return;
+            }
+            
             try {
               const queryParams = window.location.search;
               const response = await fetch('/api/admin/submissions/' + submissionId + '/reject' + queryParams, {
