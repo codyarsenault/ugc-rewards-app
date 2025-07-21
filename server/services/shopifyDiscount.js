@@ -1,9 +1,13 @@
-import { shopifyApp } from '@shopify/shopify-app-express';
+// services/shopifyDiscount.js
+
 import { RewardsModel } from '../models/rewards.js';
 
 export class ShopifyDiscountService {
-  constructor(session) {
-    this.session = session;
+  /**
+   * @param {import('@shopify/shopify-api').Clients.Graphql} graphqlClient
+   */
+  constructor(graphqlClient) {
+    this.client = graphqlClient;
   }
 
   generateUniqueCode(submissionId) {
@@ -16,54 +20,7 @@ export class ShopifyDiscountService {
     try {
       const code = this.generateUniqueCode(submission.id);
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-      
-      // Create GraphQL client
-      const client = new this.session.client;
-      
-      // Create price rule using GraphQL
-      const priceRuleInput = {
-        title: `UGC Reward - ${submission.customer_email}`,
-        combinesWith: {
-          productDiscounts: true,
-          shippingDiscounts: false
-        },
-        startsAt: new Date().toISOString(),
-        endsAt: expiresAt.toISOString(),
-        usageLimit: 1,
-        customerSelection: {
-          all: true
-        }
-      };
 
-      let discountInput;
-      
-      if (job.reward_type === 'percentage') {
-        discountInput = {
-          percentageBasicInput: {
-            percentage: job.reward_value / 100,
-            minimumSubtotal: {
-              amount: 0.01,
-              currencyCode: "USD"
-            }
-          }
-        };
-      } else if (job.reward_type === 'fixed') {
-        discountInput = {
-          amountBasicInput: {
-            amount: {
-              amount: job.reward_value,
-              currencyCode: "USD"
-            },
-            appliesOnEachItem: false,
-            minimumSubtotal: {
-              amount: job.reward_value,
-              currencyCode: "USD"
-            }
-          }
-        };
-      }
-
-      // GraphQL mutation to create discount
       const mutation = `
         mutation discountCodeBasicCreate($basicCodeDiscount: DiscountCodeBasicInput!) {
           discountCodeBasicCreate(basicCodeDiscount: $basicCodeDiscount) {
@@ -75,19 +32,6 @@ export class ShopifyDiscountService {
                     nodes {
                       id
                       code
-                    }
-                  }
-                  customerGets {
-                    value {
-                      ... on DiscountPercentage {
-                        percentage
-                      }
-                      ... on DiscountAmount {
-                        amount {
-                          amount
-                          currencyCode
-                        }
-                      }
                     }
                   }
                 }
@@ -103,51 +47,57 @@ export class ShopifyDiscountService {
 
       const variables = {
         basicCodeDiscount: {
+          title: `UGC Reward - ${submission.customer_email}`,
           code: code,
-          title: priceRuleInput.title,
-          combinesWith: priceRuleInput.combinesWith,
-          startsAt: priceRuleInput.startsAt,
-          endsAt: priceRuleInput.endsAt,
-          usageLimit: priceRuleInput.usageLimit,
-          customerSelection: priceRuleInput.customerSelection,
+          startsAt: new Date().toISOString(),
+          endsAt: expiresAt.toISOString(),
+          usageLimit: 1,
+          customerSelection: { all: true },
+          combinesWith: {
+            orderDiscounts: true,
+            productDiscounts: true,
+            shippingDiscounts: false
+          },
           customerGets: {
-            value: job.reward_type === 'percentage' 
+            value: job.reward_type === 'percentage'
               ? { percentage: job.reward_value / 100 }
               : { discountAmount: { amount: job.reward_value, appliesOnEachItem: false } },
-            items: {
-              all: true
-            }
+            items: { all: true }
           }
         }
       };
 
-      const response = await client.request(mutation, { variables });
+      const response = await this.client.request(mutation, { variables });
+      console.log('Full GraphQL response:', response);
 
-      if (response.data.discountCodeBasicCreate.userErrors.length > 0) {
-        throw new Error(response.data.discountCodeBasicCreate.userErrors[0].message);
+      const mutationResult = response && response.data && response.data.discountCodeBasicCreate;
+      if (!mutationResult) {
+        throw new Error('discountCodeBasicCreate is missing from the GraphQL response. Full response: ' + JSON.stringify(response));
+      }
+      const errors = mutationResult.userErrors;
+      if (errors.length > 0) {
+        throw new Error(errors.map(e => e.message).join('; '));
       }
 
-      const discountNode = response.data.discountCodeBasicCreate.codeDiscountNode;
-      
-      // Save to database
+      const discountNode = mutationResult.codeDiscountNode;
+      const codeNode = discountNode.codeDiscount.codes.nodes[0];
+
+      const priceRuleId = discountNode.id;
+      const discountCodeId = codeNode.id;
+
       await RewardsModel.create({
         submissionId: submission.id,
         jobId: job.id,
         type: 'discount_code',
-        code: code,
+        code,
         value: job.reward_value,
         status: 'pending',
-        expiresAt: expiresAt,
-        shopifyPriceRuleId: discountNode.id,
-        shopifyDiscountCodeId: discountNode.codeDiscount.codes.nodes[0].id
+        expiresAt,
+        shopifyPriceRuleId: priceRuleId,
+        shopifyDiscountCodeId: discountCodeId,
       });
 
-      return {
-        code: code,
-        expiresAt: expiresAt,
-        value: job.reward_value,
-        type: job.reward_type
-      };
+      return { code, expiresAt, value: job.reward_value, type: job.reward_type };
     } catch (error) {
       console.error('Error creating discount code:', error);
       throw error;

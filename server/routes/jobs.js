@@ -1,10 +1,12 @@
 import express from 'express';
 import { JobsModel } from '../models/jobs.js';
 
-const router = express.Router();
+// Create separate routers for public and admin
+export const publicJobRoutes = express.Router();
+export const adminJobRoutes = express.Router();
 
 // PUBLIC ROUTES (no auth required)
-router.get('/public/jobs', async (req, res) => {
+publicJobRoutes.get('/jobs', async (req, res) => {
   try {
     const jobs = await JobsModel.getActiveJobs();
     res.json({ jobs });
@@ -14,7 +16,7 @@ router.get('/public/jobs', async (req, res) => {
   }
 });
 
-router.get('/public/jobs/:id', async (req, res) => {
+publicJobRoutes.get('/jobs/:id', async (req, res) => {
   try {
     const job = await JobsModel.getById(req.params.id);
     res.json({ job });
@@ -24,11 +26,18 @@ router.get('/public/jobs/:id', async (req, res) => {
   }
 });
 
-// ADMIN ROUTES (auth required - handled in index.js)
-router.get('/admin/jobs', async (req, res) => {
+// ADMIN ROUTES (auth required via middleware in index.js)
+adminJobRoutes.get('/jobs', async (req, res) => {
   try {
-    const shopDomain = res.locals.shopify?.session?.shop || 'default-shop';
-    const jobs = await JobsModel.getByShop(shopDomain);
+    // Get shop from query params (Shopify always includes this)
+    const shop = req.query.shop;
+    
+    if (!shop) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
+    console.log('Fetching jobs for shop:', shop);
+    const jobs = await JobsModel.getByShop(shop);
     res.json({ jobs });
   } catch (error) {
     console.error('Error fetching jobs:', error);
@@ -36,9 +45,15 @@ router.get('/admin/jobs', async (req, res) => {
   }
 });
 
-router.post('/admin/jobs', async (req, res) => {
+adminJobRoutes.post('/jobs', async (req, res) => {
   try {
-    const shopDomain = res.locals.shopify?.session?.shop || 'default-shop';
+    // Get shop from query params
+    const shopDomain = req.query.shop;
+    
+    if (!shopDomain) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
     const job = await JobsModel.create({
       shopDomain,
       ...req.body
@@ -50,8 +65,21 @@ router.post('/admin/jobs', async (req, res) => {
   }
 });
 
-// Update job (admin)
-router.put('/admin/jobs/:id', async (req, res) => {
+adminJobRoutes.post('/jobs', async (req, res) => {
+  try {
+    const shopDomain = res.locals.shopify.session.shop; // Now this will work!
+    const job = await JobsModel.create({
+      shopDomain,
+      ...req.body
+    });
+    res.json({ job });
+  } catch (error) {
+    console.error('Error creating job:', error);
+    res.status(500).json({ error: 'Failed to create job' });
+  }
+});
+
+adminJobRoutes.put('/jobs/:id', async (req, res) => {
   try {
     const job = await JobsModel.update(req.params.id, req.body);
     res.json({ job });
@@ -61,19 +89,7 @@ router.put('/admin/jobs/:id', async (req, res) => {
   }
 });
 
-// Get active jobs for customers (public)
-router.get('/public/jobs', async (req, res) => {
-  try {
-    const jobs = await JobsModel.getActiveJobs();
-    res.json({ jobs });
-  } catch (error) {
-    console.error('Error fetching active jobs:', error);
-    res.status(500).json({ error: 'Failed to fetch jobs' });
-  }
-});
-
-// Delete job (admin)
-router.delete('/admin/jobs/:id', async (req, res) => {
+adminJobRoutes.delete('/jobs/:id', async (req, res) => {
   try {
     const jobId = req.params.id;
     
@@ -84,7 +100,7 @@ router.delete('/admin/jobs/:id', async (req, res) => {
     }
     
     // Check if job belongs to this shop
-    const shopDomain = res.locals.shopify?.session?.shop || 'default-shop';
+    const shopDomain = res.locals.shopify.session.shop;
     if (job.shop_domain !== shopDomain) {
       return res.status(403).json({ error: 'Unauthorized to delete this job' });
     }
@@ -97,17 +113,7 @@ router.delete('/admin/jobs/:id', async (req, res) => {
     console.error('Error deleting job:', error);
     res.status(500).json({ error: 'Failed to delete job' });
   }
- });
-
-// Get specific job details (public)
-router.get('/public/jobs/:id', async (req, res) => {
-  try {
-    const job = await JobsModel.getById(req.params.id);
-    res.json({ job });
-  } catch (error) {
-    console.error('Error fetching job:', error);
-    res.status(500).json({ error: 'Failed to fetch job' });
-  }
 });
 
-export default router;
+// Remove the default export
+// export default router;

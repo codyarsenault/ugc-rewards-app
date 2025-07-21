@@ -1,20 +1,45 @@
+// 0️⃣ Load .env first so process.env is populated
+import dotenv from 'dotenv';
+dotenv.config();
+
+// 1️⃣ Patch Node with the Shopify-API v11 adapter
+import '@shopify/shopify-api/adapters/node';
+
+// 2️⃣ Pull in the v11 initializer
+import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
+
+// 3️⃣ Initialize your single Shopify client
+const Shopify = shopifyApi({
+  apiKey:       process.env.SHOPIFY_API_KEY,
+  apiSecretKey: process.env.SHOPIFY_API_SECRET,
+  scopes:       ['write_discounts', 'read_customers', 'write_price_rules'],
+  hostName:     process.env.HOST.replace(/^https?:\/\//, ''),
+  apiVersion:   LATEST_API_VERSION,
+  isEmbeddedApp:true,
+});
+
+// 4️⃣ Everything else comes after
 import express from 'express';
 import { shopifyApp } from '@shopify/shopify-app-express';
 import { SQLiteSessionStorage } from '@shopify/shopify-app-session-storage-sqlite';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { SubmissionsModel } from './models/submissions.js';
 import multer from 'multer';
 import fs from 'fs';
+import { SubmissionsModel } from './models/submissions.js';
 import { uploadToS3 } from './setup-s3.js';
-import { sendNotificationEmail, sendCustomerConfirmationEmail, sendCustomerStatusEmail, sendRewardCodeEmail } from './services/email.js';
-import jobRoutes from './routes/jobs.js';
+import {
+  sendNotificationEmail,
+  sendCustomerConfirmationEmail,
+  sendCustomerStatusEmail,
+  sendRewardCodeEmail,
+} from './services/email.js';
 import { JobsModel } from './models/jobs.js';
 import { ShopifyDiscountService } from './services/shopifyDiscount.js';
 import { RewardsModel } from './models/rewards.js';
+import { publicJobRoutes, adminJobRoutes } from './routes/jobs.js';
 
-dotenv.config();
+// …then your __dirname, multer setup, shopifyApp() call, routes, etc…
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,37 +53,38 @@ if (!fs.existsSync(uploadsDir)) {
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
 const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
-  },
-  fileFilter: function (req, file, cb) {
-    // Accept images and videos
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter(req, file, cb) {
     if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type. Only images and videos are allowed.'));
     }
-  }
+  },
 });
 
-// Initialize Shopify app
+// Initialize Shopify Express app
+const sessionStorage = new SQLiteSessionStorage(
+  path.join(__dirname, '../database/session.db')
+);
+
 const shopify = shopifyApp({
   api: {
-    apiKey: process.env.SHOPIFY_API_KEY,
+    apiKey:       process.env.SHOPIFY_API_KEY,
     apiSecretKey: process.env.SHOPIFY_API_SECRET,
-    scopes: ['write_discounts', 'read_customers', 'write_price_rules'], // Add write_price_rules here
-    hostName: (process.env.HOST || 'localhost:3000').replace(/https?:\/\//, ''),
-    apiVersion: '2023-10',
+    scopes:       ['write_discounts', 'read_customers', 'write_price_rules'],
+    hostName:     process.env.HOST.replace(/^https?:\/\//, ''),
+    apiVersion:   LATEST_API_VERSION,
   },
   auth: {
-    path: '/api/auth',
+    path:         '/api/auth',
     callbackPath: '/api/auth/callback',
   },
   webhooks: {
     path: '/api/webhooks',
   },
-  sessionStorage: new SQLiteSessionStorage(path.join(__dirname, '../database/session.db')),
+  sessionStorage,
 });
 
 const app = express();
@@ -86,8 +112,11 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 // Serve uploaded files
 app.use('/uploads', express.static(uploadsDir));
 
-// Add job routes - without the middleware here since it's applied in the routes file
-app.use('/api', jobRoutes);
+// Public routes
+app.use('/api/public', publicJobRoutes);
+
+// Admin routes with Shopify auth
+app.use('/api/admin', shopify.ensureInstalledOnShop(), adminJobRoutes);
 
 // Route to show submission form
 app.get('/submit', (req, res) => {
@@ -1493,184 +1522,99 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
  });
  
 // Approve submissions endpoint
-// Update your approval endpoint
-app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), async (req, res) => {
-  try {
-    const submissionId = req.params.id;
-    
-    // Check if submission exists
-    const submission = await SubmissionsModel.getById(submissionId);
-    if (!submission) {
-      return res.status(404).json({ success: false, message: 'Submission not found' });
-    }
-    
-    // Update status to approved
-    await SubmissionsModel.updateStatus(submissionId, 'approved');
-    console.log('Approved submission ' + submissionId);
-
-    // If this submission is for a job, handle the reward
-    if (submission.job_id) {
-      // Increment spots filled
-      await JobsModel.incrementSpotsFilled(submission.job_id);
+app.post(
+  '/api/admin/submissions/:id/approve',
+  shopify.ensureInstalledOnShop(),
+  async (req, res) => {
+    try {
+      const submissionId = req.params.id;
       
-      // Get job details
-      const job = await JobsModel.getById(submission.job_id);
-      console.log('Job details:', job);
-      
-      // Check if job is now full and update status if needed
-      if (job && job.spots_filled >= job.spots_available) {
-        await JobsModel.updateStatus(submission.job_id, 'completed');
+      // 1️⃣ Fetch + validate submission
+      const submission = await SubmissionsModel.getById(submissionId);
+      if (!submission) {
+        return res.status(404).json({ success: false, message: 'Submission not found' });
       }
-      
-      // Handle automatic rewards for discount codes
-      if (job && (job.reward_type === 'percentage' || job.reward_type === 'fixed')) {
-        console.log('Attempting to create discount code for job:', job.id);
-        
-        try {
-          // Get the shop domain from the job
-          const shopDomain = job.shop_domain;
-          console.log('Shop domain:', shopDomain);
-          
-          // Load the session from the database
-          const sessions = await shopify.sessionStorage.findSessionsByShop(shopDomain);
-          console.log('Found sessions:', sessions.length);
-          
-          if (!sessions || sessions.length === 0) {
-            throw new Error('No session found for shop: ' + shopDomain);
-          }
-          
-          // Use the first valid session
-          const session = sessions[0];
-          console.log('Using session:', session.id);
-          console.log('Session shop:', session.shop);
-          console.log('Session has access token:', !!session.accessToken);
-          
-          // Create GraphQL client
-          const client = new shopify.api.clients.Graphql({ session });
-          
-          // Create discount code
-          const code = `UGC${submission.id}${Date.now().toString(36).toUpperCase()}`;
-          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-          
-          const mutation = `
-            mutation discountCodeBasicCreate($basicCodeDiscount: DiscountCodeBasicInput!) {
-              discountCodeBasicCreate(basicCodeDiscount: $basicCodeDiscount) {
-                codeDiscountNode {
-                  id
-                  codeDiscount {
-                    ... on DiscountCodeBasic {
-                      codes(first: 1) {
-                        nodes {
-                          id
-                          code
-                        }
-                      }
-                    }
-                  }
-                }
-                userErrors {
-                  field
-                  code
-                  message
-                }
-              }
+
+      // 2️⃣ Mark it approved
+      await SubmissionsModel.updateStatus(submissionId, 'approved');
+      console.log(`Approved submission ${submissionId}`);
+
+      // 3️⃣ If tied to a job, update spots + potentially fire reward
+      if (submission.job_id) {
+        await JobsModel.incrementSpotsFilled(submission.job_id);
+        const job = await JobsModel.getById(submission.job_id);
+        console.log('Job details:', job);
+
+        // If job is full, mark completed
+        if (job.spots_filled >= job.spots_available) {
+          await JobsModel.updateStatus(job.id, 'completed');
+        }
+
+        // 4️⃣ Handle automatic discount-code reward
+        if (['percentage', 'fixed'].includes(job.reward_type)) {
+          console.log('Attempting to create discount code for job:', job.id);
+          console.log('Shop domain:', job.shop_domain);
+
+          try {
+            // a) Grab your Shopify session
+            let session = res.locals.shopify?.session;
+            if (!session) {
+              const sessions = await sessionStorage.findSessionsByShop(job.shop_domain);
+              session = sessions?.[0];
             }
-          `;
-
-          const variables = {
-            basicCodeDiscount: {
-              title: `UGC Reward - ${submission.customer_email}`,
-              code: code,
-              startsAt: new Date().toISOString(),
-              endsAt: expiresAt.toISOString(),
-              usageLimit: 1,
-              combinesWith: {
-                orderDiscounts: false,
-                productDiscounts: true,
-                shippingDiscounts: false
-              },
-              customerSelection: {
-                all: true
-              },
-              customerGets: {
-                value: job.reward_type === 'percentage' 
-                  ? { percentage: job.reward_value / 100 }
-                  : { discountAmount: { amount: parseFloat(job.reward_value), appliesOnEachItem: false } },
-                items: {
-                  all: true
-                }
-              }
+            if (!session) {
+              throw new Error(`No valid Shopify session for ${job.shop_domain}`);
             }
-          };
 
-          console.log('Creating discount with code:', code);
-          const response = await client.query({
-            data: {
-              query: mutation,
-              variables: variables,
-            },
-          });
+            // b) Instantiate the GraphQL client + your service
+            const client = new Shopify.clients.Graphql({ session });
+            const discountService = new ShopifyDiscountService(client);
 
-          console.log('Shopify response:', JSON.stringify(response.body, null, 2));
+            // c) Create the code (this also writes to RewardsModel)
+            const { code } = await discountService.createDiscountCode(job, submission);
+            console.log(`Discount code created: ${code}`);
 
-          if (response.body.data.discountCodeBasicCreate.userErrors.length > 0) {
-            throw new Error(response.body.data.discountCodeBasicCreate.userErrors[0].message);
+            // d) Send the reward email
+            await sendRewardCodeEmail({
+              to:        submission.customer_email,
+              code,
+              value:     job.reward_value,
+              type:      job.reward_type,
+              expiresIn: '30 days',
+            });
+
+            // e) Mark it sent in your RewardsModel
+            const reward = await RewardsModel.getBySubmissionId(submission.id);
+            if (reward) {
+              await RewardsModel.markAsSent(reward.id);
+              await RewardsModel.updateSubmissionRewardStatus(submission.id);
+            }
+
+            console.log(`Reward sent to ${submission.customer_email}: ${code}`);
+          } catch (err) {
+            console.error('Error creating/sending reward:', err);
+            // swallow—approval should not fail
           }
-
-          const discountNode = response.body.data.discountCodeBasicCreate.codeDiscountNode;
-          
-          // Save to database
-          await RewardsModel.create({
-            submissionId: submission.id,
-            jobId: job.id,
-            type: 'discount_code',
-            code: code,
-            value: job.reward_value,
-            status: 'pending',
-            expiresAt: expiresAt,
-            shopifyPriceRuleId: discountNode.id,
-            shopifyDiscountCodeId: discountNode.codeDiscount.codes.nodes[0].id
-          });
-          
-          // Send reward email
-          await sendRewardCodeEmail({
-            to: submission.customer_email,
-            code: code,
-            value: job.reward_value,
-            type: job.reward_type,
-            expiresIn: '30 days'
-          });
-          
-          // Mark reward as sent
-          const reward = await RewardsModel.getBySubmissionId(submission.id);
-          if (reward) {
-            await RewardsModel.markAsSent(reward.id);
-          }
-          await RewardsModel.updateSubmissionRewardStatus(submission.id);
-          
-          console.log(`Reward sent to ${submission.customer_email}: ${code}`);
-        } catch (error) {
-          console.error('Error creating/sending reward:', error);
-          console.error('Error details:', error.message);
-          console.error('Error stack:', error.stack);
-          // Don't fail the approval if reward fails - log it for manual handling
         }
       }
-    }
 
-    // Send status update email to customer
-    await sendCustomerStatusEmail({
-      to: submission.customer_email,
-      status: 'approved',
-      type: submission.type
-    });
-    
-    res.json({ success: true, message: 'Submission approved' });
-  } catch (error) {
-    console.error('Error approving submission:', error);
-    res.status(500).json({ success: false, message: 'Failed to approve submission' });
+      // 5️⃣ Finally, let the user know & email them the status
+      await sendCustomerStatusEmail({
+        to:     submission.customer_email,
+        status: 'approved',
+        type:   submission.type,
+      });
+
+      res.json({ success: true, message: 'Submission approved' });
+    } catch (error) {
+      console.error('Error approving submission:', error);
+      res
+        .status(500)
+        .json({ success: false, message: 'Failed to approve submission' });
+    }
   }
-});
+);
+
  
  // Reject submission endpoint
 app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), async (req, res) => {
