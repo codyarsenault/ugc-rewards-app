@@ -65,6 +65,34 @@ adminJobRoutes.post('/jobs', async (req, res) => {
   }
 });
 
+adminJobRoutes.put('/jobs/:id', async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const shopDomain = req.query.shop;
+    
+    if (!shopDomain) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+
+    // Check if job exists and belongs to this shop
+    const existingJob = await JobsModel.getById(jobId);
+    if (!existingJob) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    if (existingJob.shop_domain !== shopDomain) {
+      return res.status(403).json({ error: 'Unauthorized to update this job' });
+    }
+
+    // Update the job
+    const job = await JobsModel.update(jobId, req.body);
+    res.json({ job });
+  } catch (error) {
+    console.error('Error updating job:', error);
+    res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
 adminJobRoutes.delete('/jobs/:id', async (req, res) => {
   try {
     const jobId = req.params.id;

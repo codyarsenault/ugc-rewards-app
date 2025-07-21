@@ -27,21 +27,40 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type }) 
   return sgMail.send(msg);
 }
 
-export async function sendCustomerStatusEmail({ to, status, type }) {
+export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '' }) {
   let subject, text, html;
+  
   if (status === 'approved') {
     subject = 'Your submission has been approved!';
-    text = `Congratulations! Your ${type} submission has been approved.`;
-    html = `<p>Congratulations! Your <b>${type}</b> submission has been <b>approved</b>.</p>`;
+    text = `Congratulations! Your ${type} submission has been approved.${additionalMessage ? ' ' + additionalMessage : ''}`;
+    html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">🎉 Congratulations!</h2>
+        <p>Your <b>${type}</b> submission has been <b>approved</b>.</p>
+        ${additionalMessage ? `
+          <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #333; font-weight: 500;">${additionalMessage}</p>
+          </div>
+        ` : ''}
+        <p style="color: #666; margin-top: 20px;">Thank you for sharing your amazing content with us!</p>
+      </div>
+    `;
   } else if (status === 'rejected') {
-    subject = 'Your submission has been rejected';
-    text = `We're sorry, but your ${type} submission was not approved.`;
-    html = `<p>We're sorry, but your <b>${type}</b> submission was <b>not approved</b>.</p>`;
+    subject = 'Your submission has been reviewed';
+    text = `We're sorry, but your ${type} submission was not approved. We encourage you to try again!`;
+    html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Submission Update</h2>
+        <p>Thank you for your submission. Unfortunately, your <b>${type}</b> submission was <b>not approved</b> at this time.</p>
+        <p>We encourage you to review our guidelines and submit again. We'd love to see more content from you!</p>
+      </div>
+    `;
   } else {
     subject = 'Submission status update';
     text = `Your ${type} submission status: ${status}`;
     html = `<p>Your <b>${type}</b> submission status: <b>${status}</b></p>`;
   }
+  
   const msg = {
     to,
     from: process.env.EMAIL_FROM,
@@ -49,6 +68,41 @@ export async function sendCustomerStatusEmail({ to, status, type }) {
     text,
     html,
   };
+  
+  return sgMail.send(msg);
+}
+
+export async function sendGiftCardEmail({ to, code, amount }) {
+  const msg = {
+    from: process.env.EMAIL_FROM,
+    to: to,
+    subject: '🎁 Your Gift Card is Here!',
+    text: `Congratulations! Your gift card for $${amount} is ready. Gift card code: ${code}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">🎁 Your Gift Card Has Arrived!</h2>
+        <p>Thank you for your amazing UGC submission! Here's your gift card:</p>
+        
+        <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <p style="color: #666; margin: 0 0 10px 0;">Gift Card Code:</p>
+          <h1 style="color: #008060; margin: 0; font-size: 32px; letter-spacing: 2px;">${code}</h1>
+          <p style="font-size: 24px; margin: 15px 0 5px 0; color: #333;">Value: $${amount}</p>
+        </div>
+        
+        <p><strong>How to use your gift card:</strong></p>
+        <ol>
+          <li>Shop our collection</li>
+          <li>At checkout, enter the gift card code above</li>
+          <li>The gift card value will be applied to your order</li>
+        </ol>
+        
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">
+          This gift card does not expire. If you have any questions, please contact our support team.
+        </p>
+      </div>
+    `
+  };
+  
   return sgMail.send(msg);
 }
 

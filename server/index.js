@@ -1541,6 +1541,9 @@ app.post(
       await SubmissionsModel.updateStatus(submissionId, 'approved');
       console.log(`Approved submission ${submissionId}`);
 
+      // Declare job variable here so it's accessible throughout the function
+      let job = null;
+
       // 3️⃣ If tied to a job, update spots + potentially fire reward
       if (submission.job_id) {
         await JobsModel.incrementSpotsFilled(submission.job_id);
@@ -1598,13 +1601,121 @@ app.post(
             // swallow—approval should not fail
           }
         }
+
+        // 🎁 Handle gift card rewards (manual fulfillment)
+        if (job.reward_type === 'giftcard') {
+          console.log('Processing gift card reward for job:', job.id);
+          
+          try {
+            // Create a pending reward record
+            await RewardsModel.create({
+              submissionId: submission.id,
+              jobId: job.id,
+              type: 'giftcard',
+              code: null, // Will be filled manually
+              value: job.reward_giftcard_amount,
+              status: 'pending_fulfillment',
+              expiresAt: null,
+              shopifyPriceRuleId: null,
+              shopifyDiscountCodeId: null
+            });
+            
+            // Send notification to admin
+            await sendNotificationEmail({
+              subject: 'Manual Gift Card Required - UGC Rewards',
+              html: `
+                <h2>Gift Card Needs to be Created</h2>
+                <p>A gift card needs to be manually created for an approved UGC submission:</p>
+                <ul>
+                  <li><strong>Customer:</strong> ${submission.customer_email}</li>
+                  <li><strong>Amount:</strong> $${job.reward_giftcard_amount}</li>
+                  <li><strong>Job:</strong> ${job.title}</li>
+                  <li><strong>Submission ID:</strong> ${submission.id}</li>
+                </ul>
+                <p><strong>Action Required:</strong></p>
+                <ol>
+                  <li>Go to Shopify Admin > Products > Gift cards</li>
+                  <li>Create a new gift card for $${job.reward_giftcard_amount}</li>
+                  <li>Send the gift card code to: ${submission.customer_email}</li>
+                </ol>
+              `
+            });
+            
+            console.log(`Gift card reward pending for ${submission.customer_email}: $${job.reward_giftcard_amount}`);
+          } catch (error) {
+            console.error('Error processing gift card reward:', error);
+            // Don't fail the approval if reward processing fails
+          }
+        }
+
+        // 📦 Handle free product rewards
+        if (job.reward_type === 'product') {
+          console.log('Processing free product reward for job:', job.id);
+          
+          try {
+            // Create a 100% discount code for the specific product
+            const code = `UGCFREE${submission.id}${Date.now().toString(36).toUpperCase()}`;
+            
+            // Create a pending reward record for tracking
+            await RewardsModel.create({
+              submissionId: submission.id,
+              jobId: job.id,
+              type: 'product',
+              code: code,
+              value: 0, // It's free
+              status: 'pending',
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              shopifyPriceRuleId: null,
+              shopifyDiscountCodeId: null
+            });
+            
+            // Send notification to admin
+            await sendNotificationEmail({
+              subject: 'Free Product Reward - Manual Setup Required',
+              html: `
+                <h2>Free Product Discount Code Needs Setup</h2>
+                <p>Please create a 100% discount code in Shopify:</p>
+                <ul>
+                  <li><strong>Customer:</strong> ${submission.customer_email}</li>
+                  <li><strong>Product:</strong> ${job.reward_product}</li>
+                  <li><strong>Suggested Code:</strong> ${code}</li>
+                  <li><strong>Job:</strong> ${job.title}</li>
+                </ul>
+                <p><strong>Setup Instructions:</strong></p>
+                <ol>
+                  <li>Go to Shopify Admin > Discounts</li>
+                  <li>Create a discount code: ${code}</li>
+                  <li>Set to 100% off for product: ${job.reward_product}</li>
+                  <li>Limit to 1 use</li>
+                  <li>Send the code to: ${submission.customer_email}</li>
+                </ol>
+              `
+            });
+            
+            console.log(`Free product reward pending for ${submission.customer_email}: ${job.reward_product}`);
+          } catch (error) {
+            console.error('Error processing free product reward:', error);
+          }
+        }
       }
 
       // 5️⃣ Finally, let the user know & email them the status
+      let additionalMessage = '';
+
+      // Only set additional message if there was a job
+      if (submission.job_id && job) {
+        if (job.reward_type === 'giftcard') {
+          additionalMessage = `Your $${job.reward_giftcard_amount} gift card will be sent to you within 24 hours. Please check your email!`;
+        } else if (job.reward_type === 'product') {
+          additionalMessage = `Instructions for claiming your free ${job.reward_product} will be sent within 24 hours.`;
+        }
+      }
+
       await sendCustomerStatusEmail({
         to:     submission.customer_email,
         status: 'approved',
         type:   submission.type,
+        additionalMessage: additionalMessage
       });
 
       res.json({ success: true, message: 'Submission approved' });
@@ -1616,7 +1727,6 @@ app.post(
     }
   }
 );
-
  
  // Reject submission endpoint
 app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), async (req, res) => {
