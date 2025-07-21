@@ -3,142 +3,239 @@
 <head>
   <title>Browse UGC Jobs - Get Rewarded for Your Content</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    * {
+      box-sizing: border-box;
+    }
+    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.6;
-      color: #333;
+      color: #2d3748;
       margin: 0;
       padding: 0;
-      background-color: #f8f9fa;
+      background-color: #fef5f9;
     }
+    
     .header {
-      background: linear-gradient(135deg, #5c6ac4 0%, #4a5ab3 100%);
+      background: linear-gradient(135deg, #ff6b9d 0%, #feca57 100%);
       color: white;
-      padding: 40px 20px;
+      padding: 60px 20px;
       text-align: center;
+      position: relative;
+      overflow: hidden;
     }
+    
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: float 20s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      50% { transform: translate(-30px, -30px) rotate(180deg); }
+    }
+    
     .header h1 {
-      margin: 0 0 10px 0;
-      font-size: 32px;
+      margin: 0 0 15px 0;
+      font-size: 42px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      position: relative;
+      z-index: 1;
     }
+    
     .header p {
       margin: 0;
-      font-size: 18px;
-      opacity: 0.9;
+      font-size: 20px;
+      opacity: 0.95;
+      font-weight: 500;
+      position: relative;
+      z-index: 1;
     }
+    
     .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 40px 20px;
     }
+    
     .filters {
       background: white;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 30px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 25px;
+      border-radius: 16px;
+      margin-bottom: 40px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      border: 1px solid rgba(255,107,157,0.1);
     }
+    
     .filters h3 {
-      margin: 0 0 15px 0;
+      margin: 0 0 20px 0;
       font-size: 18px;
+      font-weight: 600;
+      color: #2d3748;
     }
+    
     .filter-group {
       display: flex;
-      gap: 15px;
+      gap: 12px;
       flex-wrap: wrap;
     }
+    
     .filter-btn {
-      padding: 8px 16px;
-      border: 1px solid #ddd;
+      padding: 10px 24px;
+      border: 2px solid #e2e8f0;
       background: white;
-      border-radius: 20px;
+      border-radius: 25px;
       cursor: pointer;
-      transition: all 0.2s;
-      font-size: 14px;
+      transition: all 0.3s ease;
+      font-size: 15px;
+      font-weight: 500;
+      color: #64748b;
     }
+    
     .filter-btn:hover {
-      border-color: #5c6ac4;
-      color: #5c6ac4;
+      border-color: #ff6b9d;
+      color: #ff6b9d;
+      transform: translateY(-1px);
     }
+    
     .filter-btn.active {
-      background: #5c6ac4;
+      background: linear-gradient(135deg, #ff6b9d 0%, #ff8787 100%);
       color: white;
-      border-color: #5c6ac4;
+      border-color: transparent;
+      box-shadow: 0 4px 12px rgba(255,107,157,0.3);
     }
+    
     .jobs-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 25px;
     }
+    
     .job-card {
       background: white;
-      border-radius: 8px;
-      padding: 25px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      transition: transform 0.2s, box-shadow 0.2s;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      transition: all 0.3s ease;
       cursor: pointer;
+      border: 1px solid rgba(255,107,157,0.05);
+      position: relative;
+      overflow: hidden;
     }
+    
+    .job-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #ff6b9d 0%, #feca57 100%);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+    }
+    
     .job-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateY(-5px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.1);
     }
+    
+    .job-card:hover::before {
+      transform: scaleX(1);
+    }
+    
     .job-type {
       display: inline-block;
-      padding: 4px 12px;
-      background: #e3f2fd;
-      color: #1976d2;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 500;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-    .job-type.photo {
-      background: #f3e5f5;
-      color: #7b1fa2;
-    }
-    .job-type.video {
-      background: #e8f5e9;
-      color: #388e3c;
-    }
-    .job-title {
-      font-size: 20px;
+      padding: 6px 16px;
+      background: #e0f2fe;
+      color: #0284c7;
+      border-radius: 20px;
+      font-size: 13px;
       font-weight: 600;
-      margin: 0 0 10px 0;
-      color: #202223;
-    }
-    .job-description {
-      color: #616161;
+      text-transform: uppercase;
       margin-bottom: 15px;
-      font-size: 15px;
+      letter-spacing: 0.5px;
     }
+    
+    .job-type.photo {
+      background: #fce7f3;
+      color: #db2777;
+    }
+    
+    .job-type.video {
+      background: #ddd6fe;
+      color: #7c3aed;
+    }
+    
+    .job-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+      color: #1a202c;
+      line-height: 1.3;
+    }
+    
+    .job-description {
+      color: #64748b;
+      margin-bottom: 20px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    
     .job-meta {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid #e1e3e5;
+      margin-top: 25px;
+      padding-top: 25px;
+      border-top: 1px solid #f1f5f9;
     }
+    
     .reward {
-      font-size: 18px;
-      font-weight: 600;
-      color: #388e3c;
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ff6b9d 0%, #ff8787 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
+    
     .spots-left {
       font-size: 14px;
-      color: #616161;
+      color: #64748b;
+      background: #f8fafc;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 500;
     }
+    
+    .spots-left.low {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
     .empty-state {
       text-align: center;
-      padding: 60px 20px;
-      color: #616161;
+      padding: 80px 20px;
+      color: #64748b;
     }
+    
     .empty-state h3 {
-      font-size: 20px;
+      font-size: 24px;
       margin-bottom: 10px;
+      color: #2d3748;
     }
+    
     .modal {
       display: none;
       position: fixed;
@@ -147,100 +244,193 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0,0,0,0.5);
+      background-color: rgba(0,0,0,0.6);
       overflow-y: auto;
+      backdrop-filter: blur(4px);
     }
+    
     .modal-content {
       background: white;
-      margin: 50px auto;
+      margin: 40px auto;
       padding: 0;
-      border-radius: 8px;
+      border-radius: 20px;
       width: 90%;
       max-width: 700px;
       position: relative;
+      animation: slideUp 0.3s ease;
     }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
     .modal-header {
-      padding: 30px;
-      border-bottom: 1px solid #e1e3e5;
+      padding: 35px;
+      border-bottom: 1px solid #f1f5f9;
+      background: linear-gradient(135deg, #fff5f8 0%, #fff9f5 100%);
+      border-radius: 20px 20px 0 0;
     }
+    
     .modal-body {
-      padding: 30px;
+      padding: 35px;
     }
+    
     .close {
       position: absolute;
-      top: 20px;
-      right: 20px;
-      font-size: 28px;
-      font-weight: bold;
+      top: 25px;
+      right: 25px;
+      font-size: 32px;
+      font-weight: 300;
       cursor: pointer;
-      color: #616161;
-      background: none;
+      color: #94a3b8;
+      background: white;
       border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
+    
     .close:hover {
-      color: #202223;
+      background: #f8fafc;
+      color: #475569;
+      transform: rotate(90deg);
     }
+    
     .requirements {
-      background: #f6f6f7;
-      padding: 20px;
-      border-radius: 6px;
-      margin: 20px 0;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      padding: 25px;
+      border-radius: 12px;
+      margin: 25px 0;
+      border: 1px solid #e2e8f0;
     }
+    
     .requirements h4 {
-      margin: 0 0 10px 0;
-      font-size: 16px;
+      margin: 0 0 15px 0;
+      font-size: 17px;
+      font-weight: 600;
+      color: #2d3748;
     }
+    
     .requirements ul {
       margin: 0;
       padding-left: 20px;
+      color: #475569;
     }
+    
     .requirements li {
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+      line-height: 1.5;
     }
+    
     .btn {
-      padding: 12px 24px;
+      padding: 14px 32px;
       border: none;
-      border-radius: 4px;
+      border-radius: 25px;
       cursor: pointer;
       font-size: 16px;
-      font-weight: 500;
+      font-weight: 600;
       text-decoration: none;
       display: inline-block;
-      transition: all 0.2s;
+      transition: all 0.3s ease;
+      letter-spacing: 0.3px;
     }
+    
     .btn-primary {
-      background: #5c6ac4;
+      background: linear-gradient(135deg, #ff6b9d 0%, #ff8787 100%);
       color: white;
+      box-shadow: 0 4px 14px rgba(255,107,157,0.3);
     }
+    
     .btn-primary:hover {
-      background: #4a5ab3;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255,107,157,0.4);
     }
+    
     .deadline {
-      color: #d72c0d;
+      color: #dc2626;
       font-size: 14px;
       margin-top: 10px;
+      font-weight: 500;
+    }
+    
+    .modal-meta-item {
+      margin: 15px 0;
+      font-size: 16px;
+      color: #475569;
+    }
+    
+    .modal-meta-item strong {
+      color: #2d3748;
+      font-weight: 600;
+    }
+    
+    .tag {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #fef3c7;
+      color: #d97706;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 32px;
+      }
+      
+      .header p {
+        font-size: 18px;
+      }
+      
+      .jobs-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .job-card {
+        padding: 25px;
+      }
+      
+      .modal-content {
+        margin: 20px auto;
+        width: 95%;
+      }
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Browse UGC Jobs</h1>
-    <p>Create content brands are looking for and get rewarded!</p>
+    <h1>Create Content, Get Rewarded ✨</h1>
+    <p>Share your authentic experiences with brands you love</p>
   </div>
 
   <div class="container">
     <div class="filters">
-      <h3>Filter by content type:</h3>
+      <h3>What type of content do you love creating?</h3>
       <div class="filter-group">
         <button class="filter-btn active" onclick="filterJobs('all')">All Jobs</button>
-        <button class="filter-btn" onclick="filterJobs('video')">Video</button>
-        <button class="filter-btn" onclick="filterJobs('photo')">Photo</button>
+        <button class="filter-btn" onclick="filterJobs('video')">Video Content</button>
+        <button class="filter-btn" onclick="filterJobs('photo')">Photo Content</button>
       </div>
     </div>
 
     <div id="jobsGrid" class="jobs-grid">
       <div class="empty-state">
-        <p>Loading available jobs...</p>
+        <p>Loading amazing opportunities...</p>
       </div>
     </div>
   </div>
@@ -256,14 +446,14 @@
       </div>
       <div class="modal-body">
         <div id="modalRequirements" class="requirements"></div>
-        <div id="modalJobMeta" style="margin: 20px 0;">
-          <p><strong>Reward:</strong> <span id="modalReward" class="reward"></span></p>
-          <p><strong>Spots available:</strong> <span id="modalSpots"></span></p>
+        <div id="modalJobMeta" style="margin: 25px 0;">
+          <p class="modal-meta-item"><strong>Your Reward:</strong> <span id="modalReward" class="reward"></span></p>
+          <p class="modal-meta-item"><strong>Spots available:</strong> <span id="modalSpots"></span></p>
           <p id="modalDeadline" class="deadline"></p>
         </div>
-        <div id="modalExample" style="margin: 20px 0;"></div>
-        <div style="text-align: center; margin-top: 30px;">
-          <button id="submitBtn" class="btn btn-primary" onclick="submitForJob()">Submit Content for This Job</button>
+        <div id="modalExample" style="margin: 25px 0;"></div>
+        <div style="text-align: center; margin-top: 35px;">
+          <button id="submitBtn" class="btn btn-primary" onclick="submitForJob()">I Want to Create This! 💕</button>
         </div>
       </div>
     </div>
@@ -285,8 +475,8 @@
         console.error('Error loading jobs:', error);
         document.getElementById('jobsGrid').innerHTML = `
           <div class="empty-state">
-            <h3>Unable to load jobs</h3>
-            <p>Please try refreshing the page.</p>
+            <h3>Oops! Having trouble loading opportunities</h3>
+            <p>Please refresh the page to try again 💫</p>
           </div>
         `;
       }
@@ -303,25 +493,30 @@
       if (filteredJobs.length === 0) {
         jobsGrid.innerHTML = `
           <div class="empty-state">
-            <h3>No jobs available</h3>
-            <p>Check back soon for new opportunities!</p>
+            <h3>No opportunities right now</h3>
+            <p>Check back soon - new jobs are added daily! 🌟</p>
           </div>
         `;
         return;
       }
 
-      jobsGrid.innerHTML = filteredJobs.map(job => `
-        <div class="job-card" onclick="openJobModal(${job.id})">
-          <span class="job-type ${job.type}">${job.type}</span>
-          <h3 class="job-title">${job.title}</h3>
-          <p class="job-description">${job.description.substring(0, 150)}${job.description.length > 150 ? '...' : ''}</p>
-          <div class="job-meta">
-            <span class="reward">${formatReward(job)}</span>
-            <span class="spots-left">${job.spots_available - job.spots_filled} spots left</span>
+      jobsGrid.innerHTML = filteredJobs.map(job => {
+        const spotsLeft = job.spots_available - job.spots_filled;
+        const isLowSpots = spotsLeft <= 2;
+        
+        return `
+          <div class="job-card" onclick="openJobModal(${job.id})">
+            <span class="job-type ${job.type}">${job.type === 'video' ? '🎬 Video' : '📸 Photo'}</span>
+            <h3 class="job-title">${job.title}</h3>
+            <p class="job-description">${job.description.substring(0, 120)}${job.description.length > 120 ? '...' : ''}</p>
+            <div class="job-meta">
+              <span class="reward">${formatReward(job)}</span>
+              <span class="spots-left ${isLowSpots ? 'low' : ''}">${spotsLeft} ${spotsLeft === 1 ? 'spot' : 'spots'} left</span>
+            </div>
+            ${job.deadline ? `<p class="deadline">⏰ Deadline: ${new Date(job.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>` : ''}
           </div>
-          ${job.deadline ? `<p class="deadline">Deadline: ${new Date(job.deadline).toLocaleDateString()}</p>` : ''}
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     // Filter jobs
@@ -358,7 +553,7 @@
         selectedJob = data.job;
 
         // Populate modal
-        document.getElementById('modalJobType').textContent = selectedJob.type;
+        document.getElementById('modalJobType').textContent = selectedJob.type === 'video' ? '🎬 Video' : '📸 Photo';
         document.getElementById('modalJobType').className = `job-type ${selectedJob.type}`;
         document.getElementById('modalJobTitle').textContent = selectedJob.title;
         document.getElementById('modalJobDescription').textContent = selectedJob.description;
@@ -367,7 +562,7 @@
         if (selectedJob.requirements) {
           const reqList = selectedJob.requirements.split('\n').filter(r => r.trim());
           document.getElementById('modalRequirements').innerHTML = `
-            <h4>Requirements:</h4>
+            <h4>✨ What we're looking for:</h4>
             <ul>
               ${reqList.map(req => `<li>${req}</li>`).join('')}
             </ul>
@@ -378,10 +573,13 @@
 
         // Meta info
         document.getElementById('modalReward').textContent = formatReward(selectedJob);
-        document.getElementById('modalSpots').textContent = `${selectedJob.spots_available - selectedJob.spots_filled} of ${selectedJob.spots_available}`;
+        const spotsLeft = selectedJob.spots_available - selectedJob.spots_filled;
+        document.getElementById('modalSpots').innerHTML = `${spotsLeft} of ${selectedJob.spots_available} ${spotsLeft <= 2 ? '<span class="tag">Filling Fast!</span>' : ''}`;
         
         if (selectedJob.deadline) {
-          document.getElementById('modalDeadline').textContent = `Deadline: ${new Date(selectedJob.deadline).toLocaleDateString()}`;
+          const deadline = new Date(selectedJob.deadline);
+          const daysLeft = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+          document.getElementById('modalDeadline').innerHTML = `⏰ Deadline: ${deadline.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} <span style="color: #64748b; font-weight: normal;">(${daysLeft} days left)</span>`;
         } else {
           document.getElementById('modalDeadline').textContent = '';
         }
@@ -389,8 +587,8 @@
         // Example content
         if (selectedJob.example_content) {
           document.getElementById('modalExample').innerHTML = `
-            <h4>Example/Inspiration:</h4>
-            <p>${selectedJob.example_content}</p>
+            <h4>💡 Inspiration:</h4>
+            <p style="color: #64748b; line-height: 1.6;">${selectedJob.example_content}</p>
           `;
         } else {
           document.getElementById('modalExample').innerHTML = '';
@@ -398,22 +596,23 @@
 
         // Show modal
         document.getElementById('jobModal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
       } catch (error) {
         console.error('Error loading job details:', error);
-        alert('Failed to load job details');
+        alert('Oops! Could not load job details. Please try again.');
       }
     }
 
     // Close modal
     function closeModal() {
       document.getElementById('jobModal').style.display = 'none';
+      document.body.style.overflow = 'auto';
       selectedJob = null;
     }
 
     // Submit for job
     function submitForJob() {
       if (selectedJob) {
-        // Redirect to submission form with job ID
         window.location.href = `/submit?jobId=${selectedJob.id}`;
       }
     }
