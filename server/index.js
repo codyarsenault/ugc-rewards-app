@@ -990,7 +990,8 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(jobData)
+                body: JSON.stringify(jobData),
+                credentials: 'include' // <-- ensure cookies/session sent
               });
               
               if (response.ok) {
@@ -1073,7 +1074,8 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             try {
               const queryParams = window.location.search;
               const response = await fetch('/api/admin/jobs/' + jobId + queryParams, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include' // <-- ensure cookies/session sent
               });
               
               if (response.ok) {

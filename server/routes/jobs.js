@@ -47,7 +47,7 @@ adminJobRoutes.get('/jobs', async (req, res) => {
 
 adminJobRoutes.post('/jobs', async (req, res) => {
   try {
-    // Get shop from query params
+    // Get shop from query params instead of session
     const shopDomain = req.query.shop;
     
     if (!shopDomain) {
@@ -65,49 +65,30 @@ adminJobRoutes.post('/jobs', async (req, res) => {
   }
 });
 
-adminJobRoutes.post('/jobs', async (req, res) => {
-  try {
-    const shopDomain = res.locals.shopify.session.shop; // Now this will work!
-    const job = await JobsModel.create({
-      shopDomain,
-      ...req.body
-    });
-    res.json({ job });
-  } catch (error) {
-    console.error('Error creating job:', error);
-    res.status(500).json({ error: 'Failed to create job' });
-  }
-});
-
-adminJobRoutes.put('/jobs/:id', async (req, res) => {
-  try {
-    const job = await JobsModel.update(req.params.id, req.body);
-    res.json({ job });
-  } catch (error) {
-    console.error('Error updating job:', error);
-    res.status(500).json({ error: 'Failed to update job' });
-  }
-});
-
 adminJobRoutes.delete('/jobs/:id', async (req, res) => {
   try {
     const jobId = req.params.id;
+    const shopDomain = req.query.shop;
     
+    if (!shopDomain) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+
     // Check if job exists
     const job = await JobsModel.getById(jobId);
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
-    
+
     // Check if job belongs to this shop
-    const shopDomain = res.locals.shopify.session.shop;
     if (job.shop_domain !== shopDomain) {
+      console.error('Shop mismatch:', job.shop_domain, shopDomain);
       return res.status(403).json({ error: 'Unauthorized to delete this job' });
     }
-    
+
     // Delete the job
     await JobsModel.delete(jobId);
-    
+
     res.json({ success: true, message: 'Job deleted successfully' });
   } catch (error) {
     console.error('Error deleting job:', error);
