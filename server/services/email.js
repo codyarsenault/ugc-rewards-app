@@ -28,31 +28,45 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type }) 
 }
 
 export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '' }) {
+  console.log('=== sendCustomerStatusEmail called ===');
+  console.log('Parameters:', { to, status, type, additionalMessage });
+  
   let subject, text, html;
   
   if (status === 'approved') {
-    subject = 'Your submission has been approved!';
+    subject = '🎉 Your submission has been approved!';
     text = `Congratulations! Your ${type} submission has been approved.${additionalMessage ? ' ' + additionalMessage : ''}`;
     html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">🎉 Congratulations!</h2>
-        <p>Your <b>${type}</b> submission has been <b>approved</b>.</p>
+        <p style="font-size: 16px; line-height: 1.6;">Your <b>${type}</b> submission has been <b>approved</b>!</p>
+        
         ${additionalMessage ? `
-          <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; color: #333; font-weight: 500;">${additionalMessage}</p>
+          <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #008060;">
+            <p style="margin: 0; color: #333; font-size: 16px; line-height: 1.5;">
+              <strong>What's Next:</strong><br>
+              ${additionalMessage}
+            </p>
           </div>
         ` : ''}
-        <p style="color: #666; margin-top: 20px;">Thank you for sharing your amazing content with us!</p>
+        
+        <p style="color: #666; margin-top: 20px;">Thank you for sharing your amazing content with us! We truly appreciate your contribution to our community.</p>
+        
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from UGC Rewards.</p>
       </div>
     `;
   } else if (status === 'rejected') {
-    subject = 'Your submission has been reviewed';
-    text = `We're sorry, but your ${type} submission was not approved. We encourage you to try again!`;
+    subject = 'Update on your submission';
+    text = `Thank you for your submission. Unfortunately, your ${type} submission was not approved at this time. We encourage you to try again!`;
     html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">Submission Update</h2>
-        <p>Thank you for your submission. Unfortunately, your <b>${type}</b> submission was <b>not approved</b> at this time.</p>
+        <p>Thank you for your submission. Unfortunately, your <b>${type}</b> submission was not approved at this time.</p>
         <p>We encourage you to review our guidelines and submit again. We'd love to see more content from you!</p>
+        
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from UGC Rewards.</p>
       </div>
     `;
   } else {

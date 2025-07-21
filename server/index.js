@@ -910,7 +910,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               setRequirementsFromString(''); // This will create one empty requirement input
 
               // Add this line to ensure correct fields are shown
-              updateRewardFields();
+            updateRewardFields();
             }
             
             document.getElementById('jobModal').classList.add('open');
@@ -1550,7 +1550,7 @@ app.post(
       // 3️⃣ If tied to a job, update spots + potentially fire reward
       if (submission.job_id) {
         await JobsModel.incrementSpotsFilled(submission.job_id);
-        const job = await JobsModel.getById(submission.job_id);
+        job = await JobsModel.getById(submission.job_id);
         console.log('Job details:', job);
 
         // If job is full, mark completed
@@ -1700,26 +1700,31 @@ app.post(
             console.error('Error processing free product reward:', error);
           }
         }
-      }
-
-      // 5️⃣ Finally, let the user know & email them the status
-      let additionalMessage = '';
-
-      // Only set additional message if there was a job
-      if (submission.job_id && job) {
+        
+        // 5️⃣ Send customer email WITH job-specific message
+        let additionalMessage = '';
+        
         if (job.reward_type === 'giftcard') {
           additionalMessage = `Your $${job.reward_giftcard_amount} gift card will be sent to you within 24 hours. Please check your email!`;
         } else if (job.reward_type === 'product') {
-          additionalMessage = `Instructions for claiming your free ${job.reward_product} will be sent within 24 hours.`;
+          additionalMessage = `Instructions for claiming your free ${job.reward_product || 'product'} will be sent to you within 24 hours. Keep an eye on your inbox!`;
         }
-      }
+        
+        await sendCustomerStatusEmail({
+          to:     submission.customer_email,
+          status: 'approved',
+          type:   submission.type,
+          additionalMessage: additionalMessage
+        });
 
-      await sendCustomerStatusEmail({
-        to:     submission.customer_email,
-        status: 'approved',
-        type:   submission.type,
-        additionalMessage: additionalMessage
-      });
+      } else {
+        // For non-job submissions, send regular approval email
+        await sendCustomerStatusEmail({
+          to:     submission.customer_email,
+          status: 'approved',
+          type:   submission.type
+        });
+      }
 
       res.json({ success: true, message: 'Submission approved' });
     } catch (error) {
