@@ -774,6 +774,29 @@
         return 'Free ' + (job.reward_product || 'product');
       }
     }
+    
+    // Check if content is a video URL
+    function isVideoUrl(content) {
+      const videoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv'];
+      const lowerContent = content.toLowerCase();
+      
+      // Check for video file extensions
+      if (videoExtensions.some(ext => lowerContent.includes(ext))) {
+        return true;
+      }
+      
+      // Check for common video hosting URLs
+      if (lowerContent.includes('youtube.com') || 
+          lowerContent.includes('youtu.be') ||
+          lowerContent.includes('vimeo.com') ||
+          lowerContent.includes('dailymotion.com') ||
+          lowerContent.includes('s3.amazonaws.com') ||
+          lowerContent.includes('cloudfront.net')) {
+        return true;
+      }
+      
+      return false;
+    }
 
     // Open job modal
     async function openJobModal(jobId) {
@@ -786,15 +809,25 @@
         document.getElementById('modalJobType').textContent = selectedJob.type === 'video' ? '🎬 Video' : '📸 Photo';
         document.getElementById('modalJobType').className = `job-type ${selectedJob.type}`;
         document.getElementById('modalJobTitle').textContent = selectedJob.title;
-        document.getElementById('modalJobDescription').textContent = selectedJob.description;
         
-        // Requirements
+        // Limit description to 50 words
+        const words = selectedJob.description.split(' ');
+        const limitedDescription = words.length > 50 
+          ? words.slice(0, 50).join(' ') + '...'
+          : selectedJob.description;
+        document.getElementById('modalJobDescription').textContent = limitedDescription;
+        
+        // Requirements - show only first 3 bullets
         if (selectedJob.requirements) {
           const reqList = selectedJob.requirements.split('\n').filter(r => r.trim());
+          const limitedReqList = reqList.slice(0, 3);
+          const hasMoreRequirements = reqList.length > 3;
+          
           document.getElementById('modalRequirements').innerHTML = `
             <h4>✨ What we're looking for:</h4>
             <ul>
-              ${reqList.map(req => `<li>${req}</li>`).join('')}
+              ${limitedReqList.map(req => `<li>${req}</li>`).join('')}
+              ${hasMoreRequirements ? '<li>...</li>' : ''}
             </ul>
           `;
         } else {
@@ -816,10 +849,21 @@
 
         // Example content
         if (selectedJob.example_content) {
-          document.getElementById('modalExample').innerHTML = `
-            <h4>💡 Inspiration:</h4>
-            <p style="color: #718096; line-height: 1.6;">${selectedJob.example_content}</p>
-          `;
+          const content = selectedJob.example_content.trim();
+          
+          // Split content by newlines and filter out empty lines
+          const contentLines = content.split('\n').filter(line => line.trim());
+          
+          // Only show text content, filter out video URLs
+          const textContent = contentLines.filter(line => !isVideoUrl(line.trim()));
+          
+          if (textContent.length > 0) {
+            document.getElementById('modalExample').innerHTML = `
+              <p style="color: #718096; line-height: 1.6;">${textContent.join('<br>')}</p>
+            `;
+          } else {
+            document.getElementById('modalExample').innerHTML = '';
+          }
         } else {
           document.getElementById('modalExample').innerHTML = '';
         }

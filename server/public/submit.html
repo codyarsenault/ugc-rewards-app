@@ -282,6 +282,83 @@
       border: 1px solid #e8e5e3;
     }
     
+    /* Example Videos Section */
+    .examples-section {
+      max-width: 1200px;
+      margin: -30px auto 0 auto;
+      padding: 0 20px;
+      position: relative;
+      z-index: 10;
+    }
+    
+    .video-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    
+    .video-container {
+      position: relative;
+      aspect-ratio: 9/16;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.3s ease;
+      border: 1px solid #e8e5e3;
+      overflow: hidden;
+    }
+    
+    .video-container:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+    
+    .video-placeholder {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    
+    .play-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 2;
+    }
+    
+    .play-button:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: translate(-50%, -50%) scale(1.1);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+    
+    .play-button::after {
+      content: '';
+      width: 0;
+      height: 0;
+      border-left: 15px solid #b89685;
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      margin-left: 3px;
+    }
+    
+    .video-container.playing .play-button {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
     .browse-jobs p {
       margin: 0 0 15px 0;
       color: #5a6575;
@@ -325,6 +402,18 @@
       .job-info {
         padding: 25px;
       }
+      
+      .video-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+      }
+      
+      @media (max-width: 640px) {
+        .video-row {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+      }
     }
   </style>
 </head>
@@ -342,6 +431,7 @@
       <div id="jobRequirements" style="margin: 20px 0;"></div>
       <p><strong>Reward:</strong> <span class="reward-badge" id="jobReward"></span></p>
       <p id="jobDeadline" style="margin-top: 15px;"></p>
+      <div id="jobInspiration" style="margin: 20px 0;"></div>
     </div>
     
     <div id="message"></div>
@@ -465,6 +555,60 @@
           deadlineDiv.innerHTML = '';
         }
         
+        // Display inspiration content if it exists
+        const inspirationDiv = document.getElementById('jobInspiration');
+        if (job.example_content && job.example_content.trim()) {
+          const content = job.example_content.trim();
+          
+          // Split content by newlines and filter out empty lines
+          const contentLines = content.split('\n').filter(line => line.trim());
+          
+          // Separate video URLs and text content
+          const videoUrls = contentLines.filter(line => isVideoUrl(line.trim()));
+          const textContent = contentLines.filter(line => !isVideoUrl(line.trim()));
+          
+          let inspirationHTML = '';
+          
+          // Add text content if any
+          if (textContent.length > 0) {
+            inspirationHTML += `
+              <h4 style="margin: 0 0 10px 0; color: #3a4152; font-size: 16px; font-weight: 600;">💡 Inspiration:</h4>
+              <p style="color: #718096; line-height: 1.6; margin: 0 0 20px 0;">${textContent.join('<br>')}</p>
+            `;
+          }
+          
+          // Add video content if any
+          if (videoUrls.length > 0) {
+            const videoTitle = videoUrls.length === 1 ? '💡 Inspiration Video:' : '💡 Inspiration Videos:';
+            inspirationHTML += `<h4 style="margin: 0 0 15px 0; color: #3a4152; font-size: 16px; font-weight: 600;">${videoTitle}</h4>`;
+            
+            videoUrls.forEach((videoUrl, index) => {
+              inspirationHTML += `
+                <div style="padding: 20px; background: linear-gradient(135deg, #faf9f8 0%, #f6f5f3 100%); border-radius: 12px; border: 1px solid #e8e5e3; text-align: center; margin-bottom: 15px;">
+                  <div style="margin-bottom: 15px;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin: 0 auto; display: block;">
+                      <path d="M8 5v14l11-7z" fill="#b89685"/>
+                    </svg>
+                  </div>
+                  <p style="margin: 0 0 15px 0; color: #5a6575; font-weight: 500;">
+                    ${videoUrls.length > 1 ? `Watch inspiration video ${index + 1}` : 'Watch the inspiration video to understand the style and tone we\'re looking for'}
+                  </p>
+                  <a href="${videoUrl.trim()}" target="_blank" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #b89685 0%, #d4a574 100%); color: white; text-decoration: none; border-radius: 20px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(184, 150, 133, 0.25);">
+                    🎬 Watch Video ${videoUrls.length > 1 ? index + 1 : ''}
+                  </a>
+                  <div style="margin-top: 10px; font-size: 12px; color: #718096;">
+                    Opens in new tab
+                  </div>
+                </div>
+              `;
+            });
+          }
+          
+          inspirationDiv.innerHTML = inspirationHTML;
+        } else {
+          inspirationDiv.innerHTML = '';
+        }
+        
         // Set the content type and lock it
         document.getElementById('type').value = job.type;
         document.getElementById('type').disabled = true;
@@ -498,6 +642,50 @@
       } else {
         return 'Free ' + (job.reward_product || 'product');
       }
+    }
+    
+    // Check if content is a video URL
+    function isVideoUrl(content) {
+      const videoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv'];
+      const lowerContent = content.toLowerCase();
+      
+      // Check for video file extensions
+      if (videoExtensions.some(ext => lowerContent.includes(ext))) {
+        return true;
+      }
+      
+      // Check for common video hosting URLs
+      if (lowerContent.includes('youtube.com') || 
+          lowerContent.includes('youtu.be') ||
+          lowerContent.includes('vimeo.com') ||
+          lowerContent.includes('dailymotion.com') ||
+          lowerContent.includes('s3.amazonaws.com') ||
+          lowerContent.includes('cloudfront.net')) {
+        return true;
+      }
+      
+      return false;
+    }
+    
+    // Play inspiration video
+    function playInspirationVideo(video) {
+      if (video.paused) {
+        video.play();
+      } else {
+        video.pause();
+      }
+    }
+    
+    // Handle video loading errors
+    function handleVideoError(video) {
+      console.error('Video failed to load:', video.src);
+      const container = video.parentElement;
+      container.innerHTML = `
+        <div style="padding: 20px; text-align: center; background: #f8f9fa; border-radius: 8px; border: 1px solid #e8e5e3;">
+          <p style="margin: 0 0 10px 0; color: #718096;">Video couldn't be loaded</p>
+          <a href="${video.src}" target="_blank" style="color: #b89685; text-decoration: none; font-weight: 600;">Open video in new tab →</a>
+        </div>
+      `;
     }
     
     // Show/hide media upload based on type
