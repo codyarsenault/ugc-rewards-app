@@ -167,10 +167,36 @@
       color: #3a4152;
     }
     
+    .filter-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
     .filter-group {
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
+    }
+    
+    .filter-select {
+      padding: 8px 16px;
+      border: 2px solid #e8e5e3;
+      border-radius: 20px;
+      background: white;
+      font-size: 14px;
+      font-weight: 500;
+      color: #5a6575;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .filter-select:focus {
+      outline: none;
+      border-color: #b89685;
+      box-shadow: 0 0 0 3px rgba(184, 150, 133, 0.1);
     }
     
     .filter-btn {
@@ -579,10 +605,27 @@
   <div class="container">
     <div class="filters">
       <h3>What type of content do you love creating?</h3>
-      <div class="filter-group">
-        <button class="filter-btn active" onclick="filterJobs('all')">All Jobs</button>
-        <button class="filter-btn" onclick="filterJobs('video')">Video Content</button>
-        <button class="filter-btn" onclick="filterJobs('photo')">Photo Content</button>
+      <div class="filter-row">
+        <div class="filter-group">
+          <button class="filter-btn active" onclick="filterJobs('all')">All Jobs</button>
+          <button class="filter-btn" onclick="filterJobs('video')">Video Content</button>
+          <button class="filter-btn" onclick="filterJobs('photo')">Photo Content</button>
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="deadlineFilter" onchange="applyFilters()">
+            <option value="all">Any Deadline</option>
+            <option value="7">Within 7 days</option>
+            <option value="14">Within 14 days</option>
+            <option value="30">Within 30 days</option>
+          </select>
+          <select class="filter-select" id="rewardFilter" onchange="applyFilters()">
+            <option value="all">Any Reward</option>
+            <option value="percentage">Percentage Off</option>
+            <option value="fixed">Fixed Amount Off</option>
+            <option value="product">Free Product</option>
+            <option value="giftcard">Gift Card</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -621,6 +664,8 @@
     let allJobs = [];
     let currentFilter = 'all';
     let selectedJob = null;
+    let currentDeadlineFilter = 'all';
+    let currentRewardFilter = 'all';
 
     // Load jobs on page load
     async function loadJobs() {
@@ -642,9 +687,29 @@
 
     // Display jobs based on filter
     function displayJobs() {
-      const filteredJobs = currentFilter === 'all' 
-        ? allJobs 
-        : allJobs.filter(job => job.type === currentFilter);
+      let filteredJobs = allJobs;
+      
+      // Filter by content type
+      if (currentFilter !== 'all') {
+        filteredJobs = filteredJobs.filter(job => job.type === currentFilter);
+      }
+      
+      // Filter by deadline
+      if (currentDeadlineFilter !== 'all') {
+        const daysLimit = parseInt(currentDeadlineFilter);
+        const now = new Date();
+        filteredJobs = filteredJobs.filter(job => {
+          if (!job.deadline) return false;
+          const deadline = new Date(job.deadline);
+          const daysLeft = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+          return daysLeft <= daysLimit && daysLeft >= 0;
+        });
+      }
+      
+      // Filter by reward type
+      if (currentRewardFilter !== 'all') {
+        filteredJobs = filteredJobs.filter(job => job.reward_type === currentRewardFilter);
+      }
 
       const jobsGrid = document.getElementById('jobsGrid');
 
@@ -677,7 +742,7 @@
       }).join('');
     }
 
-    // Filter jobs
+    // Filter jobs by content type
     function filterJobs(type) {
       currentFilter = type;
       
@@ -687,6 +752,13 @@
       });
       event.target.classList.add('active');
       
+      displayJobs();
+    }
+    
+    // Apply all filters
+    function applyFilters() {
+      currentDeadlineFilter = document.getElementById('deadlineFilter').value;
+      currentRewardFilter = document.getElementById('rewardFilter').value;
       displayJobs();
     }
 
