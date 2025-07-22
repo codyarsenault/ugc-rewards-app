@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* Hide content until customizations are loaded */
+    body {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    body.loaded {
+      opacity: 1;
+    }
+    
     * {
       box-sizing: border-box;
     }
@@ -567,13 +577,18 @@
           style.textContent = customizations.custom_css;
           document.head.appendChild(style);
         }
+        
+        // Show the page after customizations are applied
+        document.body.classList.add('loaded');
       } catch (error) {
         console.error('Error loading customizations:', error);
+        // Show page even if customizations fail
+        document.body.classList.add('loaded');
       }
     }
     
-    // Load customizations on page load
-    document.addEventListener('DOMContentLoaded', loadCustomizations);
+    // Load customizations immediately
+    loadCustomizations();
 
     const form = document.getElementById('ugcForm');
     const typeSelect = document.getElementById('type');
