@@ -565,8 +565,36 @@
           if (header) {
             const logo = document.createElement('div');
             logo.className = 'logo';
-            logo.style.cssText = 'position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10;';
-            logo.innerHTML = `<img src="${customizations.logo_url}" alt="Logo" style="max-height: 40px; max-width: 200px;">`;
+            
+            // Set logo size and positioning based on customization
+            let maxWidth, maxHeight, topPosition, headerPadding;
+            switch (customizations.logo_size) {
+              case 'small':
+                maxWidth = '120px';
+                maxHeight = '40px';
+                topPosition = '20px';
+                headerPadding = '60px 20px';
+                break;
+              case 'large':
+                maxWidth = '300px';
+                maxHeight = '90px';
+                topPosition = '30px';
+                headerPadding = '120px 20px';
+                break;
+              default: // medium
+                maxWidth = '200px';
+                maxHeight = '60px';
+                topPosition = '25px';
+                headerPadding = '80px 20px';
+                break;
+            }
+            
+            logo.style.cssText = `position: absolute; top: ${topPosition}; left: 50%; transform: translateX(-50%); z-index: 10;`;
+            logo.innerHTML = `<img src="${customizations.logo_url}" alt="Logo" style="max-height: ${maxHeight}; max-width: ${maxWidth};">`;
+            
+            // Adjust header padding to accommodate logo
+            header.style.padding = headerPadding;
+            
             header.appendChild(logo);
           }
         }

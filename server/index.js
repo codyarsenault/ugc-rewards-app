@@ -719,6 +719,16 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   <div id="logoPreview" class="image-preview" style="display: none;"></div>
                 </div>
                 
+                <div class="form-group">
+                  <label for="logoSize">Logo Size</label>
+                  <select id="logoSize" name="logoSize">
+                    <option value="small">Small (120x40px)</option>
+                    <option value="medium">Medium (200x60px)</option>
+                    <option value="large">Large (300x90px)</option>
+                  </select>
+                  <p class="help-text">Choose the size of your logo on the public pages</p>
+                </div>
+                
                 <h2>Typography</h2>
                 <div class="form-group">
                   <label for="headingFont">Heading Font</label>
@@ -1842,6 +1852,14 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   showImagePreview('logoPreview', customizations.logo_url);
                 }
               }
+              
+              // Load logo size
+              if (customizations.logo_size) {
+                const logoSizeEl = document.getElementById('logoSize');
+                if (logoSizeEl) {
+                  logoSizeEl.value = customizations.logo_size;
+                }
+              }
               if (customizations.heading_font) {
                 const headingFontEl = document.getElementById('headingFont');
                 if (headingFontEl) {
@@ -1919,6 +1937,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               document.getElementById('accentColorPicker').value = '#c9a961';
               document.getElementById('heroImageUrl').value = '';
               document.getElementById('logoUrl').value = '';
+              document.getElementById('logoSize').value = 'medium';
               document.getElementById('headingFont').value = 'Montserrat';
               document.getElementById('bodyFont').value = 'Inter';
               document.getElementById('showExampleVideos').checked = true;
