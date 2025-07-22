@@ -336,6 +336,7 @@
   
   <div class="container">
     <div id="jobInfo" class="job-info" style="display:none;">
+      <span id="jobType" class="job-type" style="display: inline-block; padding: 6px 16px; background: #e7f1f8; color: #5a7a8f; border-radius: 20px; font-size: 13px; font-weight: 600; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.5px;"></span>
       <h2 id="jobTitle"></h2>
       <p id="jobDescription"></p>
       <div id="jobRequirements" style="margin: 20px 0;"></div>
@@ -365,10 +366,10 @@
       <textarea id="content" name="content" rows="4" required></textarea>
     </div>
     
-    <div class="form-group" id="mediaGroup" style="display:none;">
-      <label>Upload Photo/Video</label>
+        <div class="form-group" id="mediaGroup" style="display:none;">
+      <label id="mediaLabel">Upload Photo/Video</label>
       <div class="file-upload">
-        <input type="file" id="media" name="media" accept="image/*,video/*">
+      <input type="file" id="media" name="media" accept="image/*,video/*">
         <label for="media" class="file-upload-label">
           <span id="fileLabel">Choose file or drag and drop here</span>
         </label>
@@ -422,6 +423,13 @@
         
         // Display job info
         document.getElementById('jobInfo').style.display = 'block';
+        
+        // Set job type tag
+        const jobTypeElement = document.getElementById('jobType');
+        jobTypeElement.textContent = job.type === 'video' ? '🎬 Video' : '📸 Photo';
+        jobTypeElement.style.background = job.type === 'video' ? '#e9e5f5' : '#f5e9f3';
+        jobTypeElement.style.color = job.type === 'video' ? '#6f6a8b' : '#8b6f86';
+        
         document.getElementById('jobTitle').textContent = job.title;
         document.getElementById('jobDescription').textContent = job.description;
         document.getElementById('jobReward').textContent = formatReward(job);
@@ -466,6 +474,10 @@
         if (job.type === 'photo' || job.type === 'video') {
           mediaGroup.style.display = 'block';
           fileInput.required = true;
+          
+          // Update the label based on job type
+          const mediaLabel = document.getElementById('mediaLabel');
+          mediaLabel.textContent = job.type === 'video' ? 'Upload Video' : 'Upload Photo';
         }
         
         // Add job requirements to content placeholder
