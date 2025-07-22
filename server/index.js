@@ -290,12 +290,29 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             font-size: 14px;
             vertical-align: top;
             word-break: break-word;
-            max-width: 350px;
+          }
+          .col-date { width: 100px; }
+          .col-customer { width: 200px; }
+          .col-type { width: 80px; }
+          .col-job { width: 75px; }
+          .col-content { width: 300px; }
+          .col-media { width: 120px; }
+          .col-actions { width: 120px; }
+          
+          .job-title {
+            max-width: 70px;
+            word-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            line-height: 1.2;
+            font-size: 13px;
           }
           .review-content {
             white-space: pre-line;
             word-break: break-word;
-            max-width: 350px;
+            max-width: 280px;
+            max-height: 60px;
+            overflow: hidden;
           }
           .empty-state {
             text-align: center;
@@ -1278,17 +1295,17 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               return;
             }
 
-                tableDiv.innerHTML = \`
+                                tableDiv.innerHTML = \`
                   <table>
                     <thead>
                       <tr>
                         <th>Date</th>
                         <th>Customer</th>
                         <th>Type</th>
-                    <th>Job</th>
+                        <th>Job</th>
                         <th>Content</th>
-                    <th>Media</th>
-                    <th>Actions</th>
+                        <th>Media</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1297,16 +1314,16 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                           <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
                           <td>\${sub.customerEmail}</td>
                           <td>\${sub.type}</td>
-                      <td>\${sub.job_title ? \`<a href="#" onclick="viewJobFromSubmission(event, \${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">\${sub.job_title}</a>\` : '-'}</td>
-                      <td class="review-content">\${sub.content || 'No content'}</td>
-                      <td>
-                        \${sub.mediaUrl ? (
-                          sub.type === 'video' 
-                            ? \`<video class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'video')" src="\${sub.mediaUrl}"></video>\`
-                            : \`<img class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'image')" src="\${sub.mediaUrl}" alt="Submission media">\`
-                        ) : '-'}
-                      </td>
-                      <td>
+                          <td style="max-width: 100px; word-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.2; font-size: 13px;">\${sub.job_title ? \`<a href="#" onclick="viewJobFromSubmission(event, \${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">\${sub.job_title}</a>\` : '-'}</td>
+                          <td class="review-content">\${sub.content || 'No content'}</td>
+                          <td>
+                            \${sub.mediaUrl ? (
+                              sub.type === 'video' 
+                                ? \`<video class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'video')" src="\${sub.mediaUrl}"></video>\`
+                                : \`<img class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'image')" src="\${sub.mediaUrl}" alt="Submission media">\`
+                            ) : '-'}
+                          </td>
+                          <td>
                         \${sub.status === 'pending' ? \`
                           <button onclick="approveSubmission(\${sub.id})" class="btn btn-primary btn-sm">Approve</button>
                           <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger btn-sm">Reject</button>
