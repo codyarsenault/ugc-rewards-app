@@ -1337,7 +1337,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                                   onchange="markRewardFulfilled(event, \${sub.id}, this.checked)"
                                   style="cursor: pointer;">
                                 <span style="font-size: 12px; color: \${sub.reward_fulfilled === true ? '#008060' : '#616161'};">
-                                  \${sub.reward_fulfilled === true ? 'Reward sent ✓' : 'Mark reward as sent'}
+                                  \${sub.reward_fulfilled === true ? 'Reward sent ✓' : \`Mark \${sub.reward_type === 'giftcard' ? 'gift card' : 'free product'} reward as sent\`}
                                 </span>
                               </label>
                             </div>
