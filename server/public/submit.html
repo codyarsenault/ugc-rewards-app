@@ -555,7 +555,7 @@
           if (header) {
             const logo = document.createElement('div');
             logo.className = 'logo';
-            logo.style.cssText = 'position: absolute; top: 20px; left: 20px; z-index: 10;';
+            logo.style.cssText = 'position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10;';
             logo.innerHTML = `<img src="${customizations.logo_url}" alt="Logo" style="max-height: 40px; max-width: 200px;">`;
             header.appendChild(logo);
           }

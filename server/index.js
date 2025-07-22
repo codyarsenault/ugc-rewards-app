@@ -1390,6 +1390,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
           let allSubmissions = [];
           let currentSubmissionFilter = 'pending';
+          let customizationsLoaded = false;
           
           // Update the loadSubmissions function
           async function loadSubmissions() {
@@ -1752,43 +1753,97 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               const response = await fetch('/api/admin/customizations' + queryParams);
               const customizations = await response.json();
               
+              console.log('Loaded customizations:', customizations);
+              console.log('Checking if form elements exist...');
+              
+              // Check if form elements exist
+              const primaryColorEl = document.getElementById('primaryColor');
+              const primaryColorPickerEl = document.getElementById('primaryColorPicker');
+              console.log('Primary color elements:', { primaryColorEl, primaryColorPickerEl });
+              
               // Populate form with existing customizations
               if (customizations.primary_color) {
-                document.getElementById('primaryColor').value = customizations.primary_color;
-                document.getElementById('primaryColorPicker').value = customizations.primary_color;
+                const primaryColorEl = document.getElementById('primaryColor');
+                const primaryColorPickerEl = document.getElementById('primaryColorPicker');
+                if (primaryColorEl && primaryColorPickerEl) {
+                  console.log('Before setting - Primary color value:', primaryColorEl.value);
+                  console.log('Before setting - Primary color picker value:', primaryColorPickerEl.value);
+                  primaryColorEl.value = customizations.primary_color;
+                  primaryColorPickerEl.value = customizations.primary_color;
+                  console.log('After setting - Primary color value:', primaryColorEl.value);
+                  console.log('After setting - Primary color picker value:', primaryColorPickerEl.value);
+                  console.log('Set primary color to:', customizations.primary_color);
+                } else {
+                  console.log('Primary color elements not found!');
+                }
               }
               if (customizations.secondary_color) {
-                document.getElementById('secondaryColor').value = customizations.secondary_color;
-                document.getElementById('secondaryColorPicker').value = customizations.secondary_color;
+                const secondaryColorEl = document.getElementById('secondaryColor');
+                const secondaryColorPickerEl = document.getElementById('secondaryColorPicker');
+                if (secondaryColorEl && secondaryColorPickerEl) {
+                  secondaryColorEl.value = customizations.secondary_color;
+                  secondaryColorPickerEl.value = customizations.secondary_color;
+                  console.log('Set secondary color to:', customizations.secondary_color);
+                }
               }
               if (customizations.text_color) {
-                document.getElementById('textColor').value = customizations.text_color;
-                document.getElementById('textColorPicker').value = customizations.text_color;
+                const textColorEl = document.getElementById('textColor');
+                const textColorPickerEl = document.getElementById('textColorPicker');
+                if (textColorEl && textColorPickerEl) {
+                  textColorEl.value = customizations.text_color;
+                  textColorPickerEl.value = customizations.text_color;
+                  console.log('Set text color to:', customizations.text_color);
+                }
               }
               if (customizations.accent_color) {
-                document.getElementById('accentColor').value = customizations.accent_color;
-                document.getElementById('accentColorPicker').value = customizations.accent_color;
+                const accentColorEl = document.getElementById('accentColor');
+                const accentColorPickerEl = document.getElementById('accentColorPicker');
+                if (accentColorEl && accentColorPickerEl) {
+                  accentColorEl.value = customizations.accent_color;
+                  accentColorPickerEl.value = customizations.accent_color;
+                  console.log('Set accent color to:', customizations.accent_color);
+                }
               }
               if (customizations.hero_image_url) {
-                document.getElementById('heroImageUrl').value = customizations.hero_image_url;
-                showImagePreview('heroImagePreview', customizations.hero_image_url);
+                const heroImageUrlEl = document.getElementById('heroImageUrl');
+                if (heroImageUrlEl) {
+                  heroImageUrlEl.value = customizations.hero_image_url;
+                  showImagePreview('heroImagePreview', customizations.hero_image_url);
+                }
               }
               if (customizations.logo_url) {
-                document.getElementById('logoUrl').value = customizations.logo_url;
-                showImagePreview('logoPreview', customizations.logo_url);
+                const logoUrlEl = document.getElementById('logoUrl');
+                if (logoUrlEl) {
+                  logoUrlEl.value = customizations.logo_url;
+                  showImagePreview('logoPreview', customizations.logo_url);
+                }
               }
               if (customizations.heading_font) {
-                document.getElementById('headingFont').value = customizations.heading_font;
+                const headingFontEl = document.getElementById('headingFont');
+                if (headingFontEl) {
+                  headingFontEl.value = customizations.heading_font;
+                }
               }
               if (customizations.body_font) {
-                document.getElementById('bodyFont').value = customizations.body_font;
+                const bodyFontEl = document.getElementById('bodyFont');
+                if (bodyFontEl) {
+                  bodyFontEl.value = customizations.body_font;
+                }
               }
               if (customizations.show_example_videos !== undefined) {
-                document.getElementById('showExampleVideos').checked = customizations.show_example_videos;
+                const showExampleVideosEl = document.getElementById('showExampleVideos');
+                if (showExampleVideosEl) {
+                  showExampleVideosEl.checked = customizations.show_example_videos;
+                }
               }
               if (customizations.custom_css) {
-                document.getElementById('customCss').value = customizations.custom_css;
+                const customCssEl = document.getElementById('customCss');
+                if (customCssEl) {
+                  customCssEl.value = customizations.custom_css;
+                }
               }
+              
+              console.log('Customizations loaded successfully');
             } catch (error) {
               console.error('Error loading customizations:', error);
             }
@@ -1827,6 +1882,11 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
           // Color picker synchronization
           document.addEventListener('DOMContentLoaded', function() {
+            // Load customizations when DOM is ready
+            setTimeout(() => {
+              loadCustomizations();
+            }, 100);
+            
             // Color picker synchronization
             document.querySelectorAll('input[type="color"]').forEach(picker => {
               const textInput = picker.nextElementSibling;
@@ -2296,6 +2356,26 @@ app.get('/customizations', shopify.ensureInstalledOnShop(), async (req, res) => 
   }
 });
 
+// API endpoint to get customizations (admin)
+app.get('/api/admin/customizations', shopify.ensureInstalledOnShop(), async (req, res) => {
+  try {
+    // Get shop from session with fallback
+    let shop;
+    if (res.locals.shopify?.session?.shop) {
+      shop = res.locals.shopify.session.shop;
+    } else {
+      // Fallback: try to get shop from URL params or headers
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
+    }
+    
+    const customizations = await CustomizationsModel.getByShop(shop);
+    res.json(customizations || {});
+  } catch (error) {
+    console.error('Error loading customizations:', error);
+    res.status(500).json({ error: 'Failed to load customizations' });
+  }
+});
+
 // API endpoint to save customizations
 app.post('/api/admin/customizations', shopify.ensureInstalledOnShop(), async (req, res) => {
   try {
@@ -2305,7 +2385,7 @@ app.post('/api/admin/customizations', shopify.ensureInstalledOnShop(), async (re
       shop = res.locals.shopify.session.shop;
     } else {
       // Fallback: try to get shop from URL params or headers
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'default-shop.myshopify.com';
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
     }
     
     const customizations = await CustomizationsModel.upsert(shop, req.body);
