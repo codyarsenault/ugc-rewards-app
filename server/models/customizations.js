@@ -38,10 +38,20 @@ export class CustomizationsModel {
           example_video_3,
           example_video_4,
           custom_css,
+          email_subject_confirmation,
+          email_body_confirmation,
+          email_subject_approved,
+          email_body_approved,
+          email_subject_rejected,
+          email_body_rejected,
+          email_subject_reward,
+          email_body_reward,
+          email_subject_giftcard,
+          email_body_giftcard,
           created_at,
           updated_at
         ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW(), NOW())
         ON CONFLICT (shop_domain) 
         DO UPDATE SET 
           primary_color = EXCLUDED.primary_color,
@@ -59,6 +69,16 @@ export class CustomizationsModel {
           example_video_3 = EXCLUDED.example_video_3,
           example_video_4 = EXCLUDED.example_video_4,
           custom_css = EXCLUDED.custom_css,
+          email_subject_confirmation = EXCLUDED.email_subject_confirmation,
+          email_body_confirmation = EXCLUDED.email_body_confirmation,
+          email_subject_approved = EXCLUDED.email_subject_approved,
+          email_body_approved = EXCLUDED.email_body_approved,
+          email_subject_rejected = EXCLUDED.email_subject_rejected,
+          email_body_rejected = EXCLUDED.email_body_rejected,
+          email_subject_reward = EXCLUDED.email_subject_reward,
+          email_body_reward = EXCLUDED.email_body_reward,
+          email_subject_giftcard = EXCLUDED.email_subject_giftcard,
+          email_body_giftcard = EXCLUDED.email_body_giftcard,
           updated_at = NOW()
         RETURNING *
       `;
@@ -79,7 +99,17 @@ export class CustomizationsModel {
         customizations.exampleVideo2 || null,
         customizations.exampleVideo3 || null,
         customizations.exampleVideo4 || null,
-        customizations.customCss || null
+        customizations.customCss || null,
+        customizations.emailSubjectConfirmation || null,
+        customizations.emailBodyConfirmation || null,
+        customizations.emailSubjectApproved || null,
+        customizations.emailBodyApproved || null,
+        customizations.emailSubjectRejected || null,
+        customizations.emailBodyRejected || null,
+        customizations.emailSubjectReward || null,
+        customizations.emailBodyReward || null,
+        customizations.emailSubjectGiftcard || null,
+        customizations.emailBodyGiftcard || null
       ];
       
       const result = await pool.query(query, values);

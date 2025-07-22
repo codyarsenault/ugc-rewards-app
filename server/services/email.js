@@ -16,27 +16,42 @@ export async function sendNotificationEmail({ to, subject, text, html }) {
   return sgMail.send(msg);
 }
 
-export async function sendCustomerConfirmationEmail({ to, customerName, type }) {
+export async function sendCustomerConfirmationEmail({ to, customerName, type, customSubject, customBody }) {
   const msg = {
     to,
     from: process.env.EMAIL_FROM,
-    subject: 'Thank you for your submission!',
-    text: `Thank you for sharing your experience! Your ${type} submission has been received and is pending review.`,
-    html: `<p>Thank you for sharing your experience!</p><p>Your <b>${type}</b> submission has been received and is pending review.</p>`
+    subject: customSubject || 'Thank you for your submission!',
+    text: customBody || `Thank you for sharing your experience! Your ${type} submission has been received and is pending review.`,
+    html: customBody ? `<p>${customBody}</p>` : `<p>Thank you for sharing your experience!</p><p>Your <b>${type}</b> submission has been received and is pending review.</p>`
   };
   return sgMail.send(msg);
 }
 
-export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '' }) {
+export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '', customSubject, customBody }) {
   console.log('=== sendCustomerStatusEmail called ===');
-  console.log('Parameters:', { to, status, type, additionalMessage });
+  console.log('Parameters:', { to, status, type, additionalMessage, customSubject, customBody });
   
   let subject, text, html;
   
   if (status === 'approved') {
-    subject = '🎉 Your submission has been approved!';
-    text = `Congratulations! Your ${type} submission has been approved.${additionalMessage ? ' ' + additionalMessage : ''}`;
-    html = `
+    subject = customSubject || '🎉 Your submission has been approved!';
+    const bodyText = customBody || `Congratulations! Your ${type} submission has been approved.${additionalMessage ? ' ' + additionalMessage : ''}`;
+    text = bodyText;
+    html = customBody ? `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
+        ${additionalMessage ? `
+          <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #008060;">
+            <p style="margin: 0; color: #333; font-size: 16px; line-height: 1.5;">
+              <strong>What's Next:</strong><br>
+              ${additionalMessage}
+            </p>
+          </div>
+        ` : ''}
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from UGC Rewards.</p>
+      </div>
+    ` : `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">🎉 Congratulations!</h2>
         <p style="font-size: 16px; line-height: 1.6;">Your <b>${type}</b> submission has been <b>approved</b>!</p>
@@ -57,9 +72,16 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
       </div>
     `;
   } else if (status === 'rejected') {
-    subject = 'Update on your submission';
-    text = `Thank you for your submission. Unfortunately, your ${type} submission was not approved at this time. We encourage you to try again!`;
-    html = `
+    subject = customSubject || 'Update on your submission';
+    const bodyText = customBody || `Thank you for your submission. Unfortunately, your ${type} submission was not approved at this time. We encourage you to try again!`;
+    text = bodyText;
+    html = customBody ? `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from UGC Rewards.</p>
+      </div>
+    ` : `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">Submission Update</h2>
         <p>Thank you for your submission. Unfortunately, your <b>${type}</b> submission was not approved at this time.</p>
@@ -70,9 +92,10 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
       </div>
     `;
   } else {
-    subject = 'Submission status update';
-    text = `Your ${type} submission status: ${status}`;
-    html = `<p>Your <b>${type}</b> submission status: <b>${status}</b></p>`;
+    subject = customSubject || 'Submission status update';
+    const bodyText = customBody || `Your ${type} submission status: ${status}`;
+    text = bodyText;
+    html = customBody ? `<p>${customBody}</p>` : `<p>Your <b>${type}</b> submission status: <b>${status}</b></p>`;
   }
   
   const msg = {
@@ -86,13 +109,34 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
   return sgMail.send(msg);
 }
 
-export async function sendGiftCardEmail({ to, code, amount }) {
+export async function sendGiftCardEmail({ to, code, amount, customSubject, customBody }) {
   const msg = {
     from: process.env.EMAIL_FROM,
     to: to,
-    subject: '🎁 Your Gift Card is Here!',
-    text: `Congratulations! Your gift card for $${amount} is ready. Gift card code: ${code}`,
-    html: `
+    subject: customSubject || '🎁 Your Gift Card is Here!',
+    text: customBody ? `${customBody}\n\nGift card code: ${code}\nValue: $${amount}` : `Congratulations! Your gift card for $${amount} is ready. Gift card code: ${code}`,
+    html: customBody ? `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
+        
+        <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <p style="color: #666; margin: 0 0 10px 0;">Gift Card Code:</p>
+          <h1 style="color: #008060; margin: 0; font-size: 32px; letter-spacing: 2px;">${code}</h1>
+          <p style="font-size: 24px; margin: 15px 0 5px 0; color: #333;">Value: $${amount}</p>
+        </div>
+        
+        <p><strong>How to use your gift card:</strong></p>
+        <ol>
+          <li>Shop our collection</li>
+          <li>At checkout, enter the gift card code above</li>
+          <li>The gift card value will be applied to your order</li>
+        </ol>
+        
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">
+          This gift card does not expire. If you have any questions, please contact our support team.
+        </p>
+      </div>
+    ` : `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">🎁 Your Gift Card Has Arrived!</h2>
         <p>Thank you for your amazing UGC submission! Here's your gift card:</p>
@@ -120,15 +164,36 @@ export async function sendGiftCardEmail({ to, code, amount }) {
   return sgMail.send(msg);
 }
 
-export async function sendRewardCodeEmail({ to, code, value, type, expiresIn }) {
+export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, customSubject, customBody }) {
   const valueText = type === 'percentage' ? `${value}%` : `$${value}`;
   
   const msg = {
     from: process.env.EMAIL_FROM,
     to: to,
-    subject: '🎉 Your UGC Reward is Here!',
-    text: `Congratulations! Your content has been approved. Here's your reward code: ${code}. Get ${valueText} off your next purchase. This code expires in ${expiresIn}.`,
-    html: `
+    subject: customSubject || '🎉 Your UGC Reward is Here!',
+    text: customBody ? `${customBody}\n\nCode: ${code}\nValue: ${valueText} off\nExpires: ${expiresIn}` : `Congratulations! Your content has been approved. Here's your reward code: ${code}. Get ${valueText} off your next purchase. This code expires in ${expiresIn}.`,
+    html: customBody ? `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
+        
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <h1 style="color: #008060; margin: 0; font-size: 32px;">${code}</h1>
+          <p style="font-size: 24px; margin: 10px 0; color: #666;">${valueText} OFF</p>
+          <p style="color: #999; margin: 0;">Valid for ${expiresIn}</p>
+        </div>
+        
+        <p>To use this code:</p>
+        <ol>
+          <li>Shop our collection</li>
+          <li>Add items to your cart</li>
+          <li>Enter code <strong>${code}</strong> at checkout</li>
+        </ol>
+        
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">
+          This code is single-use and expires in ${expiresIn}. Cannot be combined with other offers.
+        </p>
+      </div>
+    ` : `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">🎉 Your Content Was Approved!</h2>
         <p>Thank you for sharing your amazing content with us. As promised, here's your reward:</p>

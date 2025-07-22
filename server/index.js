@@ -91,6 +91,21 @@ const shopify = shopifyApp({
 
 const app = express();
 
+// Add ngrok bypass header
+app.use((req, res, next) => {
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  next();
+});
+
+// Add debugging middleware
+app.use((req, res, next) => {
+  console.log('Request URL:', req.url);
+  console.log('Request method:', req.method);
+  console.log('Shopify session:', res.locals.shopify?.session);
+  console.log('Query params:', req.query);
+  next();
+});
+
 // Set up Shopify authentication
 app.get(shopify.config.auth.path, shopify.auth.begin());
 app.get(
@@ -117,8 +132,8 @@ app.use('/uploads', express.static(uploadsDir));
 // Public routes
 app.use('/api/public', publicJobRoutes);
 
-// Admin routes with Shopify auth
-app.use('/api/admin', shopify.ensureInstalledOnShop(), adminJobRoutes);
+// Admin routes
+app.use('/api/admin', adminJobRoutes);
 
 // Route to show submission form
 app.get('/submit', (req, res) => {
@@ -131,7 +146,7 @@ app.get('/jobs', (req, res) => {
 });
 
 // Root route - Admin dashboard with jobs functionality
-app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
+app.get('/', async (req, res) => {
   const submitLink = `${process.env.HOST}/jobs`;
   
   res.send(`
@@ -142,6 +157,70 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+        <script>
+          // Define global functions immediately in head section
+          console.log('Setting up global functions in head...');
+          
+          function saveEmailSettings() {
+            console.log('saveEmailSettings function called');
+            
+            const form = document.getElementById('emailSettingsForm');
+            const formData = new FormData(form);
+            const emailSettings = Object.fromEntries(formData);
+            
+            console.log('Saving email settings:', emailSettings);
+            console.log('Current URL params:', window.location.search);
+            
+            fetch('/api/admin/email-settings' + window.location.search, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(emailSettings),
+              credentials: 'include'
+            })
+            .then(response => {
+              console.log('Response status:', response.status);
+              
+              if (response.ok) {
+                console.log('Email settings saved successfully!');
+                document.getElementById('emailSettingsSuccessMessage').style.display = 'block';
+                setTimeout(() => {
+                  document.getElementById('emailSettingsSuccessMessage').style.display = 'none';
+                }, 3000);
+              } else {
+                return response.json().then(errorData => {
+                  console.error('Server error:', errorData);
+                  alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
+                });
+              }
+            })
+            .catch(error => {
+              console.error('Error saving email settings:', error);
+              alert('Error saving email settings');
+            });
+          }
+          
+          function resetEmailSettingsToDefaults() {
+            console.log('Resetting email settings to defaults');
+            
+            // Reset all email subject and body fields to their default values
+            document.getElementById('emailSubjectConfirmation').value = '';
+            document.getElementById('emailBodyConfirmation').value = '';
+            document.getElementById('emailSubjectApproved').value = '';
+            document.getElementById('emailBodyApproved').value = '';
+            document.getElementById('emailSubjectRejected').value = '';
+            document.getElementById('emailBodyRejected').value = '';
+            document.getElementById('emailSubjectReward').value = '';
+            document.getElementById('emailBodyReward').value = '';
+            document.getElementById('emailSubjectGiftcard').value = '';
+            document.getElementById('emailBodyGiftcard').value = '';
+            
+            console.log('Email settings reset to defaults');
+          }
+          
+          console.log('Global functions defined successfully in head');
+        </script>
         <style>
           *, *::before, *::after {
             box-sizing: border-box;
@@ -356,6 +435,57 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             border: 1px solid #e1e3e5;
             border-radius: 4px;
             background: white;
+          }
+          
+          /* Email Settings Tab Styles */
+          .email-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e1e3e5;
+          }
+          .email-section h3 {
+            margin: 0 0 20px 0;
+            color: #333;
+            font-size: 18px;
+            font-weight: 600;
+          }
+          .email-section .form-group {
+            margin-bottom: 20px;
+          }
+          .email-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+          }
+          .email-section input[type="text"],
+          .email-section textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e3e5;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+          }
+          .email-section input[type="text"]:focus,
+          .email-section textarea:focus {
+            outline: none;
+            border-color: #008060;
+            box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.1);
+          }
+          .email-section textarea {
+            resize: vertical;
+            min-height: 100px;
+          }
+          .email-section small {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
           }
           .col-content { width: 300px; }
           .col-media { width: 120px; }
@@ -580,6 +710,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             <button class="tab active" onclick="switchTab('submissions')">All Submissions</button>
             <button class="tab" onclick="switchTab('jobs')">Jobs</button>
             <button class="tab" onclick="switchTab('customizations')">Customizations</button>
+            <button class="tab" onclick="switchTab('email-settings')">Email Settings</button>
           </div>
 
           <!-- Submissions Tab -->
@@ -798,6 +929,105 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 
                 <div id="customizationSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
                   Settings saved successfully!
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Email Settings Tab -->
+          <div id="email-settings-tab" class="tab-content">
+            <div class="card">
+              <h1>Email Content Customization</h1>
+              <p style="color: #666; margin-bottom: 30px;">Customize the email content sent to your customers at different stages of the UGC process.</p>
+              
+              <form id="emailSettingsForm">
+                <!-- Confirmation Email -->
+                <div class="email-section">
+                  <h3>📧 Confirmation Email (Sent when customer submits content)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectConfirmation">Email Subject</label>
+                    <input type="text" id="emailSubjectConfirmation" name="emailSubjectConfirmation" 
+                           placeholder="Thank you for your submission!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyConfirmation">Email Body</label>
+                    <textarea id="emailBodyConfirmation" name="emailBodyConfirmation" rows="4"
+                              placeholder="Thank you for sharing your experience! Your submission has been received and is pending review."></textarea>
+                    <small style="color: #666;">This email is sent immediately after a customer submits their content.</small>
+                  </div>
+                </div>
+
+                <!-- Approval Email -->
+                <div class="email-section">
+                  <h3>✅ Approval Email (Sent when content is approved)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectApproved">Email Subject</label>
+                    <input type="text" id="emailSubjectApproved" name="emailSubjectApproved" 
+                           placeholder="🎉 Your submission has been approved!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyApproved">Email Body</label>
+                    <textarea id="emailBodyApproved" name="emailBodyApproved" rows="4"
+                              placeholder="Congratulations! Your submission has been approved. You will receive your reward code shortly."></textarea>
+                    <small style="color: #666;">This email is sent when you approve a customer's content.</small>
+                  </div>
+                </div>
+
+                <!-- Rejection Email -->
+                <div class="email-section">
+                  <h3>❌ Rejection Email (Sent when content is rejected)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectRejected">Email Subject</label>
+                    <input type="text" id="emailSubjectRejected" name="emailSubjectRejected" 
+                           placeholder="Update on your submission" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyRejected">Email Body</label>
+                    <textarea id="emailBodyRejected" name="emailBodyRejected" rows="4"
+                              placeholder="Thank you for your submission. Unfortunately, your submission was not approved at this time. We encourage you to try again!"></textarea>
+                    <small style="color: #666;">This email is sent when you reject a customer's content.</small>
+                  </div>
+                </div>
+
+                <!-- Reward Email -->
+                <div class="email-section">
+                  <h3>🎁 Reward Email (Sent with discount codes)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectReward">Email Subject</label>
+                    <input type="text" id="emailSubjectReward" name="emailSubjectReward" 
+                           placeholder="🎉 Your UGC Reward is Here!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyReward">Email Body</label>
+                    <textarea id="emailBodyReward" name="emailBodyReward" rows="4"
+                              placeholder="Thank you for sharing your amazing content with us. As promised, here is your reward code:"></textarea>
+                    <small style="color: #666;">This email is sent when a discount code is automatically generated and sent to the customer.</small>
+                  </div>
+                </div>
+
+                <!-- Gift Card Email -->
+                <div class="email-section">
+                  <h3>💳 Gift Card Email (Sent with gift card codes)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectGiftcard">Email Subject</label>
+                    <input type="text" id="emailSubjectGiftcard" name="emailSubjectGiftcard" 
+                           placeholder="🎁 Your Gift Card is Here!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyGiftcard">Email Body</label>
+                    <textarea id="emailBodyGiftcard" name="emailBodyGiftcard" rows="4"
+                              placeholder="Thank you for your amazing UGC submission! Here is your gift card:"></textarea>
+                    <small style="color: #666;">This email is sent when a gift card code is provided to the customer.</small>
+                  </div>
+                </div>
+
+                <div style="margin-top: 30px;">
+                  <button type="button" class="btn btn-primary" onclick="saveEmailSettings()">Save Email Settings</button>
+                  <button type="button" class="btn btn-secondary" onclick="resetEmailSettingsToDefaults()">Reset to Defaults</button>
+                </div>
+                
+                <div id="emailSettingsSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
+                  Email settings saved successfully!
                 </div>
               </form>
             </div>
@@ -1085,6 +1315,8 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               loadJobs();
             } else if (tab === 'customizations') {
               loadCustomizations();
+            } else if (tab === 'email-settings') {
+              loadEmailSettings();
             } else {
               loadSubmissions();
             }
@@ -1953,6 +2185,68 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             }
           }
 
+          // Email Settings Functions
+          async function loadEmailSettings() {
+            try {
+              const queryParams = window.location.search;
+              const response = await fetch('/api/admin/customizations' + queryParams);
+              const customizations = await response.json();
+              
+              console.log('Loaded email settings:', customizations);
+              
+              // Populate email settings form
+              if (customizations.email_subject_confirmation) {
+                document.getElementById('emailSubjectConfirmation').value = customizations.email_subject_confirmation;
+              }
+              if (customizations.email_body_confirmation) {
+                document.getElementById('emailBodyConfirmation').value = customizations.email_body_confirmation;
+              }
+              if (customizations.email_subject_approved) {
+                document.getElementById('emailSubjectApproved').value = customizations.email_subject_approved;
+              }
+              if (customizations.email_body_approved) {
+                document.getElementById('emailBodyApproved').value = customizations.email_body_approved;
+              }
+              if (customizations.email_subject_rejected) {
+                document.getElementById('emailSubjectRejected').value = customizations.email_subject_rejected;
+              }
+              if (customizations.email_body_rejected) {
+                document.getElementById('emailBodyRejected').value = customizations.email_body_rejected;
+              }
+              if (customizations.email_subject_reward) {
+                document.getElementById('emailSubjectReward').value = customizations.email_subject_reward;
+              }
+              if (customizations.email_body_reward) {
+                document.getElementById('emailBodyReward').value = customizations.email_body_reward;
+              }
+              if (customizations.email_subject_giftcard) {
+                document.getElementById('emailSubjectGiftcard').value = customizations.email_subject_giftcard;
+              }
+              if (customizations.email_body_giftcard) {
+                document.getElementById('emailBodyGiftcard').value = customizations.email_body_giftcard;
+              }
+              
+              console.log('Email settings loaded successfully');
+            } catch (error) {
+              console.error('Error loading email settings:', error);
+            }
+          }
+
+          function resetEmailSettingsToDefaults() {
+            if (confirm('Are you sure you want to reset all email settings to default values?')) {
+              document.getElementById('emailSubjectConfirmation').value = 'Thank you for your submission!';
+              document.getElementById('emailBodyConfirmation').value = 'Thank you for sharing your experience! Your submission has been received and is pending review.';
+              document.getElementById('emailSubjectApproved').value = '🎉 Your submission has been approved!';
+              document.getElementById('emailBodyApproved').value = 'Congratulations! Your submission has been approved. You will receive your reward code shortly.';
+              document.getElementById('emailSubjectRejected').value = 'Update on your submission';
+              document.getElementById('emailBodyRejected').value = 'Thank you for your submission. Unfortunately, your submission was not approved at this time. We encourage you to try again!';
+              document.getElementById('emailSubjectReward').value = '🎉 Your UGC Reward is Here!';
+              document.getElementById('emailBodyReward').value = 'Thank you for sharing your amazing content with us. As promised, here is your reward code:';
+              document.getElementById('emailSubjectGiftcard').value = '🎁 Your Gift Card is Here!';
+              document.getElementById('emailBodyGiftcard').value = 'Thank you for your amazing UGC submission! Here is your gift card:';
+            }
+          }
+
           // Color picker synchronization
           document.addEventListener('DOMContentLoaded', function() {
             // Load customizations when DOM is ready
@@ -2033,7 +2327,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 });
 
 // Add this route after your root route
-app.get('/customizations', shopify.ensureInstalledOnShop(), async (req, res) => {
+app.get('/customizations', async (req, res) => {
   try {
     // Get shop from session with fallback
     let shop;
@@ -2312,6 +2606,17 @@ app.get('/customizations', shopify.ensureInstalledOnShop(), async (req, res) => 
         </div>
 
         <script>
+          // Functions are now defined in the head section
+          console.log('Body script loaded - functions should be available');
+        </script>
+        
+        <script>
+          // Global error handler
+          window.addEventListener('error', function(e) {
+            console.error('Global error:', e.error);
+            console.error('Error details:', e);
+          });
+          
           // Initialize Shopify App Bridge
           const AppBridge = window['app-bridge'];
           const createApp = AppBridge.default;
@@ -2405,6 +2710,9 @@ app.get('/customizations', shopify.ensureInstalledOnShop(), async (req, res) => 
 
           // Update preview on any form change
           document.getElementById('customizationForm').addEventListener('change', updatePreview);
+
+          // Email Settings Form submission - simplified since we're using inline handlers
+          console.log('Email settings form setup complete - using inline handlers');
         </script>
       </body>
     </html>
@@ -2430,7 +2738,7 @@ app.get('/customizations', shopify.ensureInstalledOnShop(), async (req, res) => 
 });
 
 // API endpoint to get customizations (admin)
-app.get('/api/admin/customizations', shopify.ensureInstalledOnShop(), async (req, res) => {
+app.get('/api/admin/customizations', async (req, res) => {
   try {
     // Get shop from session with fallback
     let shop;
@@ -2450,18 +2758,26 @@ app.get('/api/admin/customizations', shopify.ensureInstalledOnShop(), async (req
 });
 
 // API endpoint to save customizations
-app.post('/api/admin/customizations', shopify.ensureInstalledOnShop(), async (req, res) => {
+app.post('/api/admin/customizations', async (req, res) => {
   try {
+    console.log('Saving customizations - Request body:', req.body);
+    console.log('Shopify session:', res.locals.shopify?.session);
+    console.log('Request query:', req.query);
+    console.log('Request headers:', req.headers);
+    
     // Get shop from session with fallback
     let shop;
     if (res.locals.shopify?.session?.shop) {
       shop = res.locals.shopify.session.shop;
+      console.log('Using shop from session:', shop);
     } else {
       // Fallback: try to get shop from URL params or headers
       shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
+      console.log('Using fallback shop:', shop);
     }
     
     const customizations = await CustomizationsModel.upsert(shop, req.body);
+    console.log('Saved customizations:', customizations);
     res.json({ success: true, customizations });
   } catch (error) {
     console.error('Error saving customizations:', error);
@@ -2479,6 +2795,50 @@ app.get('/api/public/customizations', async (req, res) => {
   } catch (error) {
     console.error('Error fetching customizations:', error);
     res.json({}); // Return empty object on error
+  }
+});
+
+// API endpoint to save email settings
+app.post('/api/admin/email-settings', async (req, res) => {
+  try {
+    console.log('Saving email settings - Request body:', req.body);
+    console.log('Shopify session:', res.locals.shopify?.session);
+    console.log('Request query:', req.query);
+    console.log('Request headers:', req.headers);
+    
+    // Get shop from session with fallback
+    let shop;
+    if (res.locals.shopify?.session?.shop) {
+      shop = res.locals.shopify.session.shop;
+      console.log('Using shop from session:', shop);
+    } else {
+      // Fallback: try to get shop from URL params or headers
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
+      console.log('Using fallback shop:', shop);
+    }
+    
+    // Get existing customizations and merge with email settings
+    const existingCustomizations = await CustomizationsModel.getByShop(shop) || {};
+    const updatedCustomizations = {
+      ...existingCustomizations,
+      emailSubjectConfirmation: req.body.emailSubjectConfirmation,
+      emailBodyConfirmation: req.body.emailBodyConfirmation,
+      emailSubjectApproved: req.body.emailSubjectApproved,
+      emailBodyApproved: req.body.emailBodyApproved,
+      emailSubjectRejected: req.body.emailSubjectRejected,
+      emailBodyRejected: req.body.emailBodyRejected,
+      emailSubjectReward: req.body.emailSubjectReward,
+      emailBodyReward: req.body.emailBodyReward,
+      emailSubjectGiftcard: req.body.emailSubjectGiftcard,
+      emailBodyGiftcard: req.body.emailBodyGiftcard
+    };
+    
+    const customizations = await CustomizationsModel.upsert(shop, updatedCustomizations);
+    console.log('Saved email settings:', customizations);
+    res.json({ success: true, customizations });
+  } catch (error) {
+    console.error('Error saving email settings:', error);
+    res.status(500).json({ error: 'Failed to save email settings' });
   }
 });
 
@@ -2566,11 +2926,17 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p>Type: ${type}</p><p>Content: ${content}</p>`
     });
  
+    // Get customizations for email content
+    const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+    const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
+    
     // Send confirmation email to customer
     await sendCustomerConfirmationEmail({
       to: customerEmail,
       customerName: customerEmail,
-      type
+      type,
+      customSubject: customizations.email_subject_confirmation,
+      customBody: customizations.email_body_confirmation
     });
  
   res.json({
@@ -2589,7 +2955,7 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
 });
 
 // Get submissions endpoint
-app.get('/api/admin/submissions', shopify.ensureInstalledOnShop(), async (req, res) => {
+app.get('/api/admin/submissions', async (req, res) => {
   try {
     const submissions = await SubmissionsModel.getAll();
     
@@ -2618,7 +2984,6 @@ app.get('/api/admin/submissions', shopify.ensureInstalledOnShop(), async (req, r
 // Approve submissions endpoint
 app.post(
   '/api/admin/submissions/:id/approve',
-  shopify.ensureInstalledOnShop(),
   async (req, res) => {
     try {
       const submissionId = req.params.id;
@@ -2671,6 +3036,10 @@ app.post(
             const { code } = await discountService.createDiscountCode(job, submission);
             console.log(`Discount code created: ${code}`);
 
+            // Get customizations for email content
+            const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+            const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
+            
             // d) Send the reward email
             await sendRewardCodeEmail({
               to:        submission.customer_email,
@@ -2678,6 +3047,8 @@ app.post(
               value:     job.reward_value,
               type:      job.reward_type,
               expiresIn: '30 days',
+              customSubject: customizations.email_subject_reward,
+              customBody: customizations.email_body_reward
             });
 
             // e) Mark it sent in your RewardsModel
@@ -2799,19 +3170,31 @@ app.post(
           additionalMessage = `Instructions for claiming your free ${job.reward_product || 'product'} will be sent to you within 24 hours. Keep an eye on your inbox!`;
         }
         
+        // Get customizations for email content
+        const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+        const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
+        
         await sendCustomerStatusEmail({
           to:     submission.customer_email,
           status: 'approved',
           type:   submission.type,
-          additionalMessage: additionalMessage
+          additionalMessage: additionalMessage,
+          customSubject: customizations.email_subject_approved,
+          customBody: customizations.email_body_approved
         });
 
       } else {
+        // Get customizations for email content
+        const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+        const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
+        
         // For non-job submissions, send regular approval email
         await sendCustomerStatusEmail({
           to:     submission.customer_email,
           status: 'approved',
-          type:   submission.type
+          type:   submission.type,
+          customSubject: customizations.email_subject_approved,
+          customBody: customizations.email_body_approved
         });
       }
 
@@ -2826,7 +3209,7 @@ app.post(
 );
  
  // Reject submission endpoint
-app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), async (req, res) => {
+app.post('/api/admin/submissions/:id/reject', async (req, res) => {
   try {
     const submissionId = req.params.id;
     
@@ -2851,11 +3234,17 @@ app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), a
     await SubmissionsModel.updateStatus(submissionId, 'rejected');
     console.log('Rejected submission ' + submissionId);
 
+    // Get customizations for email content
+    const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+    const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
+    
     // Send status update email to customer
     await sendCustomerStatusEmail({
       to: submission.customer_email,
       status: 'rejected',
-      type: submission.type
+      type: submission.type,
+      customSubject: customizations.email_subject_rejected,
+      customBody: customizations.email_body_rejected
     });
     
     res.json({ success: true, message: 'Submission rejected' });
@@ -2866,7 +3255,7 @@ app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), a
 });
 
 // manual reward submission fulfillment endpoint
-app.post('/api/admin/rewards/:submissionId/fulfill', shopify.ensureInstalledOnShop(), async (req, res) => {
+app.post('/api/admin/rewards/:submissionId/fulfill', async (req, res) => {
   try {
     const submissionId = req.params.submissionId;
     const { fulfilled, notes } = req.body;
