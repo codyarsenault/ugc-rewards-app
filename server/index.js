@@ -38,6 +38,8 @@ import { JobsModel } from './models/jobs.js';
 import { ShopifyDiscountService } from './services/shopifyDiscount.js';
 import { RewardsModel } from './models/rewards.js';
 import { publicJobRoutes, adminJobRoutes } from './routes/jobs.js';
+import { CustomizationsModel } from './models/customizations.js';
+
 
 // …then your __dirname, multer setup, shopifyApp() call, routes, etc…
 
@@ -295,6 +297,66 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           .col-customer { width: 200px; }
           .col-type { width: 80px; }
           .col-job { width: 75px; }
+          
+          /* Customizations Tab Styles */
+          .color-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+          }
+          .color-input-wrapper input[type="color"] {
+            width: 60px;
+            height: 40px;
+            padding: 4px;
+            cursor: pointer;
+          }
+          .color-input-wrapper input[type="text"] {
+            flex: 1;
+          }
+          .help-text {
+            font-size: 13px;
+            color: #616161;
+            margin-top: 5px;
+          }
+          .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+          }
+          .success-message {
+            background: #e3f1df;
+            color: #4b5943;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+          }
+          .image-preview {
+            margin-top: 10px;
+          }
+          .image-preview img {
+            max-width: 200px;
+            max-height: 100px;
+            border: 1px solid #e1e3e5;
+            border-radius: 4px;
+          }
+          .preview-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 6px;
+          }
+          .preview-iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #e1e3e5;
+            border-radius: 4px;
+            background: white;
+          }
           .col-content { width: 300px; }
           .col-media { width: 120px; }
           .col-actions { width: 120px; }
@@ -517,6 +579,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
           <div class="tabs">
             <button class="tab active" onclick="switchTab('submissions')">All Submissions</button>
             <button class="tab" onclick="switchTab('jobs')">Jobs</button>
+            <button class="tab" onclick="switchTab('customizations')">Customizations</button>
           </div>
 
           <!-- Submissions Tab -->
@@ -595,6 +658,114 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   <p>Loading jobs...</p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Customizations Tab -->
+          <div id="customizations-tab" class="tab-content">
+            <div class="card">
+              <h1>Customize Your UGC Pages</h1>
+              
+              <form id="customizationForm">
+                <h2>Colors</h2>
+                <div class="form-group">
+                  <label for="primaryColor">Primary Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="primaryColorPicker" value="#d4b896">
+                    <input type="text" id="primaryColor" name="primaryColor" value="#d4b896" pattern="^#[0-9A-Fa-f]{6}$">
+                  </div>
+                  <p class="help-text">Used for buttons, links, and main accents</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="secondaryColor">Background Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="secondaryColorPicker" value="#f8f6f3">
+                    <input type="text" id="secondaryColor" name="secondaryColor" value="#f8f6f3" pattern="^#[0-9A-Fa-f]{6}$">
+                  </div>
+                  <p class="help-text">Background color for sections</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="textColor">Text Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="textColorPicker" value="#3a3a3a">
+                    <input type="text" id="textColor" name="textColor" value="#3a3a3a" pattern="^#[0-9A-Fa-f]{6}$">
+                  </div>
+                  <p class="help-text">Main text color</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="accentColor">Accent Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="accentColorPicker" value="#c9a961">
+                    <input type="text" id="accentColor" name="accentColor" value="#c9a961" pattern="^#[0-9A-Fa-f]{6}$">
+                  </div>
+                  <p class="help-text">Secondary accent color</p>
+                </div>
+                
+                <h2>Images</h2>
+                <div class="form-group">
+                  <label for="heroImageUrl">Hero Image URL</label>
+                  <input type="url" id="heroImageUrl" name="heroImageUrl" placeholder="https://example.com/image.jpg">
+                  <p class="help-text">Background image for the jobs page header (recommended: 1200x600px)</p>
+                  <div id="heroImagePreview" class="image-preview" style="display: none;"></div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="logoUrl">Logo URL</label>
+                  <input type="url" id="logoUrl" name="logoUrl" placeholder="https://example.com/logo.png">
+                  <p class="help-text">Your brand logo (recommended: 200x60px)</p>
+                  <div id="logoPreview" class="image-preview" style="display: none;"></div>
+                </div>
+                
+                <h2>Typography</h2>
+                <div class="form-group">
+                  <label for="headingFont">Heading Font</label>
+                  <select id="headingFont" name="headingFont">
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Inter">Inter</option>
+                    <option value="Playfair Display">Playfair Display</option>
+                    <option value="Roboto">Roboto</option>
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Lato">Lato</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="bodyFont">Body Font</label>
+                  <select id="bodyFont" name="bodyFont">
+                    <option value="Inter">Inter</option>
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Roboto">Roboto</option>
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Lato">Lato</option>
+                  </select>
+                </div>
+                
+                <h2>Additional Settings</h2>
+                <div class="form-group">
+                  <div class="checkbox-group">
+                    <input type="checkbox" id="showExampleVideos" name="showExampleVideos" checked>
+                    <label for="showExampleVideos">Show example videos section on jobs page</label>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="customCss">Custom CSS (Advanced)</label>
+                  <textarea id="customCss" name="customCss" placeholder="/* Add custom CSS here */"></textarea>
+                  <p class="help-text">Add custom CSS to further customize your pages. Be careful with this option.</p>
+                </div>
+                
+                <div style="margin-top: 30px;">
+                  <button type="submit" class="btn btn-primary">Save Changes</button>
+                  <button type="button" class="btn btn-secondary" onclick="resetCustomizationsToDefaults()">Reset to Defaults</button>
+                </div>
+                
+                <div id="customizationSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
+                  Settings saved successfully!
+                </div>
+              </form>
             </div>
           </div>
         </div>
@@ -878,6 +1049,8 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
             // Load data for the tab
             if (tab === 'jobs') {
               loadJobs();
+            } else if (tab === 'customizations') {
+              loadCustomizations();
             } else {
               loadSubmissions();
             }
@@ -1571,10 +1744,589 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
           // Load initial data
           loadSubmissions();
+
+          // Customizations Functions
+          async function loadCustomizations() {
+            try {
+              const queryParams = window.location.search;
+              const response = await fetch('/api/admin/customizations' + queryParams);
+              const customizations = await response.json();
+              
+              // Populate form with existing customizations
+              if (customizations.primary_color) {
+                document.getElementById('primaryColor').value = customizations.primary_color;
+                document.getElementById('primaryColorPicker').value = customizations.primary_color;
+              }
+              if (customizations.secondary_color) {
+                document.getElementById('secondaryColor').value = customizations.secondary_color;
+                document.getElementById('secondaryColorPicker').value = customizations.secondary_color;
+              }
+              if (customizations.text_color) {
+                document.getElementById('textColor').value = customizations.text_color;
+                document.getElementById('textColorPicker').value = customizations.text_color;
+              }
+              if (customizations.accent_color) {
+                document.getElementById('accentColor').value = customizations.accent_color;
+                document.getElementById('accentColorPicker').value = customizations.accent_color;
+              }
+              if (customizations.hero_image_url) {
+                document.getElementById('heroImageUrl').value = customizations.hero_image_url;
+                showImagePreview('heroImagePreview', customizations.hero_image_url);
+              }
+              if (customizations.logo_url) {
+                document.getElementById('logoUrl').value = customizations.logo_url;
+                showImagePreview('logoPreview', customizations.logo_url);
+              }
+              if (customizations.heading_font) {
+                document.getElementById('headingFont').value = customizations.heading_font;
+              }
+              if (customizations.body_font) {
+                document.getElementById('bodyFont').value = customizations.body_font;
+              }
+              if (customizations.show_example_videos !== undefined) {
+                document.getElementById('showExampleVideos').checked = customizations.show_example_videos;
+              }
+              if (customizations.custom_css) {
+                document.getElementById('customCss').value = customizations.custom_css;
+              }
+            } catch (error) {
+              console.error('Error loading customizations:', error);
+            }
+          }
+
+          function showImagePreview(previewId, imageUrl) {
+            const preview = document.getElementById(previewId);
+            if (preview && imageUrl) {
+              preview.style.display = 'block';
+              preview.innerHTML = '<img src="' + imageUrl + '" alt="Preview">';
+            }
+          }
+
+          function resetCustomizationsToDefaults() {
+            if (confirm('Are you sure you want to reset all customizations to default values?')) {
+              document.getElementById('primaryColor').value = '#d4b896';
+              document.getElementById('primaryColorPicker').value = '#d4b896';
+              document.getElementById('secondaryColor').value = '#f8f6f3';
+              document.getElementById('secondaryColorPicker').value = '#f8f6f3';
+              document.getElementById('textColor').value = '#3a3a3a';
+              document.getElementById('textColorPicker').value = '#3a3a3a';
+              document.getElementById('accentColor').value = '#c9a961';
+              document.getElementById('accentColorPicker').value = '#c9a961';
+              document.getElementById('heroImageUrl').value = '';
+              document.getElementById('logoUrl').value = '';
+              document.getElementById('headingFont').value = 'Montserrat';
+              document.getElementById('bodyFont').value = 'Inter';
+              document.getElementById('showExampleVideos').checked = true;
+              document.getElementById('customCss').value = '';
+              
+              // Clear image previews
+              document.getElementById('heroImagePreview').style.display = 'none';
+              document.getElementById('logoPreview').style.display = 'none';
+            }
+          }
+
+          // Color picker synchronization
+          document.addEventListener('DOMContentLoaded', function() {
+            // Color picker synchronization
+            document.querySelectorAll('input[type="color"]').forEach(picker => {
+              const textInput = picker.nextElementSibling;
+              picker.addEventListener('change', (e) => {
+                textInput.value = e.target.value;
+              });
+            });
+
+            document.querySelectorAll('input[type="text"][pattern]').forEach(input => {
+              const picker = input.previousElementSibling;
+              input.addEventListener('input', (e) => {
+                if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                  picker.value = e.target.value;
+                }
+              });
+            });
+
+            // Image preview on URL change
+            document.getElementById('heroImageUrl').addEventListener('input', function() {
+              if (this.value) {
+                showImagePreview('heroImagePreview', this.value);
+              } else {
+                document.getElementById('heroImagePreview').style.display = 'none';
+              }
+            });
+
+            document.getElementById('logoUrl').addEventListener('input', function() {
+              if (this.value) {
+                showImagePreview('logoPreview', this.value);
+              } else {
+                document.getElementById('logoPreview').style.display = 'none';
+              }
+            });
+
+            // Customization form submission
+            document.getElementById('customizationForm').addEventListener('submit', async function(e) {
+              e.preventDefault();
+              
+              const formData = new FormData(this);
+              const settings = Object.fromEntries(formData);
+              settings.showExampleVideos = formData.has('showExampleVideos');
+              
+              try {
+                const queryParams = window.location.search;
+                const response = await fetch('/api/admin/customizations' + queryParams, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(settings),
+                });
+                
+                if (response.ok) {
+                  document.getElementById('customizationSuccessMessage').style.display = 'block';
+                  setTimeout(() => {
+                    document.getElementById('customizationSuccessMessage').style.display = 'none';
+                  }, 3000);
+                } else {
+                  alert('Failed to save settings');
+                }
+              } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings');
+              }
+            });
+          });
         </script>
       </body>
     </html>
   `);
+});
+
+// Add this route after your root route
+app.get('/customizations', shopify.ensureInstalledOnShop(), async (req, res) => {
+  try {
+    // Get shop from session with fallback
+    let shop;
+    if (res.locals.shopify?.session?.shop) {
+      shop = res.locals.shopify.session.shop;
+    } else {
+      // Fallback: try to get shop from URL params or headers
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'default-shop.myshopify.com';
+    }
+    
+    const customizations = await CustomizationsModel.getByShop(shop) || {};
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Customize UGC Pages - UGC Rewards</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+        <style>
+          *, *::before, *::after {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f6f6f7;
+          }
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
+          }
+          .card {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 0 1px rgba(63,63,68,.05), 0 1px 3px 0 rgba(63,63,68,.15);
+          }
+          h1 {
+            margin: 0 0 30px 0;
+            font-size: 24px;
+            font-weight: 600;
+          }
+          h2 {
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            font-weight: 600;
+          }
+          .form-group {
+            margin-bottom: 20px;
+          }
+          .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #202223;
+          }
+          .form-group input,
+          .form-group select,
+          .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #c9cccf;
+            border-radius: 4px;
+            font-size: 14px;
+          }
+          .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+            font-family: monospace;
+          }
+          .color-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+          }
+          .color-input-wrapper input[type="color"] {
+            width: 60px;
+            height: 40px;
+            padding: 4px;
+            cursor: pointer;
+          }
+          .color-input-wrapper input[type="text"] {
+            flex: 1;
+          }
+          .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+          }
+          .btn-primary {
+            background: #008060;
+            color: white;
+          }
+          .btn-primary:hover {
+            background: #006e52;
+          }
+          .btn-secondary {
+            background: #f6f6f7;
+            color: #202223;
+            border: 1px solid #c9cccf;
+            margin-left: 10px;
+          }
+          .btn-secondary:hover {
+            background: #e4e5e7;
+          }
+          .preview-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 6px;
+          }
+          .preview-iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #e1e3e5;
+            border-radius: 4px;
+            background: white;
+          }
+          .image-preview {
+            margin-top: 10px;
+          }
+          .image-preview img {
+            max-width: 200px;
+            max-height: 100px;
+            border: 1px solid #e1e3e5;
+            border-radius: 4px;
+          }
+          .help-text {
+            font-size: 13px;
+            color: #616161;
+            margin-top: 5px;
+          }
+          .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+          }
+          .success-message {
+            background: #e3f1df;
+            color: #4b5943;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="card">
+            <h1>Customize Your UGC Pages</h1>
+            <div id="successMessage" class="success-message">
+              Settings saved successfully!
+            </div>
+            
+            <form id="customizationForm">
+              <h2>Colors</h2>
+              <div class="form-group">
+                <label for="primaryColor">Primary Color</label>
+                <div class="color-input-wrapper">
+                  <input type="color" id="primaryColorPicker" value="${customizations.primary_color || '#d4b896'}">
+                  <input type="text" id="primaryColor" name="primaryColor" value="${customizations.primary_color || '#d4b896'}" pattern="^#[0-9A-Fa-f]{6}$">
+                </div>
+                <p class="help-text">Used for buttons, links, and main accents</p>
+              </div>
+
+              <div class="form-group">
+                <label for="secondaryColor">Background Color</label>
+                <div class="color-input-wrapper">
+                  <input type="color" id="secondaryColorPicker" value="${customizations.secondary_color || '#f8f6f3'}">
+                  <input type="text" id="secondaryColor" name="secondaryColor" value="${customizations.secondary_color || '#f8f6f3'}" pattern="^#[0-9A-Fa-f]{6}$">
+                </div>
+                <p class="help-text">Background color for sections</p>
+              </div>
+
+              <div class="form-group">
+                <label for="textColor">Text Color</label>
+                <div class="color-input-wrapper">
+                  <input type="color" id="textColorPicker" value="${customizations.text_color || '#3a3a3a'}">
+                  <input type="text" id="textColor" name="textColor" value="${customizations.text_color || '#3a3a3a'}" pattern="^#[0-9A-Fa-f]{6}$">
+                </div>
+                <p class="help-text">Main text color</p>
+              </div>
+
+              <div class="form-group">
+                <label for="accentColor">Accent Color</label>
+                <div class="color-input-wrapper">
+                  <input type="color" id="accentColorPicker" value="${customizations.accent_color || '#c9a961'}">
+                  <input type="text" id="accentColor" name="accentColor" value="${customizations.accent_color || '#c9a961'}" pattern="^#[0-9A-Fa-f]{6}$">
+                </div>
+                <p class="help-text">Secondary accent color</p>
+              </div>
+
+              <h2>Images</h2>
+              <div class="form-group">
+                <label for="heroImageUrl">Hero Image URL</label>
+                <input type="url" id="heroImageUrl" name="heroImageUrl" value="${customizations.hero_image_url || ''}" placeholder="https://example.com/image.jpg">
+                <p class="help-text">Background image for the jobs page header (recommended: 1200x600px)</p>
+                ${customizations.hero_image_url ? `<div class="image-preview"><img src="${customizations.hero_image_url}" alt="Hero image preview"></div>` : ''}
+              </div>
+
+              <div class="form-group">
+                <label for="logoUrl">Logo URL</label>
+                <input type="url" id="logoUrl" name="logoUrl" value="${customizations.logo_url || ''}" placeholder="https://example.com/logo.png">
+                <p class="help-text">Your brand logo (recommended: 200x60px)</p>
+                ${customizations.logo_url ? `<div class="image-preview"><img src="${customizations.logo_url}" alt="Logo preview"></div>` : ''}
+              </div>
+
+              <h2>Typography</h2>
+              <div class="form-group">
+                <label for="headingFont">Heading Font</label>
+                <select id="headingFont" name="headingFont">
+                  <option value="Montserrat" ${customizations.heading_font === 'Montserrat' ? 'selected' : ''}>Montserrat</option>
+                  <option value="Inter" ${customizations.heading_font === 'Inter' ? 'selected' : ''}>Inter</option>
+                  <option value="Playfair Display" ${customizations.heading_font === 'Playfair Display' ? 'selected' : ''}>Playfair Display</option>
+                  <option value="Roboto" ${customizations.heading_font === 'Roboto' ? 'selected' : ''}>Roboto</option>
+                  <option value="Open Sans" ${customizations.heading_font === 'Open Sans' ? 'selected' : ''}>Open Sans</option>
+                  <option value="Lato" ${customizations.heading_font === 'Lato' ? 'selected' : ''}>Lato</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="bodyFont">Body Font</label>
+                <select id="bodyFont" name="bodyFont">
+                  <option value="Inter" ${customizations.body_font === 'Inter' ? 'selected' : ''}>Inter</option>
+                  <option value="Montserrat" ${customizations.body_font === 'Montserrat' ? 'selected' : ''}>Montserrat</option>
+                  <option value="Roboto" ${customizations.body_font === 'Roboto' ? 'selected' : ''}>Roboto</option>
+                  <option value="Open Sans" ${customizations.body_font === 'Open Sans' ? 'selected' : ''}>Open Sans</option>
+                  <option value="Lato" ${customizations.body_font === 'Lato' ? 'selected' : ''}>Lato</option>
+                </select>
+              </div>
+
+              <h2>Additional Settings</h2>
+              <div class="form-group">
+                <div class="checkbox-group">
+                  <input type="checkbox" id="showExampleVideos" name="showExampleVideos" ${customizations.show_example_videos !== false ? 'checked' : ''}>
+                  <label for="showExampleVideos">Show example videos section on jobs page</label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="customCss">Custom CSS (Advanced)</label>
+                <textarea id="customCss" name="customCss" placeholder="/* Add custom CSS here */">${customizations.custom_css || ''}</textarea>
+                <p class="help-text">Add custom CSS to further customize your pages. Be careful with this option.</p>
+              </div>
+
+              <div style="margin-top: 30px;">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <h2>Preview</h2>
+            <p>Your jobs page will look like this with the current settings:</p>
+            <div class="preview-section">
+              <iframe class="preview-iframe" src="/jobs?preview=true" id="previewFrame"></iframe>
+            </div>
+            <p class="help-text">Note: Preview may not reflect all changes until saved.</p>
+          </div>
+        </div>
+
+        <script>
+          // Initialize Shopify App Bridge
+          const AppBridge = window['app-bridge'];
+          const createApp = AppBridge.default;
+          const app = createApp({
+            apiKey: '${process.env.SHOPIFY_API_KEY}',
+            host: new URLSearchParams(location.search).get("host"),
+          });
+
+          // Color picker synchronization
+          document.querySelectorAll('input[type="color"]').forEach(picker => {
+            const textInput = picker.nextElementSibling;
+            picker.addEventListener('change', (e) => {
+              textInput.value = e.target.value;
+              updatePreview();
+            });
+          });
+
+          document.querySelectorAll('input[type="text"][pattern]').forEach(input => {
+            const picker = input.previousElementSibling;
+            input.addEventListener('input', (e) => {
+              if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                picker.value = e.target.value;
+                updatePreview();
+              }
+            });
+          });
+
+          // Form submission
+          document.getElementById('customizationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const settings = Object.fromEntries(formData);
+            settings.showExampleVideos = formData.has('showExampleVideos');
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await fetch('/api/admin/customizations' + queryParams, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(settings),
+              });
+              
+              if (response.ok) {
+                document.getElementById('successMessage').style.display = 'block';
+                setTimeout(() => {
+                  document.getElementById('successMessage').style.display = 'none';
+                }, 3000);
+                updatePreview();
+              } else {
+                alert('Failed to save settings');
+              }
+            } catch (error) {
+              console.error('Error saving settings:', error);
+              alert('Error saving settings');
+            }
+          });
+
+          // Reset to defaults
+          function resetToDefaults() {
+            if (confirm('Are you sure you want to reset all customizations to default values?')) {
+              document.getElementById('primaryColor').value = '#d4b896';
+              document.getElementById('primaryColorPicker').value = '#d4b896';
+              document.getElementById('secondaryColor').value = '#f8f6f3';
+              document.getElementById('secondaryColorPicker').value = '#f8f6f3';
+              document.getElementById('textColor').value = '#3a3a3a';
+              document.getElementById('textColorPicker').value = '#3a3a3a';
+              document.getElementById('accentColor').value = '#c9a961';
+              document.getElementById('accentColorPicker').value = '#c9a961';
+              document.getElementById('heroImageUrl').value = '';
+              document.getElementById('logoUrl').value = '';
+              document.getElementById('headingFont').value = 'Montserrat';
+              document.getElementById('bodyFont').value = 'Inter';
+              document.getElementById('showExampleVideos').checked = true;
+              document.getElementById('customCss').value = '';
+              updatePreview();
+            }
+          }
+
+          // Update preview (debounced)
+          let updateTimeout;
+          function updatePreview() {
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
+              const iframe = document.getElementById('previewFrame');
+              iframe.src = iframe.src; // Reload iframe
+            }, 500);
+          }
+
+          // Update preview on any form change
+          document.getElementById('customizationForm').addEventListener('change', updatePreview);
+        </script>
+      </body>
+    </html>
+  `);
+  } catch (error) {
+    console.error('Error loading customizations page:', error);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Error - UGC Rewards</title>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; text-align: center;">
+          <h1>Something went wrong</h1>
+          <p>Unable to load the customizations page. Please try again.</p>
+          <a href="/" style="color: #008060; text-decoration: none;">← Back to Dashboard</a>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// API endpoint to save customizations
+app.post('/api/admin/customizations', shopify.ensureInstalledOnShop(), async (req, res) => {
+  try {
+    // Get shop from session with fallback
+    let shop;
+    if (res.locals.shopify?.session?.shop) {
+      shop = res.locals.shopify.session.shop;
+    } else {
+      // Fallback: try to get shop from URL params or headers
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'default-shop.myshopify.com';
+    }
+    
+    const customizations = await CustomizationsModel.upsert(shop, req.body);
+    res.json({ success: true, customizations });
+  } catch (error) {
+    console.error('Error saving customizations:', error);
+    res.status(500).json({ error: 'Failed to save customizations' });
+  }
+});
+
+// API endpoint to get customizations (public)
+app.get('/api/public/customizations', async (req, res) => {
+  try {
+    // You'll need to pass the shop domain somehow - either from the job or a query param
+    const shopDomain = req.query.shop || 'ugc-rewards-app.myshopify.com';
+    const customizations = await CustomizationsModel.getByShop(shopDomain) || {};
+    res.json(customizations);
+  } catch (error) {
+    console.error('Error fetching customizations:', error);
+    res.json({}); // Return empty object on error
+  }
 });
 
 // Public submission endpoint with file upload

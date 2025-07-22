@@ -9,17 +9,30 @@
       box-sizing: border-box;
     }
     
+    :root {
+      --primary-color: #b89685;
+      --secondary-color: #f8f6f3;
+      --text-color: #4a5568;
+      --accent-color: #d4a574;
+      --heading-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --body-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: var(--body-font);
       line-height: 1.6;
-      color: #4a5568;
+      color: var(--text-color);
       margin: 0;
       padding: 0;
-      background-color: #fafaf9;
+      background-color: var(--secondary-color);
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      font-family: var(--heading-font);
     }
     
     .header {
-      background: linear-gradient(135deg, #b89685 0%, #d4a574 100%);
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
       color: white;
       padding: 60px 20px;
       text-align: center;
@@ -50,6 +63,7 @@
       letter-spacing: -1px;
       position: relative;
       z-index: 1;
+      font-family: var(--heading-font);
     }
     
     .header p {
@@ -180,7 +194,7 @@
     }
     
     .btn-primary {
-      background: linear-gradient(135deg, #b89685 0%, #d4a574 100%);
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
       color: white;
       box-shadow: 0 4px 14px rgba(184, 150, 133, 0.25);
     }
@@ -237,7 +251,7 @@
       display: block;
       padding: 20px;
       background: linear-gradient(135deg, #fafaf9 0%, #f6f5f3 100%);
-      border: 2px dashed #b89685;
+      border: 2px dashed var(--primary-color);
       border-radius: 12px;
       text-align: center;
       transition: all 0.3s ease;
@@ -247,7 +261,7 @@
     
     .file-upload-label:hover {
       background: linear-gradient(135deg, #f6f5f3 0%, #f3f2f0 100%);
-      border-color: #d4a574;
+      border-color: var(--accent-color);
       transform: translateY(-1px);
     }
     
@@ -348,7 +362,7 @@
       content: '';
       width: 0;
       height: 0;
-      border-left: 15px solid #b89685;
+      border-left: 15px solid var(--primary-color);
       border-top: 10px solid transparent;
       border-bottom: 10px solid transparent;
       margin-left: 3px;
@@ -366,18 +380,18 @@
     }
     
     .browse-jobs a {
-      color: #b89685;
+      color: var(--primary-color);
       text-decoration: none;
       font-weight: 600;
       padding: 12px 24px;
-      border: 2px solid #b89685;
+      border: 2px solid var(--primary-color);
       border-radius: 25px;
       transition: all 0.3s ease;
       display: inline-block;
     }
     
     .browse-jobs a:hover {
-      background: #b89685;
+      background: var(--primary-color);
       color: white;
       transform: translateY(-1px);
     }
@@ -485,6 +499,82 @@
   </div>
 
   <script>
+    // Load customizations
+    async function loadCustomizations() {
+      try {
+        // Get shop from URL or default
+        const urlParams = new URLSearchParams(window.location.search);
+        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        
+        const response = await fetch(`/api/public/customizations?shop=${shop}`);
+        const customizations = await response.json();
+        
+        // Apply customizations
+        if (customizations.primary_color) {
+          document.documentElement.style.setProperty('--primary-color', customizations.primary_color);
+        }
+        if (customizations.secondary_color) {
+          document.documentElement.style.setProperty('--secondary-color', customizations.secondary_color);
+        }
+        if (customizations.text_color) {
+          document.documentElement.style.setProperty('--text-color', customizations.text_color);
+        }
+        if (customizations.accent_color) {
+          document.documentElement.style.setProperty('--accent-color', customizations.accent_color);
+        }
+        
+        // Apply fonts
+        if (customizations.heading_font || customizations.body_font) {
+          const fonts = new Set([customizations.heading_font, customizations.body_font].filter(Boolean));
+          const fontLink = document.createElement('link');
+          fontLink.href = `https://fonts.googleapis.com/css2?family=${Array.from(fonts).join('&family=')}&display=swap`;
+          fontLink.rel = 'stylesheet';
+          document.head.appendChild(fontLink);
+          
+          if (customizations.heading_font) {
+            document.documentElement.style.setProperty('--heading-font', customizations.heading_font);
+          }
+          if (customizations.body_font) {
+            document.documentElement.style.setProperty('--body-font', customizations.body_font);
+          }
+        }
+        
+        // Apply hero image
+        if (customizations.hero_image_url) {
+          const hero = document.querySelector('.header');
+          if (hero) {
+            hero.style.backgroundImage = `linear-gradient(135deg, rgba(184, 150, 133, 0.9) 0%, rgba(212, 165, 116, 0.9) 100%), url('${customizations.hero_image_url}')`;
+            hero.style.backgroundSize = 'cover';
+            hero.style.backgroundPosition = 'center';
+          }
+        }
+        
+        // Apply logo
+        if (customizations.logo_url) {
+          const header = document.querySelector('.header');
+          if (header) {
+            const logo = document.createElement('div');
+            logo.className = 'logo';
+            logo.style.cssText = 'position: absolute; top: 20px; left: 20px; z-index: 10;';
+            logo.innerHTML = `<img src="${customizations.logo_url}" alt="Logo" style="max-height: 40px; max-width: 200px;">`;
+            header.appendChild(logo);
+          }
+        }
+        
+        // Apply custom CSS
+        if (customizations.custom_css) {
+          const style = document.createElement('style');
+          style.textContent = customizations.custom_css;
+          document.head.appendChild(style);
+        }
+      } catch (error) {
+        console.error('Error loading customizations:', error);
+      }
+    }
+    
+    // Load customizations on page load
+    document.addEventListener('DOMContentLoaded', loadCustomizations);
+
     const form = document.getElementById('ugcForm');
     const typeSelect = document.getElementById('type');
     const mediaGroup = document.getElementById('mediaGroup');
