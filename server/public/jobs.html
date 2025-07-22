@@ -64,8 +64,29 @@
     
     .video-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
       gap: 20px;
+      justify-content: center;
+      margin: 0 auto;
+    }
+    
+    .video-row.single {
+      grid-template-columns: 1fr;
+      max-width: 300px;
+    }
+    
+    .video-row.two {
+      grid-template-columns: repeat(2, 1fr);
+      max-width: 600px;
+    }
+    
+    .video-row.three {
+      grid-template-columns: repeat(3, 1fr);
+      max-width: 900px;
+    }
+    
+    .video-row.four {
+      grid-template-columns: repeat(4, 1fr);
+      max-width: 1200px;
     }
     
     .video-container {
@@ -579,39 +600,9 @@
   </div>
 
   <!-- Example Videos Section -->
-  <div class="examples-section">
-    <div class="video-row">
-      <div class="video-container" onclick="playVideo(this)">
-        <video class="video-placeholder" preload="metadata">
-          <source src="https://ugc-rewards-uploads-cody.s3.us-east-1.amazonaws.com/ugc-submissions/copy_3196F57A-C5C8-464D-AB93-5280CC7E5D7D.MOV" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-        <div class="play-button"></div>
-      </div>
-      
-      <div class="video-container" onclick="playVideo(this)">
-        <video class="video-placeholder" preload="metadata">
-          <source src="https://ugc-rewards-uploads-cody.s3.us-east-1.amazonaws.com/ugc-submissions/campaigns_campaign-3874_clip_creator_22616_0932659b-0055-4734-921a-0441ef54cdf8.MOV" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-        <div class="play-button"></div>
-      </div>
-      
-      <div class="video-container" onclick="playVideo(this)">
-        <video class="video-placeholder" preload="metadata">
-          <source src="https://ugc-rewards-uploads-cody.s3.us-east-1.amazonaws.com/ugc-submissions/1724436523.MOV" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-        <div class="play-button"></div>
-      </div>
-      
-      <div class="video-container" onclick="playVideo(this)">
-        <video class="video-placeholder" preload="metadata">
-          <source src="https://ugc-rewards-uploads-cody.s3.us-east-1.amazonaws.com/ugc-submissions/1719521058.MOV" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-        <div class="play-button"></div>
-      </div>
+  <div class="examples-section" id="examplesSection" style="display: none;">
+    <div class="video-row" id="videoRow">
+      <!-- Videos will be dynamically loaded here -->
     </div>
   </div>
 
@@ -737,12 +728,52 @@
           }
         }
         
-        // Hide example videos if disabled
-        if (customizations.show_example_videos === false) {
-          const examplesSection = document.querySelector('.examples-section');
-          if (examplesSection) {
+        // Handle example videos
+        const examplesSection = document.getElementById('examplesSection');
+        const videoRow = document.getElementById('videoRow');
+        
+        if (customizations.show_example_videos !== false && examplesSection && videoRow) {
+          // Collect all valid video URLs
+          const videoUrls = [
+            customizations.example_video_1,
+            customizations.example_video_2,
+            customizations.example_video_3,
+            customizations.example_video_4
+          ].filter(url => url && url.trim());
+          
+          if (videoUrls.length > 0) {
+            // Show the section
+            examplesSection.style.display = 'block';
+            
+            // Clear existing videos
+            videoRow.innerHTML = '';
+            
+            // Add CSS class based on number of videos
+            videoRow.className = `video-row ${videoUrls.length === 1 ? 'single' : videoUrls.length === 2 ? 'two' : videoUrls.length === 3 ? 'three' : 'four'}`;
+            
+            // Create video containers
+            videoUrls.forEach(videoUrl => {
+              const videoContainer = document.createElement('div');
+              videoContainer.className = 'video-container';
+              videoContainer.onclick = function() { playVideo(this); };
+              
+              videoContainer.innerHTML = `
+                <video class="video-placeholder" preload="metadata">
+                  <source src="${videoUrl}" type="video/mp4">
+                  Your browser does not support the video tag.
+                </video>
+                <div class="play-button"></div>
+              `;
+              
+              videoRow.appendChild(videoContainer);
+            });
+          } else {
+            // Hide section if no videos
             examplesSection.style.display = 'none';
           }
+        } else {
+          // Hide section if disabled
+          examplesSection.style.display = 'none';
         }
         
         // Apply custom CSS

@@ -32,11 +32,15 @@ export class CustomizationsModel {
           heading_font, 
           body_font, 
           show_example_videos, 
+          example_video_1,
+          example_video_2,
+          example_video_3,
+          example_video_4,
           custom_css,
           created_at,
           updated_at
         ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
         ON CONFLICT (shop_domain) 
         DO UPDATE SET 
           primary_color = EXCLUDED.primary_color,
@@ -48,6 +52,10 @@ export class CustomizationsModel {
           heading_font = EXCLUDED.heading_font,
           body_font = EXCLUDED.body_font,
           show_example_videos = EXCLUDED.show_example_videos,
+          example_video_1 = EXCLUDED.example_video_1,
+          example_video_2 = EXCLUDED.example_video_2,
+          example_video_3 = EXCLUDED.example_video_3,
+          example_video_4 = EXCLUDED.example_video_4,
           custom_css = EXCLUDED.custom_css,
           updated_at = NOW()
         RETURNING *
@@ -64,6 +72,10 @@ export class CustomizationsModel {
         customizations.headingFont || null,
         customizations.bodyFont || null,
         customizations.showExampleVideos !== undefined ? customizations.showExampleVideos : true,
+        customizations.exampleVideo1 || null,
+        customizations.exampleVideo2 || null,
+        customizations.exampleVideo3 || null,
+        customizations.exampleVideo4 || null,
         customizations.customCss || null
       ];
       

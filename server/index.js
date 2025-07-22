@@ -743,12 +743,36 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   </select>
                 </div>
                 
-                <h2>Additional Settings</h2>
+                <h2>Example Videos</h2>
                 <div class="form-group">
                   <div class="checkbox-group">
                     <input type="checkbox" id="showExampleVideos" name="showExampleVideos" checked>
                     <label for="showExampleVideos">Show example videos section on jobs page</label>
                   </div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="exampleVideo1">Example Video 1 URL</label>
+                  <input type="url" id="exampleVideo1" name="exampleVideo1" placeholder="https://example.com/video1.mp4">
+                  <p class="help-text">First example video (MP4, MOV, or video hosting URL)</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="exampleVideo2">Example Video 2 URL</label>
+                  <input type="url" id="exampleVideo2" name="exampleVideo2" placeholder="https://example.com/video2.mp4">
+                  <p class="help-text">Second example video (optional)</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="exampleVideo3">Example Video 3 URL</label>
+                  <input type="url" id="exampleVideo3" name="exampleVideo3" placeholder="https://example.com/video3.mp4">
+                  <p class="help-text">Third example video (optional)</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="exampleVideo4">Example Video 4 URL</label>
+                  <input type="url" id="exampleVideo4" name="exampleVideo4" placeholder="https://example.com/video4.mp4">
+                  <p class="help-text">Fourth example video (optional)</p>
                 </div>
                 
                 <div class="form-group">
@@ -1836,6 +1860,32 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                   showExampleVideosEl.checked = customizations.show_example_videos;
                 }
               }
+              
+              // Load example video URLs
+              if (customizations.example_video_1) {
+                const exampleVideo1El = document.getElementById('exampleVideo1');
+                if (exampleVideo1El) {
+                  exampleVideo1El.value = customizations.example_video_1;
+                }
+              }
+              if (customizations.example_video_2) {
+                const exampleVideo2El = document.getElementById('exampleVideo2');
+                if (exampleVideo2El) {
+                  exampleVideo2El.value = customizations.example_video_2;
+                }
+              }
+              if (customizations.example_video_3) {
+                const exampleVideo3El = document.getElementById('exampleVideo3');
+                if (exampleVideo3El) {
+                  exampleVideo3El.value = customizations.example_video_3;
+                }
+              }
+              if (customizations.example_video_4) {
+                const exampleVideo4El = document.getElementById('exampleVideo4');
+                if (exampleVideo4El) {
+                  exampleVideo4El.value = customizations.example_video_4;
+                }
+              }
               if (customizations.custom_css) {
                 const customCssEl = document.getElementById('customCss');
                 if (customCssEl) {
@@ -1872,6 +1922,10 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               document.getElementById('headingFont').value = 'Montserrat';
               document.getElementById('bodyFont').value = 'Inter';
               document.getElementById('showExampleVideos').checked = true;
+              document.getElementById('exampleVideo1').value = '';
+              document.getElementById('exampleVideo2').value = '';
+              document.getElementById('exampleVideo3').value = '';
+              document.getElementById('exampleVideo4').value = '';
               document.getElementById('customCss').value = '';
               
               // Clear image previews
