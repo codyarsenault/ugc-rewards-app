@@ -4,9 +4,11 @@ export const SubmissionsModel = {
   // Get all submissions
   async getAll() {
     const query = `
-      SELECT s.*, j.title as job_title
+      SELECT s.*, j.title as job_title, j.reward_type, 
+             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled
       FROM submissions s
       LEFT JOIN jobs j ON s.job_id = j.id
+      LEFT JOIN rewards r ON s.id = r.submission_id
       ORDER BY s.created_at DESC
     `;
     const result = await pool.query(query);

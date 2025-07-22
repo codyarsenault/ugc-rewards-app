@@ -504,31 +504,31 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
           <!-- Submissions Tab -->
           <div id="submissions-tab" class="tab-content active">
-            <div class="card">
+          <div class="card">
               <h1>UGC Jobs Submission Dashboard</h1>
-              <div class="submission-form-link">
+            <div class="submission-form-link">
                 Link to UGC Jobs:
                 <a href="${submitLink}" target="_blank">${submitLink}</a>
-              </div>
-
-              <div class="stats">
-                <div class="stat">
-                  <div class="stat-value" id="totalCount">0</div>
-                  <div class="stat-label">Total Submissions</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-value" id="pendingCount">0</div>
-                  <div class="stat-label">Pending Review</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-value" id="approvedCount">0</div>
-                  <div class="stat-label">Approved</div>
-                </div>
-              </div>
             </div>
 
-            <div class="card">
-              <h1>Recent Submissions</h1>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value" id="totalCount">0</div>
+                <div class="stat-label">Total Submissions</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">Pending Review</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="approvedCount">0</div>
+                <div class="stat-label">Approved</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h1>Recent Submissions</h1>
               <!-- Add this filter section -->
               <div style="margin-bottom: 20px;">
                 <div class="filter-group" style="display: flex; gap: 10px;">
@@ -539,12 +539,12 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                 </div>
               </div>
               <!-- End of filter section -->
-              <div id="submissionsTable">
-                <div class="empty-state">
-                  <p>Loading submissions...</p>
-                </div>
+            <div id="submissionsTable">
+              <div class="empty-state">
+                <p>Loading submissions...</p>
               </div>
             </div>
+          </div>
           </div>
 
           <!-- Jobs Tab -->
@@ -1209,13 +1209,26 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               const data = await response.json();
 
               allSubmissions = data.submissions || [];
-              
+
               // Update stats for all submissions
               document.getElementById('totalCount').textContent = allSubmissions.length;
-              document.getElementById('pendingCount').textContent =
-                allSubmissions.filter(s => s.status === 'pending').length;
-              document.getElementById('approvedCount').textContent =
-                allSubmissions.filter(s => s.status === 'approved').length;
+              
+              // Count pending submissions (including approved ones that need manual fulfillment)
+              const pendingCount = allSubmissions.filter(s => 
+                s.status === 'pending' || 
+                (s.status === 'approved' && 
+                 (s.reward_type === 'giftcard' || s.reward_type === 'product') && 
+                 s.reward_fulfilled !== true)
+              ).length;
+              
+              // Count fully approved submissions (no manual fulfillment needed OR already fulfilled)
+              const approvedCount = allSubmissions.filter(s => 
+                s.status === 'approved' && 
+                (s.reward_type !== 'giftcard' && s.reward_type !== 'product' || s.reward_fulfilled === true)
+              ).length;
+              
+              document.getElementById('pendingCount').textContent = pendingCount;
+              document.getElementById('approvedCount').textContent = approvedCount;
 
               // Display filtered submissions
               displaySubmissions();
@@ -1231,40 +1244,59 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 
           // New function to display filtered submissions
           function displaySubmissions() {
-            const filteredSubmissions = currentSubmissionFilter === 'all'
-              ? allSubmissions
-              : allSubmissions.filter(s => s.status === currentSubmissionFilter);
+            let filteredSubmissions;
+            
+            if (currentSubmissionFilter === 'all') {
+              filteredSubmissions = allSubmissions;
+            } else if (currentSubmissionFilter === 'pending') {
+              // Show pending submissions OR approved submissions that need manual fulfillment
+              filteredSubmissions = allSubmissions.filter(s => 
+                s.status === 'pending' || 
+                (s.status === 'approved' && 
+                 (s.reward_type === 'giftcard' || s.reward_type === 'product') && 
+                 s.reward_fulfilled !== true)
+              );
+            } else if (currentSubmissionFilter === 'approved') {
+              // Show only fully approved submissions (no manual fulfillment needed OR already fulfilled)
+              filteredSubmissions = allSubmissions.filter(s => 
+                s.status === 'approved' && 
+                (s.reward_type !== 'giftcard' && s.reward_type !== 'product' || s.reward_fulfilled === true)
+              );
+            } else {
+              // For 'rejected' and other filters, use the original logic
+              filteredSubmissions = allSubmissions.filter(s => s.status === currentSubmissionFilter);
+            }
 
-            const tableDiv = document.getElementById('submissionsTable');
+              const tableDiv = document.getElementById('submissionsTable');
 
             if (filteredSubmissions.length === 0) {
-              tableDiv.innerHTML = \`
-                <div class="empty-state">
+                tableDiv.innerHTML = \`
+                  <div class="empty-state">
                   <p>No \${currentSubmissionFilter === \'all' ? '' : currentSubmissionFilter} submissions.</p>
-                </div>
-              \`;
+                  </div>
+                \`;
               return;
             }
 
-            tableDiv.innerHTML = \`
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Customer</th>
-                    <th>Type</th>
+                tableDiv.innerHTML = \`
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Type</th>
                     <th>Job</th>
-                    <th>Content</th>
+                        <th>Content</th>
                     <th>Media</th>
                     <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+                      </tr>
+                    </thead>
+                    <tbody>
                   \${filteredSubmissions.map(sub => \`
-                    <tr>
-                      <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
-                      <td>\${sub.customerEmail}</td>
-                      <td>\${sub.type}</td>
+                        <tr>
+                          <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
+                          <td>\${sub.customerEmail}</td>
+                          <td>\${sub.type}</td>
                       <td>\${sub.job_title ? \`<a href="#" onclick="viewJobFromSubmission(event, \${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">\${sub.job_title}</a>\` : '-'}</td>
                       <td class="review-content">\${sub.content || 'No content'}</td>
                       <td>
@@ -1278,13 +1310,28 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
                         \${sub.status === 'pending' ? \`
                           <button onclick="approveSubmission(\${sub.id})" class="btn btn-primary btn-sm">Approve</button>
                           <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger btn-sm">Reject</button>
-                        \` : \`<span class="status-\${sub.status}">\${sub.status}</span>\`}
+                        \` : \`
+                          <span class="status-\${sub.status}">\${sub.status}</span>
+                          \${sub.status === 'approved' && (sub.reward_type === 'giftcard' || sub.reward_type === 'product') ? \`
+                            <div style="margin-top: 8px;">
+                              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="checkbox" 
+                                  \${sub.reward_fulfilled === true ? 'checked' : ''} 
+                                  onchange="markRewardFulfilled(event, \${sub.id}, this.checked)"
+                                  style="cursor: pointer;">
+                                <span style="font-size: 12px; color: \${sub.reward_fulfilled === true ? '#008060' : '#616161'};">
+                                  \${sub.reward_fulfilled === true ? 'Reward sent ✓' : 'Mark reward as sent'}
+                                </span>
+                              </label>
+                            </div>
+                          \` : ''}
+                        \`}
                       </td>
-                    </tr>
-                  \`).join('')}
-                </tbody>
-              </table>
-            \`;
+                        </tr>
+                      \`).join('')}
+                    </tbody>
+                  </table>
+                \`;
           }
 
           // New function to filter submissions
@@ -1397,6 +1444,46 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
               alert('Error rejecting submission');
             }
           }
+          
+          // mark reward as fulfilled function
+          async function markRewardFulfilled(event, submissionId, fulfilled) {
+            try {
+              const queryParams = window.location.search;
+              const response = await fetch(\`/api/admin/rewards/\${submissionId}/fulfill\${queryParams}\`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                  fulfilled: fulfilled,
+                  notes: fulfilled ? \`Manually fulfilled on \${new Date().toLocaleDateString()}\` : ''
+                })
+              });
+
+              if (response.ok) {
+                const submission = allSubmissions.find(s => s.id === submissionId);
+                if (submission) {
+                  submission.reward_fulfilled = fulfilled;
+                }
+                
+                // Reload submissions to get updated data and refresh stats
+                loadSubmissions();
+
+                if (fulfilled) {
+                  alert('Reward marked as sent! The submission will now appear in the "Approved" filter.');
+                } else {
+                  alert('Reward marked as pending. The submission will now appear in the "Pending Review" filter.');
+                }
+              } else {
+                alert('Failed to update fulfillment status');
+                event.target.checked = !fulfilled;
+              }
+            } catch (error) {
+              console.error('Error updating fulfillment status:', error);
+              alert('Error updating fulfillment status');
+              event.target.checked = !fulfilled;
+            }
+          }
 
           // Close modals when clicking outside
           window.onclick = function(event) {
@@ -1476,7 +1563,7 @@ app.get('/', shopify.ensureInstalledOnShop(), async (req, res) => {
 // Public submission endpoint with file upload
 app.post('/api/public/submit', upload.single('media'), async (req, res) => {
   try {
-    console.log('Received submission:', req.body);
+  console.log('Received submission:', req.body);
     console.log('File:', req.file);
 
     // Validate required fields
@@ -1564,9 +1651,9 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       type
     });
  
-    res.json({
-      success: true,
-      message: 'Submission received!',
+  res.json({
+    success: true,
+    message: 'Submission received!',
       submissionId: submission.id
     });
   } catch (error) {
@@ -1577,10 +1664,10 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       error: error.message
     });
   }
- });
- 
- // Get submissions endpoint
- app.get('/api/admin/submissions', shopify.ensureInstalledOnShop(), async (req, res) => {
+});
+
+// Get submissions endpoint
+app.get('/api/admin/submissions', shopify.ensureInstalledOnShop(), async (req, res) => {
   try {
     const submissions = await SubmissionsModel.getAll();
     
@@ -1594,7 +1681,9 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       mediaUrl: sub.media_url,
       createdAt: sub.created_at,
       job_title: sub.job_title,
-      job_id: sub.job_id
+      job_id: sub.job_id,
+      reward_type: sub.reward_type || null,
+      reward_fulfilled: sub.reward_fulfilled || false
     }));
     
     res.json({ submissions: transformedSubmissions });
@@ -1744,7 +1833,7 @@ app.post(
               type: 'product',
               code: code,
               value: 0, // It's free
-              status: 'pending',
+        status: 'pending',
               expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
               shopifyPriceRuleId: null,
               shopifyDiscountCodeId: null
@@ -1853,17 +1942,40 @@ app.post('/api/admin/submissions/:id/reject', shopify.ensureInstalledOnShop(), a
     res.status(500).json({ success: false, message: 'Failed to reject submission' });
   }
 });
- 
- // Error handling
- app.use((err, req, res, next) => {
+
+// manual reward submission fulfillment endpoint
+app.post('/api/admin/rewards/:submissionId/fulfill', shopify.ensureInstalledOnShop(), async (req, res) => {
+  try {
+    const submissionId = req.params.submissionId;
+    const { fulfilled, notes } = req.body;
+    
+    // Update the reward status
+    const reward = await RewardsModel.getBySubmissionId(submissionId);
+    if (reward) {
+      await RewardsModel.update(reward.id, {
+        status: fulfilled ? 'fulfilled' : 'pending_fulfillment',
+        fulfilled_at: fulfilled ? new Date() : null,
+        fulfilled_notes: notes
+      });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating reward fulfillment:', error);
+    res.status(500).json({ error: 'Failed to update fulfillment status' });
+  }
+});
+
+// Error handling
+app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
- });
- 
- const PORT = parseInt(process.env.PORT || '3000', 10);
- 
- app.listen(PORT, () => {
+});
+
+const PORT = parseInt(process.env.PORT || '3000', 10);
+
+app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Ngrok URL: ${process.env.HOST}`);
   console.log(`Install URL: ${process.env.HOST}/api/auth?shop=YOUR-SHOP.myshopify.com`);
- });
+});

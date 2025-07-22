@@ -51,5 +51,35 @@ export const RewardsModel = {
     `;
     const result = await pool.query(query, [submissionId]);
     return result.rows[0];
+  },
+
+  async update(id, updateData) {
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    // Build dynamic query based on provided fields
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined) {
+        fields.push(`${key} = $${paramCount}`);
+        values.push(updateData[key]);
+        paramCount++;
+      }
+    });
+
+    if (fields.length === 0) {
+      throw new Error('No fields to update');
+    }
+
+    values.push(id);
+    const query = `
+      UPDATE rewards 
+      SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, values);
+    return result.rows[0];
   }
 };
