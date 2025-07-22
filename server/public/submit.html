@@ -3,84 +3,228 @@
 <head>
   <title>Share Your Experience - UGC Rewards</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    * {
+      box-sizing: border-box;
+    }
+    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.6;
-      color: #333;
+      color: #4a5568;
+      margin: 0;
+      padding: 0;
+      background-color: #fafaf9;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #b89685 0%, #d4a574 100%);
+      color: white;
+      padding: 60px 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: float 20s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      50% { transform: translate(-30px, -30px) rotate(180deg); }
+    }
+    
+    .header h1 {
+      margin: 0 0 15px 0;
+      font-size: 42px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .header p {
+      margin: 0;
+      font-size: 20px;
+      opacity: 0.95;
+      font-weight: 500;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .container {
       max-width: 600px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 40px 20px;
     }
-    input[type="checkbox"] {
-       width: auto;
-     }
+    
     .job-info {
-      background: #e3f1df;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 30px;
+      background: linear-gradient(135deg, #fdfcfb 0%, #fbf9f7 100%);
+      padding: 30px;
+      border-radius: 16px;
+      margin-bottom: 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border: 1px solid #e8e5e3;
+      position: relative;
+      overflow: hidden;
     }
+    
+    .job-info::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #b89685 0%, #d4a574 100%);
+    }
+    
     .job-info h2 {
-      margin: 0 0 10px 0;
-      font-size: 20px;
-      color: #4b5943;
+      margin: 0 0 15px 0;
+      font-size: 24px;
+      font-weight: 600;
+      color: #3a4152;
     }
+    
     .job-info p {
-      margin: 5px 0;
-      color: #4b5943;
+      margin: 10px 0;
+      color: #5a6575;
+      line-height: 1.6;
     }
+    
+    .reward-badge {
+      display: inline-block;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #e3f1df 0%, #d4edda 100%);
+      color: #008060;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    
+    .form-container {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border: 1px solid #e8e5e3;
+    }
+    
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 25px;
     }
+    
     label {
       display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #3a4152;
+      font-size: 15px;
     }
+    
     input, textarea, select {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 14px 16px;
+      border: 2px solid #e8e5e3;
+      border-radius: 12px;
       font-size: 16px;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      background: #fafaf9;
     }
-    button {
-      background: #5c6ac4;
-      color: white;
-      padding: 12px 30px;
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #b89685;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(184, 150, 133, 0.1);
+    }
+    
+    input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      font-weight: 500;
+      color: #5a6575;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .btn {
+      padding: 16px 32px;
       border: none;
-      border-radius: 4px;
-      font-size: 16px;
+      border-radius: 25px;
       cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.3s ease;
+      letter-spacing: 0.3px;
+      font-family: inherit;
+      width: 100%;
     }
-    button:hover {
-      background: #4a5ab3;
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #b89685 0%, #d4a574 100%);
+      color: white;
+      box-shadow: 0 4px 14px rgba(184, 150, 133, 0.25);
     }
-    button:disabled {
-      background: #ccc;
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(184, 150, 133, 0.35);
+    }
+    
+    .btn-primary:disabled {
+      background: #e8e5e3;
+      color: #94a3b8;
       cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
+    
     .success {
-      background: #d4edda;
+      background: linear-gradient(135deg, #e3f1df 0%, #d4edda 100%);
       color: #155724;
-      padding: 15px;
-      border-radius: 4px;
-      margin-bottom: 20px;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      border: 1px solid #c3e6cb;
+      font-weight: 500;
     }
+    
     .error {
-      background: #f8d7da;
+      background: linear-gradient(135deg, #fdf2f2 0%, #fed7d7 100%);
       color: #721c24;
-      padding: 15px;
-      border-radius: 4px;
-      margin-bottom: 20px;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      border: 1px solid #f5c6cb;
+      font-weight: 500;
     }
+    
     .file-upload {
       position: relative;
       display: inline-block;
       cursor: pointer;
       width: 100%;
     }
+    
     .file-upload input[type="file"] {
       position: absolute;
       opacity: 0;
@@ -88,24 +232,32 @@
       height: 100%;
       cursor: pointer;
     }
+    
     .file-upload-label {
       display: block;
-      padding: 10px;
-      background: #f8f9fa;
-      border: 2px dashed #dee2e6;
-      border-radius: 4px;
+      padding: 20px;
+      background: linear-gradient(135deg, #fafaf9 0%, #f6f5f3 100%);
+      border: 2px dashed #b89685;
+      border-radius: 12px;
       text-align: center;
-      transition: all 0.3s;
+      transition: all 0.3s ease;
+      color: #5a6575;
+      font-weight: 500;
     }
+    
     .file-upload-label:hover {
-      background: #e9ecef;
-      border-color: #adb5bd;
+      background: linear-gradient(135deg, #f6f5f3 0%, #f3f2f0 100%);
+      border-color: #d4a574;
+      transform: translateY(-1px);
     }
+    
     .file-info {
-      margin-top: 10px;
+      margin-top: 12px;
       font-size: 14px;
-      color: #666;
+      color: #718096;
+      font-weight: 500;
     }
+    
     .loading {
       display: inline-block;
       width: 20px;
@@ -114,36 +266,87 @@
       border-radius: 50%;
       border-top-color: #fff;
       animation: spin 1s ease-in-out infinite;
+      margin-right: 8px;
     }
+    
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    
     .browse-jobs {
       text-align: center;
-      margin: 30px 0;
-      padding: 20px;
-      background: #f6f6f7;
-      border-radius: 8px;
+      margin: 40px 0;
+      padding: 30px;
+      background: linear-gradient(135deg, #fafaf9 0%, #f6f5f3 100%);
+      border-radius: 16px;
+      border: 1px solid #e8e5e3;
     }
-    .browse-jobs a {
-      color: #5c6ac4;
-      text-decoration: none;
+    
+    .browse-jobs p {
+      margin: 0 0 15px 0;
+      color: #5a6575;
       font-weight: 500;
+    }
+    
+    .browse-jobs a {
+      color: #b89685;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 12px 24px;
+      border: 2px solid #b89685;
+      border-radius: 25px;
+      transition: all 0.3s ease;
+      display: inline-block;
+    }
+    
+    .browse-jobs a:hover {
+      background: #b89685;
+      color: white;
+      transform: translateY(-1px);
+    }
+    
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 32px;
+      }
+      
+      .header p {
+        font-size: 18px;
+      }
+      
+      .container {
+        padding: 20px;
+      }
+      
+      .form-container {
+        padding: 25px;
+      }
+      
+      .job-info {
+        padding: 25px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Share Your Experience & Get Rewarded!</h1>
-  
-  <div id="jobInfo" class="job-info" style="display:none;">
-    <h2 id="jobTitle"></h2>
-    <p id="jobDescription"></p>
-    <p><strong>Reward:</strong> <span id="jobReward"></span></p>
+  <div class="header">
+    <h1>Share Your Experience ✨</h1>
+    <p>Get rewarded for your authentic content</p>
   </div>
   
-  <div id="message"></div>
-  
-  <form id="ugcForm">
+  <div class="container">
+    <div id="jobInfo" class="job-info" style="display:none;">
+      <h2 id="jobTitle"></h2>
+      <p id="jobDescription"></p>
+      <div id="jobRequirements" style="margin: 20px 0;"></div>
+      <p><strong>Reward:</strong> <span class="reward-badge" id="jobReward"></span></p>
+      <p id="jobDeadline" style="margin-top: 15px;"></p>
+    </div>
+    
+    <div id="message"></div>
+    
+    <div class="form-container">
+      <form id="ugcForm">
     <div class="form-group">
       <label for="email">Email Address*</label>
       <input type="email" id="email" name="email" required>
@@ -173,19 +376,21 @@
       <div id="fileInfo" class="file-info"></div>
     </div>
     
-    <div class="form-group">
-      <label style="display: inline-flex; align-items: center; gap: 8px; width: auto; justify-content: flex-start;">
-        <input type="checkbox" required>
-        I agree to allow this business to use my content for marketing purposes
-      </label>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" required>
+            I agree to allow this business to use my content for marketing purposes
+          </label>
+        </div>
+        
+        <button type="submit" id="submitBtn" class="btn btn-primary">Submit & Get Reward</button>
+      </form>
     </div>
-    
-    <button type="submit" id="submitBtn">Submit & Get Reward</button>
-  </form>
 
-  <div class="browse-jobs">
-    <p>Want to reply to a different content requests?</p>
-    <a href="/jobs">Browse All Available UGC Jobs →</a>
+    <div class="browse-jobs">
+      <p>Want to reply to a different content request?</p>
+      <a href="/jobs">Browse All Available UGC Jobs →</a>
+    </div>
   </div>
 
   <script>
@@ -220,6 +425,37 @@
         document.getElementById('jobTitle').textContent = job.title;
         document.getElementById('jobDescription').textContent = job.description;
         document.getElementById('jobReward').textContent = formatReward(job);
+        
+        // Display requirements if they exist
+        const requirementsDiv = document.getElementById('jobRequirements');
+        if (job.requirements && job.requirements.trim()) {
+          const requirements = job.requirements.split('\n').filter(r => r.trim());
+          if (requirements.length > 0) {
+            requirementsDiv.innerHTML = `
+              <h4 style="margin: 0 0 10px 0; color: #3a4152; font-size: 16px; font-weight: 600;">✨ Requirements:</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #5a6575;">
+                ${requirements.map(req => `<li style="margin-bottom: 8px; line-height: 1.5;">${req}</li>`).join('')}
+              </ul>
+            `;
+          } else {
+            requirementsDiv.innerHTML = '';
+          }
+        } else {
+          requirementsDiv.innerHTML = '';
+        }
+        
+        // Display deadline if it exists
+        const deadlineDiv = document.getElementById('jobDeadline');
+        if (job.deadline) {
+          const deadline = new Date(job.deadline);
+          const daysLeft = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+          deadlineDiv.innerHTML = `
+            <strong>⏰ Deadline:</strong> ${deadline.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} 
+            <span style="color: #c06866; font-weight: normal;">(${daysLeft} days left)</span>
+          `;
+        } else {
+          deadlineDiv.innerHTML = '';
+        }
         
         // Set the content type and lock it
         document.getElementById('type').value = job.type;

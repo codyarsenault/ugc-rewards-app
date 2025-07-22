@@ -35,8 +35,10 @@
       width: 200%;
       height: 200%;
       background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-      animation: float 20s ease-in-out infinite;
+      animation: float 15s ease-in-out infinite;
     }
+    
+
     
     /* Example Videos Section */
     .examples-section {
@@ -53,30 +55,77 @@
       gap: 20px;
     }
     
-    .video-placeholder {
-      background: white;
+    .video-container {
+      position: relative;
       aspect-ratio: 9/16;
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      color: #e0e0e0;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       cursor: pointer;
       transition: transform 0.3s ease;
       border: 1px solid #e8e5e3;
+      overflow: hidden;
     }
     
-    .video-placeholder:hover {
+    .video-container:hover {
       transform: translateY(-3px);
       box-shadow: 0 6px 16px rgba(0,0,0,0.15);
     }
     
-    @keyframes float {
-      0%, 100% { transform: translate(0, 0) rotate(0deg); }
-      50% { transform: translate(-30px, -30px) rotate(180deg); }
+    .video-placeholder {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
+    
+    .play-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 2;
+    }
+    
+    .play-button:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: translate(-50%, -50%) scale(1.1);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+    
+    .play-button::after {
+      content: '';
+      width: 0;
+      height: 0;
+      border-left: 15px solid #b89685;
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      margin-left: 3px;
+    }
+    
+    .video-container.playing .play-button {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    @keyframes float {
+      0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      25% { transform: translate(-20px, -15px) rotate(90deg) scale(1.1); }
+      50% { transform: translate(-30px, -30px) rotate(180deg) scale(0.9); }
+      75% { transform: translate(-15px, -20px) rotate(270deg) scale(1.05); }
+      100% { transform: translate(0, 0) rotate(360deg) scale(1); }
+    }
+    
+
     
     .header h1 {
       margin: 0 0 15px 0;
@@ -492,12 +541,40 @@
   <!-- Example Videos Section -->
   <div class="examples-section">
     <div class="video-row">
-      <div class="video-placeholder">▶</div>
-      <div class="video-placeholder">▶</div>
-      <div class="video-placeholder">▶</div>
-      <div class="video-placeholder">▶</div>
+      <div class="video-container" onclick="playVideo(this)">
+        <video class="video-placeholder" preload="metadata">
+          <source src="https://ugc-rewards-uploads-cody.s3.us-east-1.amazonaws.com/ugc-submissions/copy_3196F57A-C5C8-464D-AB93-5280CC7E5D7D.MOV" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="play-button"></div>
+      </div>
+      
+      <div class="video-container" onclick="playVideo(this)">
+        <video class="video-placeholder" preload="metadata">
+          <source src="https://ugc-rewards-uploads-cody.s3.us-east-1.amazonaws.com/ugc-submissions/campaigns_campaign-3874_clip_creator_22616_0932659b-0055-4734-921a-0441ef54cdf8.MOV" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="play-button"></div>
+      </div>
+      
+      <div class="video-container" onclick="playVideo(this)">
+        <video class="video-placeholder" preload="metadata">
+          <source src="https://ugc-rewards-uploads-cody.s3.us-east-1.amazonaws.com/ugc-submissions/1724436523.MOV" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="play-button"></div>
+      </div>
+      
+      <div class="video-container" onclick="playVideo(this)">
+        <video class="video-placeholder" preload="metadata">
+          <source src="https://ugc-rewards-uploads-cody.s3.us-east-1.amazonaws.com/ugc-submissions/1719521058.MOV" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="play-button"></div>
+      </div>
     </div>
   </div>
+
 
   <div class="container">
     <div class="filters">
@@ -704,6 +781,34 @@
         closeModal();
       }
     }
+
+    // Play video function
+    function playVideo(container) {
+      const video = container.querySelector('video');
+      const playButton = container.querySelector('.play-button');
+      
+      if (video.paused) {
+        video.play();
+        container.classList.add('playing');
+        video.controls = true;
+      } else {
+        video.pause();
+        container.classList.remove('playing');
+        video.controls = false;
+      }
+    }
+    
+    // Add event listeners for video ended
+    document.addEventListener('DOMContentLoaded', function() {
+      const videos = document.querySelectorAll('.video-placeholder');
+      videos.forEach(video => {
+        video.addEventListener('ended', function() {
+          const container = this.closest('.video-container');
+          container.classList.remove('playing');
+          this.controls = false;
+        });
+      });
+    });
 
     // Load jobs on page load
     loadJobs();
