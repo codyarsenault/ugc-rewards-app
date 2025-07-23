@@ -1770,7 +1770,17 @@ app.get('/', async (req, res) => {
                           <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger btn-sm">Reject</button>
                         \` : \`
                           <span class="status-\${sub.status}">\${sub.status}</span>
-
+                          \${sub.status === 'approved' && sub.reward_type === 'giftcard' ? \`
+                            <div style="margin-top: 8px;">
+                              \${!sub.reward_fulfilled ? \`
+                                <button onclick="sendGiftCard(\${sub.id})" class="btn btn-primary btn-sm">Send Gift Card Email</button>
+                              \` : \`
+                                <span style="font-size: 12px; color: #008060;">
+                                  ✓ Gift card email sent
+                                </span>
+                              \`}
+                            </div>
+                          \` : ''}
 
                         \`}
                       </td>
@@ -2041,7 +2051,9 @@ app.get('/', async (req, res) => {
           async function loadCustomizations() {
             try {
               const queryParams = window.location.search;
-              const response = await fetch('/api/admin/customizations' + queryParams);
+              // Add cache-busting parameter to prevent caching issues
+              const cacheBuster = '&_t=' + Date.now();
+              const response = await fetch('/api/admin/customizations' + queryParams + cacheBuster);
               const customizations = await response.json();
               
               console.log('Loaded customizations:', customizations);
@@ -2169,6 +2181,7 @@ app.get('/', async (req, res) => {
               }
               
               console.log('Customizations loaded successfully');
+              console.log('Final customizations object:', customizations);
             } catch (error) {
               console.error('Error loading customizations:', error);
             }
@@ -2332,11 +2345,17 @@ app.get('/', async (req, res) => {
                 });
                 
                 if (response.ok) {
+                  console.log('Customizations saved successfully');
                   document.getElementById('customizationSuccessMessage').style.display = 'block';
                   setTimeout(() => {
                     document.getElementById('customizationSuccessMessage').style.display = 'none';
                   }, 3000);
+                  // Reload customizations to ensure they're properly applied
+                  setTimeout(() => {
+                    loadCustomizations();
+                  }, 1000);
                 } else {
+                  console.error('Failed to save customizations');
                   alert('Failed to save settings');
                 }
               } catch (error) {
@@ -3218,7 +3237,10 @@ app.post(
         console.log('  - Full job object keys:', Object.keys(job));
         
         if (job.reward_type === 'giftcard') {
-          additionalMessage = `Your $${job.reward_giftcard_amount} gift card will be sent to you within 24 hours. Please check your email!`;
+          // Don't send approval email for gift cards - they'll get the gift card email instead
+          console.log('🎁 Skipping approval email for gift card submission - will send gift card email separately');
+          res.json({ success: true, message: 'Submission approved' });
+          return;
         } else if (job.reward_type === 'product') {
           if (job.discountCode) {
             additionalMessage = `Your free ${job.reward_product || 'product'} is ready! Use discount code ${job.discountCode} at checkout to get 100% off. This code expires in 30 days.`;
