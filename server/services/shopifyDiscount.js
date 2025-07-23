@@ -103,4 +103,85 @@ export class ShopifyDiscountService {
       throw error;
     }
   }
+
+  async createProductDiscountCode(job, submission) {
+    const code = `UGCFREE${submission.id}${Date.now().toString(36).toUpperCase()}`;
+    
+    try {
+      // Create a 100% discount for the specific product
+      const mutation = `
+        mutation discountCodeBasicCreate($basicCodeDiscount: DiscountCodeBasicInput!) {
+          discountCodeBasicCreate(basicCodeDiscount: $basicCodeDiscount) {
+            codeDiscountNode {
+              id
+              codeDiscount {
+                ... on DiscountCodeBasic {
+                  title
+                  codes(first: 1) {
+                    edges {
+                      node {
+                        code
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+      
+      const variables = {
+        basicCodeDiscount: {
+          title: `UGC Free Product - ${job.title}`,
+          code: code,
+          startsAt: new Date().toISOString(),
+          endsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          customerSelection: {
+            all: true
+          },
+          customerGets: {
+            value: {
+              percentage: 1.0  // 100% off
+            },
+            items: {
+              products: {
+                productsToAdd: [job.reward_product_id]  // Specific product only
+              }
+            }
+          },
+          appliesOncePerCustomer: true,
+          usageLimit: 1
+        }
+      };
+      
+      const response = await this.client.request(mutation, { variables });
+      
+      if (response.body.data.discountCodeBasicCreate.userErrors.length > 0) {
+        throw new Error(response.body.data.discountCodeBasicCreate.userErrors[0].message);
+      }
+      
+      // Save to database
+      await RewardsModel.create({
+        submissionId: submission.id,
+        jobId: job.id,
+        type: 'product',
+        code: code,
+        value: 0,
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        shopifyPriceRuleId: response.body.data.discountCodeBasicCreate.codeDiscountNode.id,
+        shopifyDiscountCodeId: response.body.data.discountCodeBasicCreate.codeDiscountNode.id
+      });
+      
+      return { code };
+    } catch (error) {
+      console.error('Error creating product discount:', error);
+      throw error;
+    }
+  }
 }

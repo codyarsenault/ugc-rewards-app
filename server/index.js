@@ -33,6 +33,7 @@ import {
   sendCustomerConfirmationEmail,
   sendCustomerStatusEmail,
   sendRewardCodeEmail,
+  sendGiftCardEmail,
 } from './services/email.js';
 import { JobsModel } from './models/jobs.js';
 import { ShopifyDiscountService } from './services/shopifyDiscount.js';
@@ -1771,6 +1772,9 @@ app.get('/', async (req, res) => {
                           <span class="status-\${sub.status}">\${sub.status}</span>
                           \${sub.status === 'approved' && (sub.reward_type === 'giftcard' || sub.reward_type === 'product') ? \`
                             <div style="margin-top: 8px;">
+                              \${sub.reward_type === 'giftcard' && !sub.reward_fulfilled ? \`
+                                <button onclick="sendGiftCard(\${sub.id})" class="btn btn-primary btn-sm" style="margin-bottom: 8px;">Send Gift Card Email</button>
+                              \` : ''}
                               <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
                                 <input type="checkbox" 
                                   \${sub.reward_fulfilled === true ? 'checked' : ''} 
@@ -1902,6 +1906,41 @@ app.get('/', async (req, res) => {
             }
           }
           
+          //sending gift cards
+          async function sendGiftCard(submissionId) {
+          const code = prompt('Enter the gift card code:');
+          const amount = prompt('Enter the gift card amount (numbers only):');
+          
+          if (!code || !amount) {
+            alert('Gift card code and amount are required');
+            return;
+          }
+          
+          try {
+            const queryParams = window.location.search;
+            const response = await fetch(\`/api/admin/rewards/\${submissionId}/send-giftcard\${queryParams}\`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ 
+                giftCardCode: code,
+                amount: parseFloat(amount)
+              })
+            });
+            
+            if (response.ok) {
+              alert('Gift card email sent successfully!');
+              loadSubmissions();
+            } else {
+              alert('Failed to send gift card email');
+            }
+          } catch (error) {
+            console.error('Error sending gift card:', error);
+            alert('Error sending gift card email');
+          }
+        }
+
           // mark reward as fulfilled function
           async function markRewardFulfilled(event, submissionId, fulfilled) {
             try {
@@ -3116,48 +3155,49 @@ app.post(
           console.log('Processing free product reward for job:', job.id);
           
           try {
-            // Create a 100% discount code for the specific product
-            const code = `UGCFREE${submission.id}${Date.now().toString(36).toUpperCase()}`;
+            // Get Shopify session
+            let session = res.locals.shopify?.session;
+            if (!session) {
+              const sessions = await sessionStorage.findSessionsByShop(job.shop_domain);
+              session = sessions?.[0];
+            }
+            if (!session) {
+              throw new Error(`No valid Shopify session for ${job.shop_domain}`);
+            }
+
+            // Create the discount code
+            const client = new Shopify.clients.Graphql({ session });
+            const discountService = new ShopifyDiscountService(client);
             
-            // Create a pending reward record for tracking
-            await RewardsModel.create({
-              submissionId: submission.id,
-              jobId: job.id,
-              type: 'product',
-              code: code,
-              value: 0, // It's free
-        status: 'pending',
-              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              shopifyPriceRuleId: null,
-              shopifyDiscountCodeId: null
+            // Create a 100% off discount for the specific product
+            const { code } = await discountService.createProductDiscountCode(job, submission);
+            console.log(`Free product discount code created: ${code}`);
+            
+            // Get customizations for email content
+            const customizations = await CustomizationsModel.getByShop(job.shop_domain) || {};
+            
+            // Send the reward email immediately
+            await sendRewardCodeEmail({
+              to: submission.customer_email,
+              code,
+              value: 100,
+              type: 'percentage',
+              expiresIn: '30 days',
+              customSubject: customizations.email_subject_reward,
+              customBody: customizations.email_body_reward
             });
             
-            // Send notification to admin
-            await sendNotificationEmail({
-              subject: 'Free Product Reward - Manual Setup Required',
-              html: `
-                <h2>Free Product Discount Code Needs Setup</h2>
-                <p>Please create a 100% discount code in Shopify:</p>
-                <ul>
-                  <li><strong>Customer:</strong> ${submission.customer_email}</li>
-                  <li><strong>Product:</strong> ${job.reward_product}</li>
-                  <li><strong>Suggested Code:</strong> ${code}</li>
-                  <li><strong>Job:</strong> ${job.title}</li>
-                </ul>
-                <p><strong>Setup Instructions:</strong></p>
-                <ol>
-                  <li>Go to Shopify Admin > Discounts</li>
-                  <li>Create a discount code: ${code}</li>
-                  <li>Set to 100% off for product: ${job.reward_product}</li>
-                  <li>Limit to 1 use</li>
-                  <li>Send the code to: ${submission.customer_email}</li>
-                </ol>
-              `
-            });
+            // Mark reward as sent
+            const reward = await RewardsModel.getBySubmissionId(submission.id);
+            if (reward) {
+              await RewardsModel.markAsSent(reward.id);
+              await RewardsModel.updateSubmissionRewardStatus(submission.id);
+            }
             
-            console.log(`Free product reward pending for ${submission.customer_email}: ${job.reward_product}`);
+            console.log(`Free product code sent to ${submission.customer_email}: ${code}`);
           } catch (error) {
-            console.error('Error processing free product reward:', error);
+            console.error('Error creating/sending free product reward:', error);
+            // Don't fail the approval if reward processing fails
           }
         }
         
@@ -3274,6 +3314,48 @@ app.post('/api/admin/rewards/:submissionId/fulfill', async (req, res) => {
   } catch (error) {
     console.error('Error updating reward fulfillment:', error);
     res.status(500).json({ error: 'Failed to update fulfillment status' });
+  }
+});
+
+// Add this endpoint for sending gift card codes manually
+app.post('/api/admin/rewards/:submissionId/send-giftcard', shopify.ensureInstalledOnShop(), async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { giftCardCode, amount } = req.body;
+    
+    // Get the submission and reward details
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    
+    // Get customizations for email content
+    const shop = res.locals.shopify?.session?.shop || req.query.shop;
+    const customizations = await CustomizationsModel.getByShop(shop) || {};
+    
+    // Send the gift card email
+    await sendGiftCardEmail({
+      to: submission.customer_email,
+      code: giftCardCode,
+      amount: amount,
+      customSubject: customizations.email_subject_giftcard,
+      customBody: customizations.email_body_giftcard
+    });
+    
+    // Update reward status
+    const reward = await RewardsModel.getBySubmissionId(submissionId);
+    if (reward) {
+      await RewardsModel.update(reward.id, {
+        code: giftCardCode,
+        status: 'fulfilled',
+        fulfilled_at: new Date()
+      });
+    }
+    
+    res.json({ success: true, message: 'Gift card email sent successfully' });
+  } catch (error) {
+    console.error('Error sending gift card email:', error);
+    res.status(500).json({ error: 'Failed to send gift card email' });
   }
 });
 
