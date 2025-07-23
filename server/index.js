@@ -1707,11 +1707,11 @@ app.get('/', async (req, res) => {
             if (currentSubmissionFilter === 'all') {
               filteredSubmissions = allSubmissions;
             } else if (currentSubmissionFilter === 'pending') {
-              // Show pending submissions OR approved submissions that need manual fulfillment
+              // Show pending submissions OR approved gift card submissions that need manual fulfillment
               filteredSubmissions = allSubmissions.filter(s => 
                 s.status === 'pending' || 
                 (s.status === 'approved' && 
-                 (s.reward_type === 'giftcard' || s.reward_type === 'product') && 
+                 s.reward_type === 'giftcard' && 
                  s.reward_fulfilled !== true)
               );
             } else if (currentSubmissionFilter === 'approved') {
@@ -1770,22 +1770,18 @@ app.get('/', async (req, res) => {
                           <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger btn-sm">Reject</button>
                         \` : \`
                           <span class="status-\${sub.status}">\${sub.status}</span>
-                          \${sub.status === 'approved' && (sub.reward_type === 'giftcard' || sub.reward_type === 'product') ? \`
+                          \${sub.status === 'approved' && sub.reward_type === 'giftcard' ? \`
                             <div style="margin-top: 8px;">
-                              \${sub.reward_type === 'giftcard' && !sub.reward_fulfilled ? \`
-                                <button onclick="sendGiftCard(\${sub.id})" class="btn btn-primary btn-sm" style="margin-bottom: 8px;">Send Gift Card Email</button>
-                              \` : ''}
-                              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                                <input type="checkbox" 
-                                  \${sub.reward_fulfilled === true ? 'checked' : ''} 
-                                  onchange="markRewardFulfilled(event, \${sub.id}, this.checked)"
-                                  style="cursor: pointer;">
-                                <span style="font-size: 12px; color: \${sub.reward_fulfilled === true ? '#008060' : '#616161'};">
-                                  \${sub.reward_fulfilled === true ? \`\${sub.reward_type === 'giftcard' ? 'Gift card' : 'Free product'} reward sent ✓\` : \`Mark \${sub.reward_type === 'giftcard' ? 'gift card' : 'free product'} reward as sent\`}
+                              \${!sub.reward_fulfilled ? \`
+                                <button onclick="sendGiftCard(\${sub.id})" class="btn btn-primary btn-sm">Send Gift Card Email</button>
+                              \` : \`
+                                <span style="font-size: 12px; color: #008060;">
+                                  ✓ Gift card email sent
                                 </span>
-                              </label>
+                              \`}
                             </div>
                           \` : ''}
+
                         \`}
                       </td>
                         </tr>
@@ -3393,6 +3389,12 @@ app.post('/api/admin/rewards/:submissionId/send-giftcard', shopify.ensureInstall
         fulfilled_at: new Date()
       });
     }
+    
+    // Update submission reward_fulfilled status
+    await SubmissionsModel.update(submissionId, {
+      reward_fulfilled: true,
+      reward_fulfilled_at: new Date()
+    });
     
     res.json({ success: true, message: 'Gift card email sent successfully' });
   } catch (error) {

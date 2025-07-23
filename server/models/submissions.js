@@ -58,5 +58,36 @@ export const SubmissionsModel = {
     `;
     const result = await pool.query(query, [jobId, submissionId]);
     return result.rows[0];
+  },
+
+  // Update submission with any fields
+  async update(id, updateData) {
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    // Build dynamic query based on provided fields
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined) {
+        fields.push(`${key} = $${paramCount}`);
+        values.push(updateData[key]);
+        paramCount++;
+      }
+    });
+
+    if (fields.length === 0) {
+      throw new Error('No fields to update');
+    }
+
+    values.push(id);
+    const query = `
+      UPDATE submissions 
+      SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, values);
+    return result.rows[0];
   }
 };
