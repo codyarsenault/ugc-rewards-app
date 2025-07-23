@@ -2971,8 +2971,27 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     });
  
     // Get customizations for email content
-    const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+    let shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+    
+    // If no shop domain from session/query, try to get it from the job
+    if (!shopDomain && req.body.jobId) {
+      try {
+        const job = await JobsModel.getById(req.body.jobId);
+        if (job && job.shop_domain) {
+          shopDomain = job.shop_domain;
+          console.log('🏪 Got shop domain from job:', shopDomain);
+        }
+      } catch (error) {
+        console.error('Error getting job for shop domain:', error);
+      }
+    }
+    
+    console.log('🔍 Shop domain for customizations:', shopDomain);
+    
     const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
+    console.log('🎨 Loaded customizations:', customizations);
+    console.log('📧 Confirmation email subject:', customizations.email_subject_confirmation);
+    console.log('📧 Confirmation email body:', customizations.email_body_confirmation);
     
     // Send confirmation email to customer
     await sendCustomerConfirmationEmail({

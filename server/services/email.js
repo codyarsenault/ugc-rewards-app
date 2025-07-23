@@ -17,12 +17,49 @@ export async function sendNotificationEmail({ to, subject, text, html }) {
 }
 
 export async function sendCustomerConfirmationEmail({ to, customerName, type, customSubject, customBody }) {
+  console.log('=== sendCustomerConfirmationEmail called ===');
+  console.log('Parameters:', { to, customerName, type, customSubject, customBody });
+  
+  let subject, text, html;
+  
+  // If custom content is provided, use it with variable substitution
+  if (customBody) {
+    console.log('🎨 Using custom confirmation email body:', customBody);
+    console.log('🔧 Variables to substitute:');
+    console.log('  - type:', type);
+    console.log('  - customerName:', customerName);
+    
+    const processedBody = customBody
+      .replace(/\$\{type\}/g, type)
+      .replace(/\$\{customerName\}/g, customerName || '');
+    
+    console.log('📝 Processed confirmation email body:', processedBody);
+    
+    const msg = {
+      to,
+      from: process.env.EMAIL_FROM,
+      subject: customSubject || 'Thank you for your submission!',
+      text: processedBody.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          ${processedBody}
+        </div>
+      `
+    };
+    return sgMail.send(msg);
+  }
+  
+  // Default content if no custom content provided
+  subject = customSubject || 'Thank you for your submission!';
+  text = `Thank you for sharing your experience! Your ${type} submission has been received and is pending review.`;
+  html = `<p>Thank you for sharing your experience!</p><p>Your <b>${type}</b> submission has been received and is pending review.</p>`;
+  
   const msg = {
     to,
     from: process.env.EMAIL_FROM,
-    subject: customSubject || 'Thank you for your submission!',
-    text: customBody || `Thank you for sharing your experience! Your ${type} submission has been received and is pending review.`,
-    html: customBody ? `<p>${customBody}</p>` : `<p>Thank you for sharing your experience!</p><p>Your <b>${type}</b> submission has been received and is pending review.</p>`
+    subject,
+    text,
+    html
   };
   return sgMail.send(msg);
 }
