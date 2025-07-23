@@ -49,10 +49,14 @@ export class CustomizationsModel {
           email_body_giftcard,
           email_subject_product,
           email_body_product,
+          jobs_heading,
+          jobs_subheading,
+          submit_heading,
+          submit_subheading,
           created_at,
           updated_at
         ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, NOW(), NOW())
         ON CONFLICT (shop_domain) 
         DO UPDATE SET 
           primary_color = EXCLUDED.primary_color,
@@ -81,6 +85,10 @@ export class CustomizationsModel {
           email_body_giftcard = EXCLUDED.email_body_giftcard,
           email_subject_product = EXCLUDED.email_subject_product,
           email_body_product = EXCLUDED.email_body_product,
+          jobs_heading = EXCLUDED.jobs_heading,
+          jobs_subheading = EXCLUDED.jobs_subheading,
+          submit_heading = EXCLUDED.submit_heading,
+          submit_subheading = EXCLUDED.submit_subheading,
           updated_at = NOW()
         RETURNING *
       `;
@@ -112,7 +120,11 @@ export class CustomizationsModel {
         customizations.emailSubjectGiftcard || null,
         customizations.emailBodyGiftcard || null,
         customizations.emailSubjectProduct || null,
-        customizations.emailBodyProduct || null
+        customizations.emailBodyProduct || null,
+        customizations.jobsHeading || null,
+        customizations.jobsSubheading || null,
+        customizations.submitHeading || null,
+        customizations.submitSubheading || null
       ];
       
       const result = await pool.query(query, values);

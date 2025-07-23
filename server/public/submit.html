@@ -443,8 +443,8 @@
 </head>
 <body>
   <div class="header">
-    <h1>Share Your Experience ✨</h1>
-    <p>Get rewarded for your authentic content</p>
+    <h1 id="pageHeading">Share Your Experience ✨</h1>
+    <p id="pageSubheading">Get rewarded for your authentic content</p>
   </div>
   
   <div class="container">
@@ -553,7 +553,7 @@
         if (customizations.hero_image_url) {
           const hero = document.querySelector('.header');
           if (hero) {
-            hero.style.backgroundImage = `linear-gradient(135deg, rgba(184, 150, 133, 0.9) 0%, rgba(212, 165, 116, 0.9) 100%), url('${customizations.hero_image_url}')`;
+            hero.style.backgroundImage = `url('${customizations.hero_image_url}')`;
             hero.style.backgroundSize = 'cover';
             hero.style.backgroundPosition = 'center';
           }
@@ -604,6 +604,20 @@
           const style = document.createElement('style');
           style.textContent = customizations.custom_css;
           document.head.appendChild(style);
+        }
+        
+        // Apply custom headings
+        if (customizations.submit_heading) {
+          const headingEl = document.getElementById('pageHeading');
+          if (headingEl) {
+            headingEl.textContent = customizations.submit_heading;
+          }
+        }
+        if (customizations.submit_subheading) {
+          const subheadingEl = document.getElementById('pageSubheading');
+          if (subheadingEl) {
+            subheadingEl.textContent = customizations.submit_subheading;
+          }
         }
         
         // Show the page after customizations are applied
@@ -886,9 +900,9 @@
           fileInfo.textContent = '';
           mediaGroup.style.display = 'none';
           
-          // Hide form after successful submission for job
+          // Hide form container after successful submission for job
           if (jobId) {
-            form.style.display = 'none';
+            document.querySelector('.form-container').style.display = 'none';
           }
         } else {
           messageDiv.innerHTML = '<div class="error">There was an error submitting your content. Please try again.</div>';

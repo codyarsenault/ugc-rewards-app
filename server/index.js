@@ -911,6 +911,31 @@ app.get('/', async (req, res) => {
                   </select>
                 </div>
                 
+                <h2>Page Headings</h2>
+                <div class="form-group">
+                  <label for="jobsHeading">Jobs Page Heading</label>
+                  <input type="text" id="jobsHeading" name="jobsHeading" placeholder="Create Content, Get Rewarded ✨" maxlength="100">
+                  <p class="help-text">Main heading for the jobs listing page</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="jobsSubheading">Jobs Page Subheading</label>
+                  <input type="text" id="jobsSubheading" name="jobsSubheading" placeholder="Share your authentic experiences with brands you love" maxlength="200">
+                  <p class="help-text">Subheading for the jobs listing page</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="submitHeading">Submit Page Heading</label>
+                  <input type="text" id="submitHeading" name="submitHeading" placeholder="Share Your Experience ✨" maxlength="100">
+                  <p class="help-text">Main heading for the content submission page</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="submitSubheading">Submit Page Subheading</label>
+                  <input type="text" id="submitSubheading" name="submitSubheading" placeholder="Get rewarded for your authentic content" maxlength="200">
+                  <p class="help-text">Subheading for the content submission page</p>
+                </div>
+                
                 <h2>Example Videos</h2>
                 <div class="form-group">
                   <div class="checkbox-group">
@@ -2169,6 +2194,32 @@ app.get('/', async (req, res) => {
                   bodyFontEl.value = customizations.body_font;
                 }
               }
+              
+              // Load page headings
+              if (customizations.jobs_heading) {
+                const jobsHeadingEl = document.getElementById('jobsHeading');
+                if (jobsHeadingEl) {
+                  jobsHeadingEl.value = customizations.jobs_heading;
+                }
+              }
+              if (customizations.jobs_subheading) {
+                const jobsSubheadingEl = document.getElementById('jobsSubheading');
+                if (jobsSubheadingEl) {
+                  jobsSubheadingEl.value = customizations.jobs_subheading;
+                }
+              }
+              if (customizations.submit_heading) {
+                const submitHeadingEl = document.getElementById('submitHeading');
+                if (submitHeadingEl) {
+                  submitHeadingEl.value = customizations.submit_heading;
+                }
+              }
+              if (customizations.submit_subheading) {
+                const submitSubheadingEl = document.getElementById('submitSubheading');
+                if (submitSubheadingEl) {
+                  submitSubheadingEl.value = customizations.submit_subheading;
+                }
+              }
               if (customizations.show_example_videos !== undefined) {
                 const showExampleVideosEl = document.getElementById('showExampleVideos');
                 if (showExampleVideosEl) {
@@ -2764,6 +2815,10 @@ app.get('/customizations', async (req, res) => {
               document.getElementById('logoUrl').value = '';
               document.getElementById('headingFont').value = 'Montserrat';
               document.getElementById('bodyFont').value = 'Inter';
+              document.getElementById('jobsHeading').value = '';
+              document.getElementById('jobsSubheading').value = '';
+              document.getElementById('submitHeading').value = '';
+              document.getElementById('submitSubheading').value = '';
               document.getElementById('showExampleVideos').checked = true;
               document.getElementById('customCss').value = '';
               updatePreview();

@@ -605,8 +605,8 @@
 </head>
 <body>
   <div class="header">
-    <h1>Create Content, Get Rewarded ✨</h1>
-    <p>Share your authentic experiences with brands you love</p>
+    <h1 id="pageHeading">Create Content, Get Rewarded ✨</h1>
+    <p id="pageSubheading">Share your authentic experiences with brands you love</p>
   </div>
 
   <!-- Example Videos Section -->
@@ -720,7 +720,7 @@
         if (customizations.hero_image_url) {
           const hero = document.querySelector('.header');
           if (hero) {
-            hero.style.backgroundImage = `linear-gradient(135deg, rgba(184, 150, 133, 0.9) 0%, rgba(212, 165, 116, 0.9) 100%), url('${customizations.hero_image_url}')`;
+            hero.style.backgroundImage = `url('${customizations.hero_image_url}')`;
             hero.style.backgroundSize = 'cover';
             hero.style.backgroundPosition = 'center';
           }
@@ -819,6 +819,20 @@
           const style = document.createElement('style');
           style.textContent = customizations.custom_css;
           document.head.appendChild(style);
+        }
+        
+        // Apply custom headings
+        if (customizations.jobs_heading) {
+          const headingEl = document.getElementById('pageHeading');
+          if (headingEl) {
+            headingEl.textContent = customizations.jobs_heading;
+          }
+        }
+        if (customizations.jobs_subheading) {
+          const subheadingEl = document.getElementById('pageSubheading');
+          if (subheadingEl) {
+            subheadingEl.textContent = customizations.jobs_subheading;
+          }
         }
         
         // Show the page after customizations are applied
