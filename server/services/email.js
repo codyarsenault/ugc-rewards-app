@@ -27,34 +27,63 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type, cu
   return sgMail.send(msg);
 }
 
-export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '', customSubject, customBody }) {
+export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '', customSubject, customBody, discountCode = null }) {
   console.log('=== sendCustomerStatusEmail called ===');
-  console.log('Parameters:', { to, status, type, additionalMessage, customSubject, customBody });
+  console.log('Parameters:', { to, status, type, additionalMessage, customSubject, customBody, discountCode });
   
   let subject, text, html;
   
+  // If custom content is provided, use it with variable substitution
+  if (customBody) {
+    console.log('🎨 Using custom email body:', customBody);
+    console.log('🔧 Variables to substitute:');
+    console.log('  - type:', type);
+    console.log('  - status:', status);
+    console.log('  - additionalMessage:', additionalMessage);
+    console.log('  - discountCode:', discountCode);
+    
+    const processedBody = customBody
+      .replace(/\$\{type\}/g, type)
+      .replace(/\$\{status\}/g, status)
+      .replace(/\$\{additionalMessage\}/g, additionalMessage || '')
+      .replace(/\$\{discountCode\}/g, discountCode || '');
+    
+    console.log('📝 Processed email body:', processedBody);
+    
+    const msg = {
+      to,
+      from: process.env.EMAIL_FROM,
+      subject: customSubject || 'Submission status update',
+      text: processedBody.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          ${processedBody}
+        </div>
+      `
+    };
+    return sgMail.send(msg);
+  }
+  
   if (status === 'approved') {
     subject = customSubject || '🎉 Your submission has been approved!';
-    const bodyText = customBody || `Congratulations! Your ${type} submission has been approved.${additionalMessage ? ' ' + additionalMessage : ''}`;
+    const bodyText = `Congratulations! Your ${type} submission has been approved.${additionalMessage ? ' ' + additionalMessage : ''}`;
     text = bodyText;
-    html = customBody ? `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
-        ${additionalMessage ? `
-          <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #008060;">
-            <p style="margin: 0; color: #333; font-size: 16px; line-height: 1.5;">
-              <strong>What's Next:</strong><br>
-              ${additionalMessage}
-            </p>
-          </div>
-        ` : ''}
-        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from UGC Rewards.</p>
-      </div>
-    ` : `
+    
+    console.log('Email service - discount code received:', discountCode);
+    console.log('Email service - additional message:', additionalMessage);
+    html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">🎉 Congratulations!</h2>
         <p style="font-size: 16px; line-height: 1.6;">Your <b>${type}</b> submission has been <b>approved</b>!</p>
+        
+        ${discountCode ? `
+          <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <p style="color: #666; margin: 0 0 10px 0;">Your Discount Code:</p>
+            <h1 style="color: #008060; margin: 0; font-size: 32px; letter-spacing: 2px;">${discountCode}</h1>
+            <p style="font-size: 18px; margin: 15px 0 5px 0; color: #333;">100% OFF</p>
+            <p style="color: #999; margin: 0;">Valid for 30 days</p>
+          </div>
+        ` : ''}
         
         ${additionalMessage ? `
           <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #008060;">
@@ -63,6 +92,15 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
               ${additionalMessage}
             </p>
           </div>
+        ` : ''}
+        
+        ${discountCode ? `
+          <p><strong>How to use your discount code:</strong></p>
+          <ol>
+            <li>Shop our collection</li>
+            <li>Add items to your cart</li>
+            <li>Enter code <strong>${discountCode}</strong> at checkout</li>
+          </ol>
         ` : ''}
         
         <p style="color: #666; margin-top: 20px;">Thank you for sharing your amazing content with us! We truly appreciate your contribution to our community.</p>

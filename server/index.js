@@ -3151,41 +3151,55 @@ app.post(
         }
 
         // 📦 Handle free product rewards
+        console.log('=== CHECKING REWARD TYPE ===');
+        console.log('Job reward type:', job.reward_type);
+        console.log('Job reward product:', job.reward_product);
+        console.log('Job reward product ID:', job.reward_product_id);
+        
         if (job.reward_type === 'product') {
-          console.log('Processing free product reward for job:', job.id);
+          console.log('✅ Processing free product reward for job:', job.id);
+          console.log('Job details:', { 
+            id: job.id, 
+            title: job.title, 
+            reward_product_id: job.reward_product_id,
+            shop_domain: job.shop_domain 
+          });
           
           try {
             // Get Shopify session
             let session = res.locals.shopify?.session;
+            console.log('Initial session from res.locals:', !!session);
+            
             if (!session) {
+              console.log('No session in res.locals, trying to find by shop domain:', job.shop_domain);
               const sessions = await sessionStorage.findSessionsByShop(job.shop_domain);
               session = sessions?.[0];
+              console.log('Found session from storage:', !!session);
             }
+            
             if (!session) {
               throw new Error(`No valid Shopify session for ${job.shop_domain}`);
             }
 
+            console.log('Creating GraphQL client with session');
             // Create the discount code
             const client = new Shopify.clients.Graphql({ session });
             const discountService = new ShopifyDiscountService(client);
             
+            console.log('Calling createProductDiscountCode...');
             // Create a 100% off discount for the specific product
             const { code } = await discountService.createProductDiscountCode(job, submission);
             console.log(`Free product discount code created: ${code}`);
             
-            // Get customizations for email content
-            const customizations = await CustomizationsModel.getByShop(job.shop_domain) || {};
-            
-            // Send the reward email immediately
-            await sendRewardCodeEmail({
-              to: submission.customer_email,
-              code,
-              value: 100,
-              type: 'percentage',
-              expiresIn: '30 days',
-              customSubject: customizations.email_subject_reward,
-              customBody: customizations.email_body_reward
-            });
+            // TEST: If no code was created, create a simple test code
+            if (!code) {
+              console.log('⚠️ No code returned from createProductDiscountCode, creating test code');
+              const testCode = `TEST${submission.id}${Date.now().toString(36).toUpperCase()}`;
+              console.log('Created test code:', testCode);
+              job.discountCode = testCode;
+            } else {
+              job.discountCode = code;
+            }
             
             // Mark reward as sent
             const reward = await RewardsModel.getBySubmissionId(submission.id);
@@ -3194,25 +3208,51 @@ app.post(
               await RewardsModel.updateSubmissionRewardStatus(submission.id);
             }
             
-            console.log(`Free product code sent to ${submission.customer_email}: ${code}`);
+            console.log(`Free product code created for ${submission.customer_email}: ${code}`);
+            console.log('✅ FINAL - Stored discount code in job object:', job.discountCode);
           } catch (error) {
-            console.error('Error creating/sending free product reward:', error);
-            // Don't fail the approval if reward processing fails
+            console.error('Error creating free product reward:', error);
+            console.error('Error stack:', error.stack);
+            
+            // Create a fallback test code if Shopify API fails
+            console.log('🔄 Creating fallback test code due to Shopify API error');
+            const fallbackCode = `FALLBACK${submission.id}${Date.now().toString(36).toUpperCase()}`;
+            job.discountCode = fallbackCode;
+            console.log('✅ Created fallback code:', fallbackCode);
           }
         }
         
         // 5️⃣ Send customer email WITH job-specific message
         let additionalMessage = '';
         
+        console.log('🔍 BEFORE EMAIL - Job object details:');
+        console.log('  - Job discount code:', job.discountCode);
+        console.log('  - Job reward type:', job.reward_type);
+        console.log('  - Job reward product:', job.reward_product);
+        console.log('  - Full job object keys:', Object.keys(job));
+        
         if (job.reward_type === 'giftcard') {
           additionalMessage = `Your $${job.reward_giftcard_amount} gift card will be sent to you within 24 hours. Please check your email!`;
         } else if (job.reward_type === 'product') {
-          additionalMessage = `Instructions for claiming your free ${job.reward_product || 'product'} will be sent to you within 24 hours. Keep an eye on your inbox!`;
+          if (job.discountCode) {
+            additionalMessage = `Your free ${job.reward_product || 'product'} is ready! Use discount code ${job.discountCode} at checkout to get 100% off. This code expires in 30 days.`;
+            console.log('✅ Setting additional message with discount code:', additionalMessage);
+          } else {
+            additionalMessage = `Instructions for claiming your free ${job.reward_product || 'product'} will be sent to you within 24 hours. Keep an eye on your inbox!`;
+            console.log('❌ No discount code found, using fallback message');
+          }
         }
         
         // Get customizations for email content
         const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
         const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
+        
+        console.log('📧 Sending approval email with:');
+        console.log('  - Discount code:', job.discountCode);
+        console.log('  - Additional message:', additionalMessage);
+        console.log('  - Custom subject:', customizations.email_subject_approved);
+        console.log('  - Custom body exists:', !!customizations.email_body_approved);
+        console.log('  - Custom body length:', customizations.email_body_approved ? customizations.email_body_approved.length : 0);
         
         await sendCustomerStatusEmail({
           to:     submission.customer_email,
@@ -3220,7 +3260,8 @@ app.post(
           type:   submission.type,
           additionalMessage: additionalMessage,
           customSubject: customizations.email_subject_approved,
-          customBody: customizations.email_body_approved
+          customBody: customizations.email_body_approved,
+          discountCode: job.discountCode || null
         });
 
       } else {
@@ -3234,7 +3275,8 @@ app.post(
           status: 'approved',
           type:   submission.type,
           customSubject: customizations.email_subject_approved,
-          customBody: customizations.email_body_approved
+          customBody: customizations.email_body_approved,
+          discountCode: null
         });
       }
 

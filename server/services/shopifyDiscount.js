@@ -161,8 +161,15 @@ export class ShopifyDiscountService {
       
       const response = await this.client.request(mutation, { variables });
       
-      if (response.body.data.discountCodeBasicCreate.userErrors.length > 0) {
-        throw new Error(response.body.data.discountCodeBasicCreate.userErrors[0].message);
+      console.log('🔍 Shopify API Response:', JSON.stringify(response, null, 2));
+      
+      if (!response || !response.data) {
+        console.error('❌ Invalid response structure:', response);
+        throw new Error('Invalid response from Shopify API');
+      }
+      
+      if (response.data.discountCodeBasicCreate.userErrors.length > 0) {
+        throw new Error(response.data.discountCodeBasicCreate.userErrors[0].message);
       }
       
       // Save to database
@@ -174,8 +181,8 @@ export class ShopifyDiscountService {
         value: 0,
         status: 'pending',
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        shopifyPriceRuleId: response.body.data.discountCodeBasicCreate.codeDiscountNode.id,
-        shopifyDiscountCodeId: response.body.data.discountCodeBasicCreate.codeDiscountNode.id
+        shopifyPriceRuleId: response.data.discountCodeBasicCreate.codeDiscountNode.id,
+        shopifyDiscountCodeId: response.data.discountCodeBasicCreate.codeDiscountNode.id
       });
       
       return { code };
