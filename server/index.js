@@ -34,6 +34,7 @@ import {
   sendCustomerStatusEmail,
   sendRewardCodeEmail,
   sendGiftCardEmail,
+  sendFreeProductEmail,
 } from './services/email.js';
 import { JobsModel } from './models/jobs.js';
 import { ShopifyDiscountService } from './services/shopifyDiscount.js';
@@ -216,6 +217,8 @@ app.get('/', async (req, res) => {
             document.getElementById('emailBodyReward').value = '';
             document.getElementById('emailSubjectGiftcard').value = '';
             document.getElementById('emailBodyGiftcard').value = '';
+            document.getElementById('emailSubjectProduct').value = '';
+            document.getElementById('emailBodyProduct').value = '';
             
             console.log('Email settings reset to defaults');
           }
@@ -1005,6 +1008,22 @@ app.get('/', async (req, res) => {
                     <textarea id="emailBodyGiftcard" name="emailBodyGiftcard" rows="4"
                               placeholder="Thank you for your amazing UGC submission! Here is your gift card:"></textarea>
                     <small style="color: #666;">This email is sent when a gift card code is provided to the customer.</small>
+                  </div>
+                </div>
+
+                <!-- Free Product Email -->
+                <div class="email-section">
+                  <h3>📦 Free Product Email (Sent with free product codes)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectProduct">Email Subject</label>
+                    <input type="text" id="emailSubjectProduct" name="emailSubjectProduct" 
+                          placeholder="🎁 Your Free Product Code is Here!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyProduct">Email Body</label>
+                    <textarea id="emailBodyProduct" name="emailBodyProduct" rows="4"
+                              placeholder="Thank you for your amazing UGC submission! Here's your code for a free product:"></textarea>
+                    <small style="color: #666;">This email is sent when a free product discount code is generated for the customer.</small>
                   </div>
                 </div>
 
@@ -2244,7 +2263,13 @@ app.get('/', async (req, res) => {
               if (customizations.email_body_giftcard) {
                 document.getElementById('emailBodyGiftcard').value = customizations.email_body_giftcard;
               }
-              
+              if (customizations.email_subject_product) {
+                document.getElementById('emailSubjectProduct').value = customizations.email_subject_product;
+              }
+              if (customizations.email_body_product) {
+                document.getElementById('emailBodyProduct').value = customizations.email_body_product;
+              }
+                            
               console.log('Email settings loaded successfully');
             } catch (error) {
               console.error('Error loading email settings:', error);
@@ -2854,7 +2879,9 @@ app.post('/api/admin/email-settings', async (req, res) => {
       emailSubjectReward: req.body.emailSubjectReward,
       emailBodyReward: req.body.emailBodyReward,
       emailSubjectGiftcard: req.body.emailSubjectGiftcard,
-      emailBodyGiftcard: req.body.emailBodyGiftcard
+      emailBodyGiftcard: req.body.emailBodyGiftcard,
+      emailSubjectProduct: req.body.emailSubjectProduct,
+      emailBodyProduct: req.body.emailBodyProduct
     };
     
     const customizations = await CustomizationsModel.upsert(shop, updatedCustomizations);
@@ -3194,6 +3221,21 @@ app.post(
             // Create a 100% off discount for the specific product
             const { code } = await discountService.createProductDiscountCode(job, submission);
             console.log(`Free product discount code created: ${code}`);
+
+            // Get customizations for email content
+            const customizations = await CustomizationsModel.getByShop(job.shop_domain) || {};
+
+            // Send the free product email
+            await sendFreeProductEmail({
+              to: submission.customer_email,
+              code: code,
+              productName: job.reward_product,
+              customSubject: customizations.email_subject_product,
+              customBody: customizations.email_body_product
+            });
+
+            console.log(`Free product email sent to ${submission.customer_email} with code: ${code}`);
+
             
             // TEST: If no code was created, create a simple test code
             if (!code) {

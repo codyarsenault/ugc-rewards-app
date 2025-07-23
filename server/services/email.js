@@ -295,3 +295,65 @@ export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, cu
   
   return sgMail.send(msg);
 }
+
+export async function sendFreeProductEmail({ to, code, productName, customSubject, customBody }) {
+  console.log('=== sendFreeProductEmail called ===');
+  console.log('Parameters:', { to, code, productName, customSubject, customBody });
+  
+  const msg = {
+    from: process.env.EMAIL_FROM,
+    to: to,
+    subject: customSubject || '🎁 Your Free Product Code is Here!',
+    text: customBody ? `${customBody}\n\nDiscount code: ${code}\nProduct: ${productName}` : `Congratulations! Your free ${productName} is ready. Use discount code: ${code} at checkout for 100% off.`,
+    html: customBody ? `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
+        
+        <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <p style="color: #666; margin: 0 0 10px 0;">Your Free Product Code:</p>
+          <h1 style="color: #008060; margin: 0; font-size: 32px; letter-spacing: 2px;">${code}</h1>
+          <p style="font-size: 18px; margin: 15px 0 5px 0; color: #333;">100% OFF ${productName}</p>
+          <p style="color: #999; margin: 0;">Valid for 30 days</p>
+        </div>
+        
+        <p><strong>How to claim your free product:</strong></p>
+        <ol>
+          <li>Visit our store and find "${productName}"</li>
+          <li>Add it to your cart</li>
+          <li>Enter code <strong>${code}</strong> at checkout</li>
+          <li>The product will be free (100% discount applied)</li>
+        </ol>
+        
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">
+          This code is valid for 30 days and can only be used once. It applies only to "${productName}".
+        </p>
+      </div>
+    ` : `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">🎁 Your Free Product is Ready!</h2>
+        <p>Thank you for your amazing UGC submission! As promised, here's your code for a free ${productName}:</p>
+        
+        <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <p style="color: #666; margin: 0 0 10px 0;">Your Free Product Code:</p>
+          <h1 style="color: #008060; margin: 0; font-size: 32px; letter-spacing: 2px;">${code}</h1>
+          <p style="font-size: 18px; margin: 15px 0 5px 0; color: #333;">100% OFF ${productName}</p>
+          <p style="color: #999; margin: 0;">Valid for 30 days</p>
+        </div>
+        
+        <p><strong>How to claim your free product:</strong></p>
+        <ol>
+          <li>Visit our store and find "${productName}"</li>
+          <li>Add it to your cart</li>
+          <li>Enter code <strong>${code}</strong> at checkout</li>
+          <li>The product will be free (100% discount applied)</li>
+        </ol>
+        
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">
+          This code is valid for 30 days and can only be used once. It applies only to "${productName}".
+        </p>
+      </div>
+    `
+  };
+  
+  return sgMail.send(msg);
+}

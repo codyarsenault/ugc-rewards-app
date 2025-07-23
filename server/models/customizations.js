@@ -47,10 +47,12 @@ export class CustomizationsModel {
           email_body_reward,
           email_subject_giftcard,
           email_body_giftcard,
+          email_subject_product,
+          email_body_product,
           created_at,
           updated_at
         ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW(), NOW())
         ON CONFLICT (shop_domain) 
         DO UPDATE SET 
           primary_color = EXCLUDED.primary_color,
@@ -77,6 +79,8 @@ export class CustomizationsModel {
           email_body_reward = EXCLUDED.email_body_reward,
           email_subject_giftcard = EXCLUDED.email_subject_giftcard,
           email_body_giftcard = EXCLUDED.email_body_giftcard,
+          email_subject_product = EXCLUDED.email_subject_product,
+          email_body_product = EXCLUDED.email_body_product,
           updated_at = NOW()
         RETURNING *
       `;
@@ -106,7 +110,9 @@ export class CustomizationsModel {
         customizations.emailSubjectReward || null,
         customizations.emailBodyReward || null,
         customizations.emailSubjectGiftcard || null,
-        customizations.emailBodyGiftcard || null
+        customizations.emailBodyGiftcard || null,
+        customizations.emailSubjectProduct || null,
+        customizations.emailBodyProduct || null
       ];
       
       const result = await pool.query(query, values);
