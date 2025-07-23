@@ -1715,10 +1715,10 @@ app.get('/', async (req, res) => {
                  s.reward_fulfilled !== true)
               );
             } else if (currentSubmissionFilter === 'approved') {
-              // Show only fully approved submissions (no manual fulfillment needed OR already fulfilled)
+              // Show approved submissions that are automatically handled OR manually fulfilled
               filteredSubmissions = allSubmissions.filter(s => 
                 s.status === 'approved' && 
-                (s.reward_type !== 'giftcard' && s.reward_type !== 'product' || s.reward_fulfilled === true)
+                (s.reward_type !== 'giftcard' || s.reward_fulfilled === true)
               );
             } else {
               // For 'rejected' and other filters, use the original logic
@@ -1770,17 +1770,7 @@ app.get('/', async (req, res) => {
                           <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger btn-sm">Reject</button>
                         \` : \`
                           <span class="status-\${sub.status}">\${sub.status}</span>
-                          \${sub.status === 'approved' && sub.reward_type === 'giftcard' ? \`
-                            <div style="margin-top: 8px;">
-                              \${!sub.reward_fulfilled ? \`
-                                <button onclick="sendGiftCard(\${sub.id})" class="btn btn-primary btn-sm">Send Gift Card Email</button>
-                              \` : \`
-                                <span style="font-size: 12px; color: #008060;">
-                                  ✓ Gift card email sent
-                                </span>
-                              \`}
-                            </div>
-                          \` : ''}
+
 
                         \`}
                       </td>
