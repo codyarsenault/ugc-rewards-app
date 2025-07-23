@@ -208,8 +208,8 @@ app.get('/', async (req, res) => {
             // Reset all email subject and body fields to their default values
             document.getElementById('emailSubjectConfirmation').value = '';
             document.getElementById('emailBodyConfirmation').value = '';
-            document.getElementById('emailSubjectApproved').value = '';
-            document.getElementById('emailBodyApproved').value = '';
+      
+      
             document.getElementById('emailSubjectRejected').value = '';
             document.getElementById('emailBodyRejected').value = '';
             document.getElementById('emailSubjectReward').value = '';
@@ -958,21 +958,7 @@ app.get('/', async (req, res) => {
                   </div>
                 </div>
 
-                <!-- Approval Email -->
-                <div class="email-section">
-                  <h3>✅ Approval Email (Sent when content is approved)</h3>
-                  <div class="form-group">
-                    <label for="emailSubjectApproved">Email Subject</label>
-                    <input type="text" id="emailSubjectApproved" name="emailSubjectApproved" 
-                           placeholder="🎉 Your submission has been approved!" maxlength="255">
-                  </div>
-                  <div class="form-group">
-                    <label for="emailBodyApproved">Email Body</label>
-                    <textarea id="emailBodyApproved" name="emailBodyApproved" rows="4"
-                              placeholder="Congratulations! Your submission has been approved. You will receive your reward code shortly."></textarea>
-                    <small style="color: #666;">This email is sent when you approve a customer's content.</small>
-                  </div>
-                </div>
+
 
                 <!-- Rejection Email -->
                 <div class="email-section">
@@ -2239,12 +2225,7 @@ app.get('/', async (req, res) => {
               if (customizations.email_body_confirmation) {
                 document.getElementById('emailBodyConfirmation').value = customizations.email_body_confirmation;
               }
-              if (customizations.email_subject_approved) {
-                document.getElementById('emailSubjectApproved').value = customizations.email_subject_approved;
-              }
-              if (customizations.email_body_approved) {
-                document.getElementById('emailBodyApproved').value = customizations.email_body_approved;
-              }
+              
               if (customizations.email_subject_rejected) {
                 document.getElementById('emailSubjectRejected').value = customizations.email_subject_rejected;
               }
@@ -2274,8 +2255,7 @@ app.get('/', async (req, res) => {
             if (confirm('Are you sure you want to reset all email settings to default values?')) {
               document.getElementById('emailSubjectConfirmation').value = 'Thank you for your submission!';
               document.getElementById('emailBodyConfirmation').value = 'Thank you for sharing your experience! Your submission has been received and is pending review.';
-              document.getElementById('emailSubjectApproved').value = '🎉 Your submission has been approved!';
-              document.getElementById('emailBodyApproved').value = 'Congratulations! Your submission has been approved. You will receive your reward code shortly.';
+              
               document.getElementById('emailSubjectRejected').value = 'Update on your submission';
               document.getElementById('emailBodyRejected').value = 'Thank you for your submission. Unfortunately, your submission was not approved at this time. We encourage you to try again!';
               document.getElementById('emailSubjectReward').value = '🎉 Your UGC Reward is Here!';
@@ -2867,8 +2847,8 @@ app.post('/api/admin/email-settings', async (req, res) => {
       ...existingCustomizations,
       emailSubjectConfirmation: req.body.emailSubjectConfirmation,
       emailBodyConfirmation: req.body.emailBodyConfirmation,
-      emailSubjectApproved: req.body.emailSubjectApproved,
-      emailBodyApproved: req.body.emailBodyApproved,
+
+
       emailSubjectRejected: req.body.emailSubjectRejected,
       emailBodyRejected: req.body.emailBodyRejected,
       emailSubjectReward: req.body.emailSubjectReward,
@@ -3274,37 +3254,7 @@ app.post(
         const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
         const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
         
-        console.log('📧 Sending approval email with:');
-        console.log('  - Discount code:', job.discountCode);
-        console.log('  - Additional message:', additionalMessage);
-        console.log('  - Custom subject:', customizations.email_subject_approved);
-        console.log('  - Custom body exists:', !!customizations.email_body_approved);
-        console.log('  - Custom body length:', customizations.email_body_approved ? customizations.email_body_approved.length : 0);
-        
-        await sendCustomerStatusEmail({
-          to:     submission.customer_email,
-          status: 'approved',
-          type:   submission.type,
-          additionalMessage: additionalMessage,
-          customSubject: customizations.email_subject_approved,
-          customBody: customizations.email_body_approved,
-          discountCode: job.discountCode || null
-        });
-
-      } else {
-        // Get customizations for email content
-        const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
-        const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
-        
-        // For non-job submissions, send regular approval email
-        await sendCustomerStatusEmail({
-          to:     submission.customer_email,
-          status: 'approved',
-          type:   submission.type,
-          customSubject: customizations.email_subject_approved,
-          customBody: customizations.email_body_approved,
-          discountCode: null
-        });
+        // Approval email removed - discount codes are sent via separate reward emails
       }
 
       res.json({ success: true, message: 'Submission approved' });

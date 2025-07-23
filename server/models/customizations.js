@@ -40,8 +40,7 @@ export class CustomizationsModel {
           custom_css,
           email_subject_confirmation,
           email_body_confirmation,
-          email_subject_approved,
-          email_body_approved,
+
           email_subject_rejected,
           email_body_rejected,
           email_subject_reward,
@@ -51,7 +50,7 @@ export class CustomizationsModel {
           created_at,
           updated_at
         ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NOW(), NOW())
         ON CONFLICT (shop_domain) 
         DO UPDATE SET 
           primary_color = EXCLUDED.primary_color,
@@ -71,8 +70,7 @@ export class CustomizationsModel {
           custom_css = EXCLUDED.custom_css,
           email_subject_confirmation = EXCLUDED.email_subject_confirmation,
           email_body_confirmation = EXCLUDED.email_body_confirmation,
-          email_subject_approved = EXCLUDED.email_subject_approved,
-          email_body_approved = EXCLUDED.email_body_approved,
+
           email_subject_rejected = EXCLUDED.email_subject_rejected,
           email_body_rejected = EXCLUDED.email_body_rejected,
           email_subject_reward = EXCLUDED.email_subject_reward,
@@ -102,8 +100,7 @@ export class CustomizationsModel {
         customizations.customCss || null,
         customizations.emailSubjectConfirmation || null,
         customizations.emailBodyConfirmation || null,
-        customizations.emailSubjectApproved || null,
-        customizations.emailBodyApproved || null,
+
         customizations.emailSubjectRejected || null,
         customizations.emailBodyRejected || null,
         customizations.emailSubjectReward || null,
