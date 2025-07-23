@@ -109,7 +109,7 @@
       left: 0;
       right: 0;
       height: 4px;
-      background: linear-gradient(90deg, #b89685 0%, #d4a574 100%);
+      background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 100%);
     }
     
     .job-info h2 {
@@ -718,7 +718,7 @@
             videoUrls.forEach((videoUrl, index) => {
               inspirationHTML += `
                 <div style="text-align: center; margin-bottom: 15px;">
-                  <a href="${videoUrl.trim()}" target="_blank" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #b89685 0%, #d4a574 100%); color: white; text-decoration: none; border-radius: 20px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(184, 150, 133, 0.25);">
+                  <a href="${videoUrl.trim()}" target="_blank" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%); color: white; text-decoration: none; border-radius: 20px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(184, 150, 133, 0.25);">
                     🎬 Watch Video ${videoUrls.length > 1 ? index + 1 : ''}
                   </a>
                   <div style="margin-top: 8px; font-size: 12px; color: #718096;">

@@ -93,6 +93,29 @@ const shopify = shopifyApp({
 
 const app = express();
 
+// Add this helper function after creating the app
+function getShopDomain(req, res) {
+  // Check if we have shopify session data
+  const shopFromSession = res.locals?.shopify?.session?.shop;
+  const shopFromQuery = req.query.shop;
+  const shopFromHeader = req.headers['x-shopify-shop-domain'];
+  
+  // For embedded app routes, we might have the shop in the URL
+  const shopFromHost = req.query.host ? new URLSearchParams(req.query.host).get('shop') : null;
+  
+  const shop = shopFromSession || shopFromQuery || shopFromHost || shopFromHeader;
+  
+  console.log('Shop domain resolution:', {
+    fromSession: shopFromSession,
+    fromQuery: shopFromQuery,
+    fromHost: shopFromHost,
+    fromHeader: shopFromHeader,
+    final: shop
+  });
+  
+  return shop;
+}
+
 // Add ngrok bypass header
 app.use((req, res, next) => {
   res.setHeader('ngrok-skip-browser-warning', 'true');
@@ -2789,16 +2812,20 @@ app.get('/customizations', async (req, res) => {
 // API endpoint to get customizations (admin)
 app.get('/api/admin/customizations', async (req, res) => {
   try {
-    // Get shop from session with fallback
+    // Keep your original logic but add logging
     let shop;
     if (res.locals.shopify?.session?.shop) {
       shop = res.locals.shopify.session.shop;
+      console.log('GET customizations - Using shop from session:', shop);
     } else {
       // Fallback: try to get shop from URL params or headers
       shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
+      console.log('GET customizations - Using fallback shop:', shop);
     }
     
+    console.log('GET customizations - Final shop:', shop);
     const customizations = await CustomizationsModel.getByShop(shop);
+    console.log('GET customizations - Found:', customizations ? 'Yes' : 'No');
     res.json(customizations || {});
   } catch (error) {
     console.error('Error loading customizations:', error);
@@ -2809,24 +2836,22 @@ app.get('/api/admin/customizations', async (req, res) => {
 // API endpoint to save customizations
 app.post('/api/admin/customizations', async (req, res) => {
   try {
-    console.log('Saving customizations - Request body:', req.body);
-    console.log('Shopify session:', res.locals.shopify?.session);
-    console.log('Request query:', req.query);
-    console.log('Request headers:', req.headers);
+    console.log('POST customizations - Request body:', req.body);
+    console.log('POST customizations - Shopify session:', res.locals.shopify?.session);
+    console.log('POST customizations - Query:', req.query);
     
-    // Get shop from session with fallback
     let shop;
     if (res.locals.shopify?.session?.shop) {
       shop = res.locals.shopify.session.shop;
-      console.log('Using shop from session:', shop);
+      console.log('POST customizations - Using shop from session:', shop);
     } else {
-      // Fallback: try to get shop from URL params or headers
       shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
-      console.log('Using fallback shop:', shop);
+      console.log('POST customizations - Using fallback shop:', shop);
     }
     
+    console.log('POST customizations - Final shop:', shop);
     const customizations = await CustomizationsModel.upsert(shop, req.body);
-    console.log('Saved customizations:', customizations);
+    console.log('POST customizations - Saved successfully');
     res.json({ success: true, customizations });
   } catch (error) {
     console.error('Error saving customizations:', error);
