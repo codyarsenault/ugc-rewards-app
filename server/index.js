@@ -242,6 +242,10 @@ app.get('/', async (req, res) => {
             document.getElementById('emailBodyGiftcard').value = '';
             document.getElementById('emailSubjectProduct').value = '';
             document.getElementById('emailBodyProduct').value = '';
+            document.getElementById('emailFromName').value = '';
+            document.getElementById('emailReplyTo').value = '';
+            document.getElementById('fromNamePreview').textContent = 'UGC Rewards';
+            document.getElementById('replyToPreview').textContent = 'no replies (emails will be no-reply)';
             
             console.log('Email settings reset to defaults');
           }
@@ -993,6 +997,31 @@ app.get('/', async (req, res) => {
               <p style="color: #666; margin-bottom: 30px;">Customize the email content sent to your customers at different stages of the UGC process.</p>
               
               <form id="emailSettingsForm">
+                <!-- Email Sender Configuration -->
+                <div class="email-section" style="background: #fff; border: 2px solid #008060;">
+                  <h3>⚙️ Email Sender Settings</h3>
+                  <div class="form-group">
+                    <label for="emailFromName">From Name</label>
+                    <input type="text" id="emailFromName" name="emailFromName" 
+                           placeholder="Your Brand Name" maxlength="100">
+                    <small style="color: #666;">The name that will appear as the sender (e.g., "Your Brand Name")</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="emailReplyTo">Reply-To Email Address</label>
+                    <input type="email" id="emailReplyTo" name="emailReplyTo" 
+                           placeholder="support@yourbrand.com" maxlength="255">
+                    <small style="color: #666;">Where customer replies will be sent. Leave empty to disable replies.</small>
+                  </div>
+                  <div style="background: #f0f8ff; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                    <p style="margin: 0; color: #333; font-size: 13px;">
+                      <strong>📧 How it works:</strong><br>
+                      • Emails will be sent from: <strong><span id="fromNamePreview">UGC Rewards</span> &lt;noreply@ugcrewards.com&gt;</strong><br>
+                      • Customer replies will go to: <strong><span id="replyToPreview">your reply-to address</span></strong><br>
+                      • This ensures reliable email delivery while showing your brand name
+                    </p>
+                  </div>
+                </div>
+
                 <!-- Confirmation Email -->
                 <div class="email-section">
                   <h3>📧 Confirmation Email (Sent when customer submits content)</h3>
@@ -2343,6 +2372,14 @@ app.get('/', async (req, res) => {
               if (customizations.email_body_product) {
                 document.getElementById('emailBodyProduct').value = customizations.email_body_product;
               }
+              if (customizations.email_from_name) {
+                document.getElementById('emailFromName').value = customizations.email_from_name;
+                document.getElementById('fromNamePreview').textContent = customizations.email_from_name;
+              }
+              if (customizations.email_reply_to) {
+                document.getElementById('emailReplyTo').value = customizations.email_reply_to;
+                document.getElementById('replyToPreview').textContent = customizations.email_reply_to;
+              }
                             
               console.log('Email settings loaded successfully');
             } catch (error) {
@@ -2386,6 +2423,16 @@ app.get('/', async (req, res) => {
                   picker.value = e.target.value;
                 }
               });
+            });
+
+            document.getElementById('emailFromName').addEventListener('input', function(e) {
+              const preview = document.getElementById('fromNamePreview');
+              preview.textContent = e.target.value || 'UGC Rewards';
+            });
+
+            document.getElementById('emailReplyTo').addEventListener('input', function(e) {
+              const preview = document.getElementById('replyToPreview');
+              preview.textContent = e.target.value || 'no replies (emails will be no-reply)';
             });
 
             // Image preview on URL change
@@ -2961,7 +3008,9 @@ app.post('/api/admin/email-settings', async (req, res) => {
       emailSubjectGiftcard: req.body.emailSubjectGiftcard,
       emailBodyGiftcard: req.body.emailBodyGiftcard,
       emailSubjectProduct: req.body.emailSubjectProduct,
-      emailBodyProduct: req.body.emailBodyProduct
+      emailBodyProduct: req.body.emailBodyProduct,
+      emailFromName: req.body.emailFromName,
+      emailReplyTo: req.body.emailReplyTo
     };
     
     const customizations = await CustomizationsModel.upsert(shop, updatedCustomizations);
@@ -3114,7 +3163,8 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       customerName: customerEmail,
       type,
       customSubject: customizations.email_subject_confirmation,
-      customBody: customizations.email_body_confirmation
+      customBody: customizations.email_body_confirmation,
+      customizations // Add this line
     });
  
   res.json({
@@ -3226,7 +3276,8 @@ app.post(
               type:      job.reward_type,
               expiresIn: '30 days',
               customSubject: customizations.email_subject_reward,
-              customBody: customizations.email_body_reward
+              customBody: customizations.email_body_reward,
+              customizations // Add this line
             });
 
             // e) Mark it sent in your RewardsModel
@@ -3339,7 +3390,8 @@ app.post(
               code: code,
               productName: job.reward_product,
               customSubject: customizations.email_subject_product,
-              customBody: customizations.email_body_product
+              customBody: customizations.email_body_product,
+              customizations
             });
 
             console.log(`Free product email sent to ${submission.customer_email} with code: ${code}`);
@@ -3453,7 +3505,8 @@ app.post('/api/admin/submissions/:id/reject', async (req, res) => {
       status: 'rejected',
       type: submission.type,
       customSubject: customizations.email_subject_rejected,
-      customBody: customizations.email_body_rejected
+      customBody: customizations.email_body_rejected,
+      customizations
     });
     
     res.json({ success: true, message: 'Submission rejected' });
@@ -3508,7 +3561,8 @@ app.post('/api/admin/rewards/:submissionId/send-giftcard', shopify.ensureInstall
       code: giftCardCode,
       amount: amount,
       customSubject: customizations.email_subject_giftcard,
-      customBody: customizations.email_body_giftcard
+      customBody: customizations.email_body_giftcard,
+      customizations
     });
     
     // Update reward status

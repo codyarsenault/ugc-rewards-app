@@ -5,6 +5,21 @@ dotenv.config();
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+// Helper function to get email configuration
+function getEmailConfig(customizations) {
+  const fromEmail = process.env.EMAIL_FROM;
+  const fromName = customizations?.email_from_name || process.env.EMAIL_FROM_NAME || 'UGC Rewards';
+  const replyTo = customizations?.email_reply_to || null; // null means no-reply
+  
+  return {
+    from: {
+      email: fromEmail,
+      name: fromName
+    },
+    ...(replyTo && { replyTo }) // Only include replyTo if it exists
+  };
+}
+
 export async function sendNotificationEmail({ to, subject, text, html }) {
   const msg = {
     to: to || process.env.EMAIL_TO,
@@ -16,9 +31,12 @@ export async function sendNotificationEmail({ to, subject, text, html }) {
   return sgMail.send(msg);
 }
 
-export async function sendCustomerConfirmationEmail({ to, customerName, type, customSubject, customBody }) {
+export async function sendCustomerConfirmationEmail({ to, customerName, type, customSubject, customBody, customizations }) {
   console.log('=== sendCustomerConfirmationEmail called ===');
   console.log('Parameters:', { to, customerName, type, customSubject, customBody });
+  console.log('Customizations:', customizations);
+  
+  const emailConfig = getEmailConfig(customizations);
   
   let subject, text, html;
   
@@ -37,7 +55,7 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type, cu
     
     const msg = {
       to,
-      from: process.env.EMAIL_FROM,
+      ...emailConfig,
       subject: customSubject || 'Thank you for your submission!',
       text: processedBody.replace(/<[^>]*>/g, ''), // Strip HTML for text version
       html: `
@@ -56,7 +74,7 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type, cu
   
   const msg = {
     to,
-    from: process.env.EMAIL_FROM,
+    ...emailConfig,
     subject,
     text,
     html
@@ -64,9 +82,11 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type, cu
   return sgMail.send(msg);
 }
 
-export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '', customSubject, customBody, discountCode = null }) {
+export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '', customSubject, customBody, discountCode = null, customizations }) {
   console.log('=== sendCustomerStatusEmail called ===');
   console.log('Parameters:', { to, status, type, additionalMessage, customSubject, customBody, discountCode });
+  
+  const emailConfig = getEmailConfig(customizations);
   
   let subject, text, html;
   
@@ -89,7 +109,7 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
     
     const msg = {
       to,
-      from: process.env.EMAIL_FROM,
+      ...emailConfig,
       subject: customSubject || 'Submission status update',
       text: processedBody.replace(/<[^>]*>/g, ''), // Strip HTML for text version
       html: `
@@ -175,7 +195,7 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
   
   const msg = {
     to,
-    from: process.env.EMAIL_FROM,
+    ...emailConfig,
     subject,
     text,
     html,
@@ -184,10 +204,12 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
   return sgMail.send(msg);
 }
 
-export async function sendGiftCardEmail({ to, code, amount, customSubject, customBody }) {
+export async function sendGiftCardEmail({ to, code, amount, customSubject, customBody, customizations }) {
+  const emailConfig = getEmailConfig(customizations);
+  
   const msg = {
-    from: process.env.EMAIL_FROM,
     to: to,
+    ...emailConfig,
     subject: customSubject || '🎁 Your Gift Card is Here!',
     text: customBody ? `${customBody}\n\nGift card code: ${code}\nValue: $${amount}` : `Congratulations! Your gift card for $${amount} is ready. Gift card code: ${code}`,
     html: customBody ? `
@@ -239,12 +261,13 @@ export async function sendGiftCardEmail({ to, code, amount, customSubject, custo
   return sgMail.send(msg);
 }
 
-export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, customSubject, customBody }) {
+export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, customSubject, customBody, customizations }) {
+  const emailConfig = getEmailConfig(customizations);
   const valueText = type === 'percentage' ? `${value}%` : `$${value}`;
   
   const msg = {
-    from: process.env.EMAIL_FROM,
     to: to,
+    ...emailConfig,
     subject: customSubject || '🎉 Your UGC Reward is Here!',
     text: customBody ? `${customBody}\n\nCode: ${code}\nValue: ${valueText} off\nExpires: ${expiresIn}` : `Congratulations! Your content has been approved. Here's your reward code: ${code}. Get ${valueText} off your next purchase. This code expires in ${expiresIn}.`,
     html: customBody ? `
@@ -296,13 +319,15 @@ export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, cu
   return sgMail.send(msg);
 }
 
-export async function sendFreeProductEmail({ to, code, productName, customSubject, customBody }) {
+export async function sendFreeProductEmail({ to, code, productName, customSubject, customBody, customizations }) {
   console.log('=== sendFreeProductEmail called ===');
   console.log('Parameters:', { to, code, productName, customSubject, customBody });
   
+  const emailConfig = getEmailConfig(customizations);
+  
   const msg = {
-    from: process.env.EMAIL_FROM,
     to: to,
+    ...emailConfig,
     subject: customSubject || '🎁 Your Free Product Code is Here!',
     text: customBody ? `${customBody}\n\nDiscount code: ${code}\nProduct: ${productName}` : `Congratulations! Your free ${productName} is ready. Use discount code: ${code} at checkout for 100% off.`,
     html: customBody ? `
