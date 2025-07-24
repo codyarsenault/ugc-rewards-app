@@ -2132,6 +2132,7 @@ app.get('/', async (req, res) => {
           // Customizations Functions
           async function loadCustomizations() {
             try {
+              console.log('=== loadCustomizations called ===');
               const queryParams = window.location.search;
               // Add cache-busting parameter to prevent caching issues
               const cacheBuster = '&_t=' + Date.now();
@@ -2403,10 +2404,9 @@ app.get('/', async (req, res) => {
 
           // Color picker synchronization
           document.addEventListener('DOMContentLoaded', function() {
-            // Load customizations when DOM is ready
-            setTimeout(() => {
-              loadCustomizations();
-            }, 100);
+                      // Load customizations immediately when DOM is ready
+          console.log('DOM ready - loading customizations...');
+          loadCustomizations();
             
             // Color picker synchronization
             document.querySelectorAll('input[type="color"]').forEach(picker => {
@@ -2476,10 +2476,7 @@ app.get('/', async (req, res) => {
                   setTimeout(() => {
                     document.getElementById('customizationSuccessMessage').style.display = 'none';
                   }, 3000);
-                  // Reload customizations to ensure they're properly applied
-                  setTimeout(() => {
-                    loadCustomizations();
-                  }, 1000);
+                  // Don't reload customizations - they're already applied
                 } else {
                   console.error('Failed to save customizations');
                   alert('Failed to save settings');
@@ -2995,23 +2992,26 @@ app.post('/api/admin/email-settings', async (req, res) => {
     
     // Get existing customizations and merge with email settings
     const existingCustomizations = await CustomizationsModel.getByShop(shop) || {};
+    console.log('Existing customizations before email update:', existingCustomizations);
+    
     const updatedCustomizations = {
       ...existingCustomizations,
-      emailSubjectConfirmation: req.body.emailSubjectConfirmation,
-      emailBodyConfirmation: req.body.emailBodyConfirmation,
-
-
-      emailSubjectRejected: req.body.emailSubjectRejected,
-      emailBodyRejected: req.body.emailBodyRejected,
-      emailSubjectReward: req.body.emailSubjectReward,
-      emailBodyReward: req.body.emailBodyReward,
-      emailSubjectGiftcard: req.body.emailSubjectGiftcard,
-      emailBodyGiftcard: req.body.emailBodyGiftcard,
-      emailSubjectProduct: req.body.emailSubjectProduct,
-      emailBodyProduct: req.body.emailBodyProduct,
-      emailFromName: req.body.emailFromName,
-      emailReplyTo: req.body.emailReplyTo
+      // Only update email-related fields, preserve all other customizations
+      email_subject_confirmation: req.body.emailSubjectConfirmation,
+      email_body_confirmation: req.body.emailBodyConfirmation,
+      email_subject_rejected: req.body.emailSubjectRejected,
+      email_body_rejected: req.body.emailBodyRejected,
+      email_subject_reward: req.body.emailSubjectReward,
+      email_body_reward: req.body.emailBodyReward,
+      email_subject_giftcard: req.body.emailSubjectGiftcard,
+      email_body_giftcard: req.body.emailBodyGiftcard,
+      email_subject_product: req.body.emailSubjectProduct,
+      email_body_product: req.body.emailBodyProduct,
+      email_from_name: req.body.emailFromName,
+      email_reply_to: req.body.emailReplyTo
     };
+    
+    console.log('Updated customizations after email update:', updatedCustomizations);
     
     const customizations = await CustomizationsModel.upsert(shop, updatedCustomizations);
     console.log('Saved email settings:', customizations);
