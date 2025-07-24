@@ -3050,11 +3050,39 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
  
     console.log('Saved submission:', submission);
  
+    // Get job details if jobId is provided
+    let jobName = 'General Submission';
+    if (req.body.jobId) {
+      try {
+        const job = await JobsModel.getById(req.body.jobId);
+        if (job) {
+          jobName = job.title;
+        }
+      } catch (error) {
+        console.error('Error getting job details:', error);
+      }
+    }
+    
+    // Get shop domain for app link
+    let appShopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+    if (!appShopDomain && req.body.jobId) {
+      try {
+        const job = await JobsModel.getById(req.body.jobId);
+        if (job && job.shop_domain) {
+          appShopDomain = job.shop_domain;
+        }
+      } catch (error) {
+        console.error('Error getting shop domain from job:', error);
+      }
+    }
+    
+    const appUrl = appShopDomain ? `https://${appShopDomain}/admin/apps/ugc-rewards-app` : 'https://ugc-rewards-app.myshopify.com/admin/apps/ugc-rewards-app';
+    
     // Send notification email to admin
     await sendNotificationEmail({
       subject: 'New UGC Submission Received',
-      text: `A new submission was received from ${customerEmail}.\nType: ${type}\nContent: ${content}`,
-      html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p>Type: ${type}</p><p>Content: ${content}</p>`
+      text: `A new submission was received from ${customerEmail}.\nJob: ${jobName}\nType: ${type}\n\nView in app: ${appUrl}`,
+      html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p><strong>Job:</strong> ${jobName}</p><p><strong>Type:</strong> ${type}</p><p><br><a href="${appUrl}" style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View in App</a></p>`
     });
  
     // Get customizations for email content
