@@ -2,22 +2,30 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-// 1️⃣ Conditionally load the adapter
+// 1️⃣ Conditionally load the adapter based on environment
 if (process.env.NODE_ENV !== 'production') {
+  // Local development - use the adapter path
   await import('@shopify/shopify-api/adapters/node');
+} else {
+  // Production - adapter is built-in or at different path
+  try {
+    await import('@shopify/shopify-api/adapters/node');
+  } catch (e) {
+    console.log('Adapter import skipped in production');
+  }
 }
 
-// 2️⃣ Pull in the v11 initializer
+// 2️⃣ Use named imports, not default
 import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 
-// 3️⃣ Initialize your single Shopify client
+// 3️⃣ Initialize your Shopify client
 const Shopify = shopifyApi({
   apiKey:       process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
   scopes:       ['write_discounts', 'read_customers', 'write_price_rules'],
   hostName:     process.env.HOST.replace(/^https?:\/\//, ''),
   apiVersion:   LATEST_API_VERSION,
-  isEmbeddedApp:true,
+  isEmbeddedApp: true,
 });
 
 // 4️⃣ Everything else comes after
