@@ -2,10 +2,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-// 1️⃣ Import Shopify API v9 adapter
+// 1️⃣ Patch Node with the Shopify-API v11 adapter
 import '@shopify/shopify-api/adapters/node';
 
-// 2️⃣ Import Shopify API v9
+// 2️⃣ Pull in the v11 initializer
 import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 
 // 3️⃣ Initialize your single Shopify client
