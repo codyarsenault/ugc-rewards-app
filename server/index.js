@@ -48,8 +48,19 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
-// 2️⃣ Use named imports, not default
-import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
+// 2️⃣ NOW DO A DYNAMIC IMPORT to avoid the immediate error
+let shopifyApi, LATEST_API_VERSION;
+try {
+  const shopifyModule = await import('@shopify/shopify-api');
+  shopifyApi = shopifyModule.shopifyApi;
+  LATEST_API_VERSION = shopifyModule.LATEST_API_VERSION;
+  console.log('✅ Shopify API loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load Shopify API:', error.message);
+  console.error('Error code:', error.code);
+  console.error('Looking for:', error.url);
+  process.exit(1);
+}
 
 // 3️⃣ Initialize your Shopify client
 const Shopify = shopifyApi({
