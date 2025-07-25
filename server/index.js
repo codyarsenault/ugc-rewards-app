@@ -65,10 +65,7 @@ const Shopify = shopifyApi({
 import express from 'express';
 import { shopifyApp } from '@shopify/shopify-app-express';
 import { SQLiteSessionStorage } from '@shopify/shopify-app-session-storage-sqlite';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import multer from 'multer';
-import fs from 'fs';
 import { SubmissionsModel } from './models/submissions.js';
 import { uploadToS3 } from './setup-s3.js';
 import {
