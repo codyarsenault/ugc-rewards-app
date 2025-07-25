@@ -2,15 +2,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-// 1️⃣ Conditionally import the adapter (try-catch for compatibility)
-try {
-  await import('@shopify/shopify-api/adapters/node');
-  console.log('✅ Shopify adapter loaded successfully');
-} catch (error) {
-  console.log('⚠️ Shopify adapter not found, continuing without it (this is fine on some environments)');
-}
+// 1️⃣ Import Shopify API v9 adapter
+import '@shopify/shopify-api/adapters/node';
 
-// 2️⃣ Import Shopify API
+// 2️⃣ Import Shopify API v9
 import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 
 // 3️⃣ Initialize your single Shopify client
