@@ -1,6 +1,39 @@
-// 0️⃣ Load .env first
+// DEBUG: Check what's in the Shopify module
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+console.log('=== SHOPIFY MODULE DEBUG ===');
+const shopifyPath = path.join(__dirname, '../node_modules/@shopify/shopify-api');
+console.log('Module path:', shopifyPath);
+console.log('Exists?', fs.existsSync(shopifyPath));
+
+if (fs.existsSync(shopifyPath)) {
+  console.log('Contents:', fs.readdirSync(shopifyPath));
+  
+  // Check for dist folder
+  const distPath = path.join(shopifyPath, 'dist');
+  console.log('Dist exists?', fs.existsSync(distPath));
+  
+  if (fs.existsSync(distPath)) {
+    console.log('Dist contents:', fs.readdirSync(distPath));
+  }
+  
+  // Check package.json
+  const pkgPath = path.join(shopifyPath, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    console.log('Version:', pkg.version);
+    console.log('Main:', pkg.main);
+    console.log('Module:', pkg.module);
+  }
+}
+console.log('=== END DEBUG ===\n');
 
 // 1️⃣ Conditionally load the adapter based on environment
 if (process.env.NODE_ENV !== 'production') {
@@ -54,9 +87,6 @@ import { CustomizationsModel } from './models/customizations.js';
 
 
 // …then your __dirname, multer setup, shopifyApp() call, routes, etc…
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
