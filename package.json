@@ -5,7 +5,13 @@
   "scripts": {
     "dev": "nodemon server/index.js",
     "start": "node server/index.js",
-    "build": "cd client && npm run build"
+    "build": "cd client && npm run build",
+    "migrate": "node database/migrate.js",
+    "heroku-postbuild": "cd client && npm install && npm run build"
+  },
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
