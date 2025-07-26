@@ -1,82 +1,31 @@
-// DEBUG: Check what's in the Shopify module
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+// 0️⃣ Load .env first so process.env is populated
 import dotenv from 'dotenv';
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// 1️⃣ Patch Node with the Shopify-API v11 adapter
+import '@shopify/shopify-api/adapters/node';
 
-console.log('=== SHOPIFY MODULE DEBUG ===');
-const shopifyPath = path.join(__dirname, '../node_modules/@shopify/shopify-api');
-console.log('Module path:', shopifyPath);
-console.log('Exists?', fs.existsSync(shopifyPath));
+// 2️⃣ Pull in the v11 initializer
+import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 
-if (fs.existsSync(shopifyPath)) {
-  console.log('Contents:', fs.readdirSync(shopifyPath));
-  
-  // Check for dist folder
-  const distPath = path.join(shopifyPath, 'dist');
-  console.log('Dist exists?', fs.existsSync(distPath));
-  
-  if (fs.existsSync(distPath)) {
-    console.log('Dist contents:', fs.readdirSync(distPath));
-  }
-  
-  // Check package.json
-  const pkgPath = path.join(shopifyPath, 'package.json');
-  if (fs.existsSync(pkgPath)) {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-    console.log('Version:', pkg.version);
-    console.log('Main:', pkg.main);
-    console.log('Module:', pkg.module);
-  }
-}
-console.log('=== END DEBUG ===\n');
-
-// 1️⃣ Conditionally load the adapter based on environment
-if (process.env.NODE_ENV !== 'production') {
-  // Local development - use the adapter path
-  await import('@shopify/shopify-api/adapters/node');
-} else {
-  // Production - adapter is built-in or at different path
-  try {
-    await import('@shopify/shopify-api/adapters/node');
-  } catch (e) {
-    console.log('Adapter import skipped in production');
-  }
-}
-
-// 2️⃣ NOW DO A DYNAMIC IMPORT to avoid the immediate error
-let shopifyApi, LATEST_API_VERSION;
-try {
-  const shopifyModule = await import('@shopify/shopify-api');
-  shopifyApi = shopifyModule.shopifyApi;
-  LATEST_API_VERSION = shopifyModule.LATEST_API_VERSION;
-  console.log('✅ Shopify API loaded successfully');
-} catch (error) {
-  console.error('❌ Failed to load Shopify API:', error.message);
-  console.error('Error code:', error.code);
-  console.error('Looking for:', error.url);
-  process.exit(1);
-}
-
-// 3️⃣ Initialize your Shopify client
+// 3️⃣ Initialize your single Shopify client
 const Shopify = shopifyApi({
   apiKey:       process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
   scopes:       ['write_discounts', 'read_customers', 'write_price_rules'],
   hostName:     process.env.HOST.replace(/^https?:\/\//, ''),
   apiVersion:   LATEST_API_VERSION,
-  isEmbeddedApp: true,
+  isEmbeddedApp:true,
 });
 
 // 4️⃣ Everything else comes after
 import express from 'express';
 import { shopifyApp } from '@shopify/shopify-app-express';
 import { SQLiteSessionStorage } from '@shopify/shopify-app-session-storage-sqlite';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import multer from 'multer';
+import fs from 'fs';
 import { SubmissionsModel } from './models/submissions.js';
 import { uploadToS3 } from './setup-s3.js';
 import {
@@ -93,8 +42,10 @@ import { RewardsModel } from './models/rewards.js';
 import { publicJobRoutes, adminJobRoutes } from './routes/jobs.js';
 import { CustomizationsModel } from './models/customizations.js';
 
-
 // …then your __dirname, multer setup, shopifyApp() call, routes, etc…
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
