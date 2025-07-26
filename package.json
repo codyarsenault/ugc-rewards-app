@@ -7,7 +7,8 @@
     "start": "node server/index.js",
     "build": "cd client && npm run build",
     "migrate": "node database/migrate.js",
-    "heroku-postbuild": "cd client && npm install && npm run build"
+    "heroku-prebuild": "echo 'PRE: Checking node_modules' && ls -la node_modules/@shopify/ || echo 'No @shopify yet'",
+    "heroku-postbuild": "echo 'POST: Checking installation' && ls -la node_modules/@shopify/shopify-api/ && echo 'Checking for dist:' && ls -la node_modules/@shopify/shopify-api/dist/ || echo 'No dist folder'"
   },
   "engines": {
     "node": "18.x",
