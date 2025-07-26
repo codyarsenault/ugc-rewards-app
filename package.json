@@ -8,7 +8,7 @@
     "build": "cd client && npm run build",
     "migrate": "node database/migrate.js",
     "heroku-prebuild": "echo 'PRE: Checking node_modules' && ls -la node_modules/@shopify/ || echo 'No @shopify yet'",
-    "heroku-postbuild": "echo 'Fixing ALL Shopify packages...' && cd node_modules/@shopify && for package in shopify-api shopify-app-express shopify-app-session-storage shopify-app-session-storage-sqlite; do echo \"Fixing $package...\" && rm -rf $package && npm pack @shopify/$package && tar -xzf shopify-$package-*.tgz && mv package $package && rm shopify-$package-*.tgz; done && cd ../.. && echo 'Verifying all packages:' && ls -la node_modules/@shopify/*/"
+    "heroku-postbuild": "node scripts/fix-broken-packages.js"
   },
   "engines": {
     "node": "18.x",
