@@ -5,6 +5,7 @@ dotenv.config();
 // 1️⃣ Patch Node with the Shopify-API v11 adapter
 import '@shopify/shopify-api/adapters/node';
 
+
 // 2️⃣ Pull in the v11 initializer
 import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 
