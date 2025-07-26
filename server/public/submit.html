@@ -504,7 +504,7 @@
 
     <div class="browse-jobs">
       <p>Want to reply to a different content request?</p>
-      <a href="/jobs">Browse All Available UGC Jobs →</a>
+      <a href="/jobs" id="browseJobsLink">Browse All Available UGC Jobs →</a>
     </div>
   </div>
 
@@ -631,6 +631,16 @@
     
     // Load customizations immediately
     loadCustomizations();
+    
+    // Update browse jobs link with shop parameter
+    const browseJobsLink = document.getElementById('browseJobsLink');
+    if (browseJobsLink) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const shop = urlParams.get('shop');
+      if (shop) {
+        browseJobsLink.href = `/jobs?shop=${encodeURIComponent(shop)}`;
+      }
+    }
 
     const form = document.getElementById('ugcForm');
     const typeSelect = document.getElementById('type');
@@ -654,7 +664,11 @@
     // Load job details
     async function loadJobDetails(id) {
       try {
-        const response = await fetch(`/api/public/jobs/${id}`);
+        // Get shop from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        
+        const response = await fetch(`/api/public/jobs/${id}?shop=${encodeURIComponent(shop)}`);
         const data = await response.json();
         const job = data.job;
         

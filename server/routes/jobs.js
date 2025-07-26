@@ -8,7 +8,15 @@ export const adminJobRoutes = express.Router();
 // PUBLIC ROUTES (no auth required)
 publicJobRoutes.get('/jobs', async (req, res) => {
   try {
-    const jobs = await JobsModel.getActiveJobs();
+    // Get shop from query params
+    const shop = req.query.shop;
+    
+    if (!shop) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
+    console.log('Fetching public jobs for shop:', shop);
+    const jobs = await JobsModel.getActiveJobsByShop(shop);
     res.json({ jobs });
   } catch (error) {
     console.error('Error fetching active jobs:', error);
@@ -18,7 +26,24 @@ publicJobRoutes.get('/jobs', async (req, res) => {
 
 publicJobRoutes.get('/jobs/:id', async (req, res) => {
   try {
+    // Get shop from query params
+    const shop = req.query.shop;
+    
+    if (!shop) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
     const job = await JobsModel.getById(req.params.id);
+    
+    // Check if job exists and belongs to this shop
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    if (job.shop_domain !== shop) {
+      return res.status(403).json({ error: 'Unauthorized to access this job' });
+    }
+    
     res.json({ job });
   } catch (error) {
     console.error('Error fetching job:', error);

@@ -63,6 +63,22 @@ export const JobsModel = {
     return result.rows;
   },
 
+  // Get active jobs for customers filtered by shop
+  async getActiveJobsByShop(shopDomain) {
+    const query = `
+      SELECT j.*, 
+        (SELECT COUNT(*) FROM job_submissions js WHERE js.job_id = j.id) as submission_count
+      FROM jobs j
+      WHERE j.shop_domain = $1
+        AND j.status = 'active' 
+        AND j.spots_filled < j.spots_available
+        AND (j.deadline IS NULL OR j.deadline > NOW())
+      ORDER BY j.created_at DESC
+    `;
+    const result = await pool.query(query, [shopDomain]);
+    return result.rows;
+  },
+
   // Get job by ID
   async getById(id) {
     const query = 'SELECT * FROM jobs WHERE id = $1';

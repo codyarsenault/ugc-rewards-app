@@ -856,7 +856,11 @@
     // Load jobs on page load
     async function loadJobs() {
       try {
-        const response = await fetch('/api/public/jobs');
+        // Get shop from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        
+        const response = await fetch(`/api/public/jobs?shop=${encodeURIComponent(shop)}`);
         const data = await response.json();
         allJobs = data.jobs || [];
         displayJobs();
@@ -987,7 +991,11 @@
     // Open job modal
     async function openJobModal(jobId) {
       try {
-        const response = await fetch(`/api/public/jobs/${jobId}`);
+        // Get shop from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        
+        const response = await fetch(`/api/public/jobs/${jobId}?shop=${encodeURIComponent(shop)}`);
         const data = await response.json();
         selectedJob = data.job;
 
