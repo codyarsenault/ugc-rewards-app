@@ -17,7 +17,7 @@
     "@aws-sdk/client-s3": "^3.0.0",
     "@aws-sdk/lib-storage": "^3.0.0",
     "@sendgrid/mail": "^8.1.5",
-    "@shopify/shopify-api": "^11.13.0",
+    "@shopify/shopify-api": "11.14.1",
     "@shopify/shopify-app-express": "^5.0.18",
     "@shopify/shopify-app-session-storage": "^3.0.18",
     "@shopify/shopify-app-session-storage-memory": "^4.0.18",
