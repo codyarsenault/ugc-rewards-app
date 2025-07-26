@@ -1081,7 +1081,11 @@
     // Submit for job
     function submitForJob() {
       if (selectedJob) {
-        window.location.href = `/submit?jobId=${selectedJob.id}`;
+        // Get shop from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const shop = urlParams.get('shop');
+        const submitUrl = shop ? `/submit?jobId=${selectedJob.id}&shop=${encodeURIComponent(shop)}` : `/submit?jobId=${selectedJob.id}`;
+        window.location.href = submitUrl;
       }
     }
 

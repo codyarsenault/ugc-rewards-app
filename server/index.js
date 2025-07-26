@@ -172,7 +172,9 @@ app.get('/jobs', (req, res) => {
 
 // Root route - Admin dashboard with jobs functionality
 app.get('/', async (req, res) => {
-  const submitLink = `${process.env.HOST}/jobs`;
+  // Get shop from query params or session
+  const shop = req.query.shop || res.locals?.shopify?.session?.shop;
+  const submitLink = shop ? `${process.env.HOST}/jobs?shop=${encodeURIComponent(shop)}` : `${process.env.HOST}/jobs`;
   
   res.send(`
     <!DOCTYPE html>
@@ -1684,7 +1686,8 @@ app.get('/', async (req, res) => {
             document.getElementById('viewJobExample').textContent = job.example_content || 'No examples provided';
             
             // Set the direct link
-            const jobLink = '${process.env.HOST}/submit?jobId=' + job.id;
+            const shop = new URLSearchParams(window.location.search).get('shop');
+            const jobLink = shop ? '${process.env.HOST}/submit?jobId=' + job.id + '&shop=' + encodeURIComponent(shop) : '${process.env.HOST}/submit?jobId=' + job.id;
             document.getElementById('viewJobLink').href = jobLink;
             document.getElementById('viewJobLink').textContent = jobLink;
             
