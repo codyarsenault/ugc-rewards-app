@@ -1,2 +1,2 @@
-web: node --experimental-specifier-resolution=node server/index.js
+web: node server/index.js
 release: node database/migrate.js
