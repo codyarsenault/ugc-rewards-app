@@ -8,7 +8,7 @@
     "build": "cd client && npm run build",
     "migrate": "node database/migrate.js",
     "heroku-prebuild": "echo 'PRE: Checking node_modules' && ls -la node_modules/@shopify/ || echo 'No @shopify yet'",
-    "heroku-postbuild": "echo 'POST: Checking installation' && ls -la node_modules/@shopify/shopify-api/ && echo 'Checking for dist:' && ls -la node_modules/@shopify/shopify-api/dist/ || echo 'No dist folder'"
+    "heroku-postbuild": "echo 'Fixing Shopify installation...' && cd node_modules/@shopify && rm -rf shopify-api && npm pack @shopify/shopify-api && tar -xzf shopify-shopify-api-*.tgz && mv package shopify-api && rm shopify-shopify-api-*.tgz && cd ../.. && echo 'Verifying fix:' && ls -la node_modules/@shopify/shopify-api/"
   },
   "engines": {
     "node": "18.x",
