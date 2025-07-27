@@ -676,6 +676,13 @@
   </div>
 
   <script>
+    // Check if we have a valid shop in the URL before doing anything
+    const urlPathParts = window.location.pathname.split('/');
+    if (!(urlPathParts.length > 2 && urlPathParts[1] === 'jobs' && urlPathParts[2] && urlPathParts[2].trim() !== '')) {
+      // If no valid shop in URL, redirect immediately
+      window.location.href = '/';
+    }
+    
     // Load customizations
     async function loadCustomizations() {
       try {
