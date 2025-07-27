@@ -679,9 +679,18 @@
     // Load customizations
     async function loadCustomizations() {
       try {
-        // Get shop from URL or default
-        const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        // Get shop from URL path or fallback to query params for backward compatibility
+        let shop = 'ugc-rewards-app.myshopify.com'; // default fallback
+        
+        // First try to get shop from URL path
+        const pathParts = window.location.pathname.split('/');
+        if (pathParts.length > 2 && pathParts[1] === 'jobs' && pathParts[2] && pathParts[2].trim() !== '') {
+          shop = decodeURIComponent(pathParts[2]);
+        } else {
+          // Fallback to query params for backward compatibility
+          const urlParams = new URLSearchParams(window.location.search);
+          shop = urlParams.get('shop') || shop;
+        }
         
         const response = await fetch(`/api/public/customizations?shop=${shop}`);
         const customizations = await response.json();
@@ -856,9 +865,18 @@
     // Load jobs on page load
     async function loadJobs() {
       try {
-        // Get shop from URL params
-        const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        // Get shop from URL path or fallback to query params for backward compatibility
+        let shop = 'ugc-rewards-app.myshopify.com'; // default fallback
+        
+        // First try to get shop from URL path
+        const pathParts = window.location.pathname.split('/');
+        if (pathParts.length > 2 && pathParts[1] === 'jobs' && pathParts[2] && pathParts[2].trim() !== '') {
+          shop = decodeURIComponent(pathParts[2]);
+        } else {
+          // Fallback to query params for backward compatibility
+          const urlParams = new URLSearchParams(window.location.search);
+          shop = urlParams.get('shop') || shop;
+        }
         
         const response = await fetch(`/api/public/jobs?shop=${encodeURIComponent(shop)}`);
         const data = await response.json();
@@ -991,9 +1009,18 @@
     // Open job modal
     async function openJobModal(jobId) {
       try {
-        // Get shop from URL params
-        const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        // Get shop from URL path or fallback to query params for backward compatibility
+        let shop = 'ugc-rewards-app.myshopify.com'; // default fallback
+        
+        // First try to get shop from URL path
+        const pathParts = window.location.pathname.split('/');
+        if (pathParts.length > 2 && pathParts[1] === 'jobs' && pathParts[2] && pathParts[2].trim() !== '') {
+          shop = decodeURIComponent(pathParts[2]);
+        } else {
+          // Fallback to query params for backward compatibility
+          const urlParams = new URLSearchParams(window.location.search);
+          shop = urlParams.get('shop') || shop;
+        }
         
         const response = await fetch(`/api/public/jobs/${jobId}?shop=${encodeURIComponent(shop)}`);
         const data = await response.json();
@@ -1081,9 +1108,19 @@
     // Submit for job
     function submitForJob() {
       if (selectedJob) {
-        // Get shop from URL params
-        const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop');
+        // Get shop from URL path or fallback to query params for backward compatibility
+        let shop = null;
+        
+        // First try to get shop from URL path
+        const pathParts = window.location.pathname.split('/');
+        if (pathParts.length > 2 && pathParts[1] === 'jobs' && pathParts[2] && pathParts[2].trim() !== '') {
+          shop = decodeURIComponent(pathParts[2]);
+        } else {
+          // Fallback to query params for backward compatibility
+          const urlParams = new URLSearchParams(window.location.search);
+          shop = urlParams.get('shop');
+        }
+        
         const submitUrl = shop ? `/submit?jobId=${selectedJob.id}&shop=${encodeURIComponent(shop)}` : `/submit?jobId=${selectedJob.id}`;
         window.location.href = submitUrl;
       }

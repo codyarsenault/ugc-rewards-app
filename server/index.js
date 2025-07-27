@@ -170,11 +170,20 @@ app.get('/jobs', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'jobs.html'));
 });
 
+// Route to show jobs browsing page for specific shop
+app.get('/jobs/:shop', (req, res) => {
+  // Validate that shop parameter is not empty
+  if (!req.params.shop || req.params.shop.trim() === '') {
+    return res.redirect('/');
+  }
+  res.sendFile(path.join(__dirname, 'public', 'jobs.html'));
+});
+
 // Root route - Admin dashboard with jobs functionality
 app.get('/', async (req, res) => {
   // Get shop from query params or session
   const shop = req.query.shop || res.locals?.shopify?.session?.shop;
-  const submitLink = shop ? `${process.env.HOST}/jobs?shop=${encodeURIComponent(shop)}` : `${process.env.HOST}/jobs`;
+  const submitLink = shop ? `${process.env.HOST}/jobs/${encodeURIComponent(shop)}` : `${process.env.HOST}/jobs`;
   
   res.send(`
     <!DOCTYPE html>

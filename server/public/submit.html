@@ -638,7 +638,7 @@
       const urlParams = new URLSearchParams(window.location.search);
       const shop = urlParams.get('shop');
       if (shop) {
-        browseJobsLink.href = `/jobs?shop=${encodeURIComponent(shop)}`;
+        browseJobsLink.href = `/jobs/${encodeURIComponent(shop)}`;
       }
     }
 
@@ -664,7 +664,7 @@
     // Load job details
     async function loadJobDetails(id) {
       try {
-        // Get shop from URL params
+        // Get shop from URL params (submit page still uses query params)
         const urlParams = new URLSearchParams(window.location.search);
         const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
         
