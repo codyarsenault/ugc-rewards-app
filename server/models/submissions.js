@@ -15,6 +15,21 @@ export const SubmissionsModel = {
     return result.rows;
   },
 
+  // Get submissions for a specific shop
+  async getByShop(shopDomain) {
+    const query = `
+      SELECT s.*, j.title as job_title, j.reward_type, 
+             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled
+      FROM submissions s
+      LEFT JOIN jobs j ON s.job_id = j.id
+      LEFT JOIN rewards r ON s.id = r.submission_id
+      WHERE j.shop_domain = $1
+      ORDER BY s.created_at DESC
+    `;
+    const result = await pool.query(query, [shopDomain]);
+    return result.rows;
+  },
+
   // Get submission by ID
   async getById(id) {
     const query = 'SELECT * FROM submissions WHERE id = $1';

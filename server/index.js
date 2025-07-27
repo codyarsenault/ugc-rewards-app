@@ -3188,7 +3188,15 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
 // Get submissions endpoint
 app.get('/api/admin/submissions', async (req, res) => {
   try {
-    const submissions = await SubmissionsModel.getAll();
+    // Get shop from query params
+    const shop = req.query.shop;
+    
+    if (!shop) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
+    console.log('Fetching submissions for shop:', shop);
+    const submissions = await SubmissionsModel.getByShop(shop);
     
     // Transform the data to match the frontend expectations
     const transformedSubmissions = submissions.map(sub => ({
@@ -3219,10 +3227,25 @@ app.post(
     try {
       const submissionId = req.params.id;
       
+      // Get shop from query params
+      const shop = req.query.shop;
+      
+      if (!shop) {
+        return res.status(400).json({ error: 'Shop parameter required' });
+      }
+      
       // 1️⃣ Fetch + validate submission
       const submission = await SubmissionsModel.getById(submissionId);
       if (!submission) {
         return res.status(404).json({ success: false, message: 'Submission not found' });
+      }
+
+      // Validate that submission belongs to this shop
+      if (submission.job_id) {
+        const job = await JobsModel.getById(submission.job_id);
+        if (!job || job.shop_domain !== shop) {
+          return res.status(403).json({ error: 'Unauthorized to approve this submission' });
+        }
       }
 
       // 2️⃣ Mark it approved
@@ -3477,10 +3500,25 @@ app.post('/api/admin/submissions/:id/reject', async (req, res) => {
   try {
     const submissionId = req.params.id;
     
+    // Get shop from query params
+    const shop = req.query.shop;
+    
+    if (!shop) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
     // Check if submission exists
     const submission = await SubmissionsModel.getById(submissionId);
     if (!submission) {
       return res.status(404).json({ success: false, message: 'Submission not found' });
+    }
+
+    // Validate that submission belongs to this shop
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to reject this submission' });
+      }
     }
     
     // If this was previously approved and is for a job, decrement the spots filled
@@ -3525,6 +3563,26 @@ app.post('/api/admin/rewards/:submissionId/fulfill', async (req, res) => {
     const submissionId = req.params.submissionId;
     const { fulfilled, notes } = req.body;
     
+    // Get shop from query params
+    const shop = req.query.shop;
+    
+    if (!shop) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
+    // Validate that submission belongs to this shop
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to access this submission' });
+      }
+    }
+    
     // Update the reward status
     const reward = await RewardsModel.getBySubmissionId(submissionId);
     if (reward) {
@@ -3548,14 +3606,28 @@ app.post('/api/admin/rewards/:submissionId/send-giftcard', shopify.ensureInstall
     const { submissionId } = req.params;
     const { giftCardCode, amount } = req.body;
     
+    // Get shop from query params
+    const shop = req.query.shop;
+    
+    if (!shop) {
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
     // Get the submission and reward details
     const submission = await SubmissionsModel.getById(submissionId);
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
     }
+
+    // Validate that submission belongs to this shop
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to access this submission' });
+      }
+    }
     
     // Get customizations for email content
-    const shop = res.locals.shopify?.session?.shop || req.query.shop;
     const customizations = await CustomizationsModel.getByShop(shop) || {};
     
     // Send the gift card email
