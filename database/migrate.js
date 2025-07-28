@@ -84,7 +84,8 @@ async function migrate() {
         submit_heading TEXT,
         submit_subheading TEXT,
         email_from_name TEXT,
-        email_reply_to TEXT
+        email_reply_to TEXT,
+        notification_email TEXT
       );
     `);
 

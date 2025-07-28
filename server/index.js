@@ -257,6 +257,7 @@ app.get('/', async (req, res) => {
             document.getElementById('emailReplyTo').value = '';
             document.getElementById('fromNamePreview').textContent = 'UGC Rewards';
             document.getElementById('replyToPreview').textContent = 'no replies (emails will be no-reply)';
+            document.getElementById('notificationEmail').value = '';
             
             console.log('Email settings reset to defaults');
           }
@@ -1029,6 +1030,26 @@ app.get('/', async (req, res) => {
                       • Emails will be sent from: <strong><span id="fromNamePreview">UGC Rewards</span> &lt;noreply@ugcrewards.com&gt;</strong><br>
                       • Customer replies will go to: <strong><span id="replyToPreview">your reply-to address</span></strong><br>
                       • This ensures reliable email delivery while showing your brand name
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div class="email-section" style="background: #fff; border: 2px solid #d72c0d;">
+                  <h3>🔔 Admin Notification Settings</h3>
+                  <div class="form-group">
+                    <label for="notificationEmail">Notification Email Address</label>
+                    <input type="email" id="notificationEmail" name="notificationEmail" 
+                          placeholder="admin@yourbrand.com" maxlength="255">
+                    <small style="color: #666;">Where admin notifications will be sent when new submissions are received. Leave empty to use the default.</small>
+                  </div>
+                  <div style="background: #fff5f5; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                    <p style="margin: 0; color: #333; font-size: 13px;">
+                      <strong>📨 What notifications you'll receive:</strong><br>
+                      • New UGC submission alerts<br>
+                      • Gift card fulfillment reminders<br>
+                      • Job completion notifications<br>
+                      • System alerts and errors
                     </p>
                   </div>
                 </div>
@@ -2393,6 +2414,9 @@ app.get('/', async (req, res) => {
                 document.getElementById('emailReplyTo').value = customizations.email_reply_to;
                 document.getElementById('replyToPreview').textContent = customizations.email_reply_to;
               }
+              if (customizations.notification_email) {
+                document.getElementById('notificationEmail').value = customizations.notification_email;
+              }
                             
               console.log('Email settings loaded successfully');
             } catch (error) {
@@ -3020,7 +3044,8 @@ app.post('/api/admin/email-settings', async (req, res) => {
       email_subject_product: req.body.emailSubjectProduct,
       email_body_product: req.body.emailBodyProduct,
       email_from_name: req.body.emailFromName,
-      email_reply_to: req.body.emailReplyTo
+      email_reply_to: req.body.emailReplyTo,
+      notification_email: req.body.notificationEmail
     };
     
     console.log('Updated customizations after email update:', updatedCustomizations);
@@ -3123,32 +3148,10 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
         console.error('Error getting job details:', error);
       }
     }
-    
-    // Get shop domain for app link
-    let appShopDomain = res.locals.shopify?.session?.shop || req.query.shop;
-    if (!appShopDomain && req.body.jobId) {
-      try {
-        const job = await JobsModel.getById(req.body.jobId);
-        if (job && job.shop_domain) {
-          appShopDomain = job.shop_domain;
-        }
-      } catch (error) {
-        console.error('Error getting shop domain from job:', error);
-      }
-    }
-    
-    const appUrl = appShopDomain ? `https://${appShopDomain}/admin/apps/ugc-rewards-app` : 'https://ugc-rewards-app.myshopify.com/admin/apps/ugc-rewards-app';
-    
-    // Send notification email to admin
-    await sendNotificationEmail({
-      subject: 'New UGC Submission Received',
-      text: `A new submission was received from ${customerEmail}.\nJob: ${jobName}\nType: ${type}\n\nView in app: ${appUrl}`,
-      html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p><strong>Job:</strong> ${jobName}</p><p><strong>Type:</strong> ${type}</p><p><br><a href="${appUrl}" style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View in App</a></p>`
-    });
- 
-    // Get customizations for email content
+
+    // Get shop domain for app link and customizations
     let shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
-    
+
     // If no shop domain from session/query, try to get it from the job
     if (!shopDomain && req.body.jobId) {
       try {
@@ -3161,14 +3164,30 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
         console.error('Error getting job for shop domain:', error);
       }
     }
-    
+
     console.log('🔍 Shop domain for customizations:', shopDomain);
-    
+
+    // Get customizations once for both notification and confirmation emails
     const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
     console.log('🎨 Loaded customizations:', customizations);
+
+    // Get notification email address
+    const notificationEmailTo = customizations.notification_email || process.env.EMAIL_TO;
+    console.log('Notification email will be sent to:', notificationEmailTo);
+
+    const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/ugc-rewards-app` : 'https://ugc-rewards-app.myshopify.com/admin/apps/ugc-rewards-app';
+
+    // Send notification email to admin
+    await sendNotificationEmail({
+      to: notificationEmailTo,  // Use the custom notification email
+      subject: 'New UGC Submission Received',
+      text: `A new submission was received from ${customerEmail}.\nJob: ${jobName}\nType: ${type}\n\nView in app: ${appUrl}`,
+      html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p><strong>Job:</strong> ${jobName}</p><p><strong>Type:</strong> ${type}</p><p><br><a href="${appUrl}" style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View in App</a></p>`
+    });
+
     console.log('📧 Confirmation email subject:', customizations.email_subject_confirmation);
     console.log('📧 Confirmation email body:', customizations.email_body_confirmation);
-    
+
     // Send confirmation email to customer
     await sendCustomerConfirmationEmail({
       to: customerEmail,
@@ -3176,7 +3195,7 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       type,
       customSubject: customizations.email_subject_confirmation,
       customBody: customizations.email_body_confirmation,
-      customizations // Add this line
+      customizations // Pass customizations object
     });
  
   res.json({
@@ -3329,6 +3348,8 @@ app.post(
           }
         }
 
+        // In your approval endpoint, update the gift card notification section:
+
         // 🎁 Handle gift card rewards (manual fulfillment)
         if (job.reward_type === 'giftcard') {
           console.log('Processing gift card reward for job:', job.id);
@@ -3347,8 +3368,13 @@ app.post(
               shopifyDiscountCodeId: null
             });
             
+            // Get customizations for notification email
+            const customizations = await CustomizationsModel.getByShop(job.shop_domain) || {};
+            const notificationEmailTo = customizations.notification_email || process.env.EMAIL_TO;
+            
             // Send notification to admin
             await sendNotificationEmail({
+              to: notificationEmailTo,  // Use the custom notification email
               subject: 'Manual Gift Card Required - UGC Rewards',
               html: `
                 <h2>Gift Card Needs to be Created</h2>
