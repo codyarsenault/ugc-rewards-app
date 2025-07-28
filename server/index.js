@@ -3316,12 +3316,19 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     if (!isEmailSetupComplete(customizations)) {
       return res.status(503).json({
         success: false,
-        message: 'This store is not yet configured to accept submissions. Please contact the store administrator.'
+        message: 'This store is not yet configured to accept submissions. The store administrator needs to configure email settings in the app dashboard before submissions can be accepted.'
       });
     }
 
-    // Get notification email address
-    const notificationEmailTo = customizations.notification_email || process.env.EMAIL_TO;
+    // Get notification email address - no fallback, must be configured
+    const notificationEmailTo = customizations.notification_email;
+    if (!notificationEmailTo) {
+      console.error('No notification email configured for shop:', shopDomain);
+      return res.status(500).json({
+        success: false,
+        message: 'Email settings not configured. Please configure email settings in the admin dashboard.'
+      });
+    }
     console.log('Notification email will be sent to:', notificationEmailTo);
 
           const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}` : `https://honest-ugc.myshopify.com/admin/apps/${process.env.SHOPIFY_API_KEY}`;
@@ -3519,7 +3526,14 @@ app.post(
             
             // Get customizations for notification email
             const customizations = await CustomizationsModel.getByShop(job.shop_domain) || {};
-            const notificationEmailTo = customizations.notification_email || process.env.EMAIL_TO;
+            const notificationEmailTo = customizations.notification_email;
+            if (!notificationEmailTo) {
+              console.error('No notification email configured for shop:', job.shop_domain);
+              console.log('Skipping gift card notification email - no notification email configured');
+              // Continue with approval but log the issue
+              console.log('⚠️ WARNING: Gift card approved but admin will not be notified due to missing email configuration');
+              return;
+            }
             
             // Send notification to admin
             await sendNotificationEmail({

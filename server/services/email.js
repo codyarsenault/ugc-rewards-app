@@ -21,8 +21,12 @@ function getEmailConfig(customizations) {
 }
 
 export async function sendNotificationEmail({ to, subject, text, html }) {
+  if (!to) {
+    throw new Error('Notification email recipient is required');
+  }
+  
   const msg = {
-    to: to || process.env.EMAIL_TO,
+    to,
     from: process.env.EMAIL_FROM,
     subject,
     text,
