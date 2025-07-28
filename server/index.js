@@ -168,7 +168,7 @@ app.use('/uploads', express.static(uploadsDir));
 app.use('/api/public', publicJobRoutes);
 
 // Admin routes
-app.use('/api/admin', adminJobRoutes);
+app.use('/api/admin', shopify.ensureInstalledOnShop(), adminJobRoutes);
 
 // Route to show submission form
 app.get('/submit', (req, res) => {
@@ -3405,9 +3405,8 @@ app.get('/api/admin/submissions', async (req, res) => {
  });
  
 // Approve submissions endpoint
-app.post(
-  '/api/admin/submissions/:id/approve',
-  async (req, res) => {
+app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), async (req, res) => {
+
     try {
       const submissionId = req.params.id;
       
@@ -3459,45 +3458,56 @@ app.post(
             // a) Grab your Shopify session
             let session = res.locals.shopify?.session;
             if (!session) {
+              // If no session in res.locals, we need to load it from the database
               const sessions = await sessionStorage.findSessionsByShop(job.shop_domain);
-              session = sessions?.[0];
-            }
-            if (!session) {
-              throw new Error(`No valid Shopify session for ${job.shop_domain}`);
-            }
-
-            // b) Instantiate the GraphQL client + your service
-            const client = new Shopify.clients.Graphql({ session });
-            const discountService = new ShopifyDiscountService(client);
-
-            // c) Create the code (this also writes to RewardsModel)
-            const { code } = await discountService.createDiscountCode(job, submission);
-            console.log(`Discount code created: ${code}`);
-
-            // Get customizations for email content
-            const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
-            const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
-            
-            // d) Send the reward email
-            await sendRewardCodeEmail({
-              to:        submission.customer_email,
-              code,
-              value:     job.reward_value,
-              type:      job.reward_type,
-              expiresIn: '30 days',
-              customSubject: customizations.email_subject_reward,
-              customBody: customizations.email_body_reward,
-              customizations // Add this line
-            });
-
-            // e) Mark it sent in your RewardsModel
-            const reward = await RewardsModel.getBySubmissionId(submission.id);
-            if (reward) {
-              await RewardsModel.markAsSent(reward.id);
-              await RewardsModel.updateSubmissionRewardStatus(submission.id);
+              if (sessions && sessions.length > 0) {
+                // Use the most recent session
+                session = sessions.reduce((latest, current) => {
+                  return new Date(current.expires) > new Date(latest.expires) ? current : latest;
+                });
+              }
             }
 
-            console.log(`Reward sent to ${submission.customer_email}: ${code}`);
+            if (!session || new Date(session.expires) < new Date()) {
+              // Session is expired or doesn't exist
+              console.error(`No valid Shopify session for ${job.shop_domain}`);
+              // Instead of throwing error, skip the reward creation
+              console.log('Skipping automatic reward creation due to missing session');
+              // You could send a notification to admin to manually create the reward
+            } else {
+              // Proceed with discount creation
+              const client = new Shopify.clients.Graphql({ session });
+              const discountService = new ShopifyDiscountService(client);
+
+              // c) Create the code (this also writes to RewardsModel)
+              const { code } = await discountService.createDiscountCode(job, submission);
+              console.log(`Discount code created: ${code}`);
+
+              // Get customizations for email content
+              const shopDomain = res.locals.shopify?.session?.shop || req.query.shop;
+              const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
+              
+              // d) Send the reward email
+              await sendRewardCodeEmail({
+                to:        submission.customer_email,
+                code,
+                value:     job.reward_value,
+                type:      job.reward_type,
+                expiresIn: '30 days',
+                customSubject: customizations.email_subject_reward,
+                customBody: customizations.email_body_reward,
+                customizations // Add this line
+              });
+
+              // e) Mark it sent in your RewardsModel
+              const reward = await RewardsModel.getBySubmissionId(submission.id);
+              if (reward) {
+                await RewardsModel.markAsSent(reward.id);
+                await RewardsModel.updateSubmissionRewardStatus(submission.id);
+              }
+
+              console.log(`Reward sent to ${submission.customer_email}: ${code}`);
+            }
           } catch (err) {
             console.error('Error creating/sending reward:', err);
             // swallow—approval should not fail
@@ -3587,18 +3597,25 @@ app.post(
             if (!session) {
               console.log('No session in res.locals, trying to find by shop domain:', job.shop_domain);
               const sessions = await sessionStorage.findSessionsByShop(job.shop_domain);
-              session = sessions?.[0];
+              if (sessions && sessions.length > 0) {
+                // Use the most recent session
+                session = sessions.reduce((latest, current) => {
+                  return new Date(current.expires) > new Date(latest.expires) ? current : latest;
+                });
+              }
               console.log('Found session from storage:', !!session);
             }
             
-            if (!session) {
-              throw new Error(`No valid Shopify session for ${job.shop_domain}`);
-            }
-
-            console.log('Creating GraphQL client with session');
-            // Create the discount code
-            const client = new Shopify.clients.Graphql({ session });
-            const discountService = new ShopifyDiscountService(client);
+            if (!session || new Date(session.expires) < new Date()) {
+              // Session is expired or doesn't exist
+              console.error(`No valid Shopify session for ${job.shop_domain}`);
+              console.log('Skipping free product reward creation due to missing session');
+              // Skip the reward creation instead of throwing error
+            } else {
+              console.log('Creating GraphQL client with session');
+              // Create the discount code
+              const client = new Shopify.clients.Graphql({ session });
+              const discountService = new ShopifyDiscountService(client);
             
             console.log('Calling createProductDiscountCode...');
             // Create a 100% off discount for the specific product
@@ -3640,6 +3657,7 @@ app.post(
             
             console.log(`Free product code created for ${submission.customer_email}: ${code}`);
             console.log('✅ FINAL - Stored discount code in job object:', job.discountCode);
+            }
           } catch (error) {
             console.error('Error creating free product reward:', error);
             console.error('Error stack:', error.stack);
