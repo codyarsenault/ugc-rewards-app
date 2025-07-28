@@ -1955,6 +1955,7 @@ app.get('/', async (req, res) => {
                   <table>
                     <thead>
                       <tr>
+                        <th>ID</th>
                         <th>Date</th>
                         <th>Customer</th>
                         <th>Type</th>
@@ -1967,6 +1968,7 @@ app.get('/', async (req, res) => {
                     <tbody>
                   \${filteredSubmissions.map(sub => \`
                         <tr>
+                          <td style="font-weight: 600; color: #666; font-size: 13px;">#\${sub.id}</td>
                           <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
                           <td>\${sub.customerEmail}</td>
                           <td>\${sub.type}</td>
