@@ -3324,7 +3324,7 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     const notificationEmailTo = customizations.notification_email || process.env.EMAIL_TO;
     console.log('Notification email will be sent to:', notificationEmailTo);
 
-    const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/ugc-rewards-app` : 'https://ugc-rewards-app.myshopify.com/admin/apps/ugc-rewards-app';
+    const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}` : `https://ugc-rewards-app.myshopify.com/admin/apps/${process.env.SHOPIFY_API_KEY}`;
 
     // Send notification email to admin
     await sendNotificationEmail({
