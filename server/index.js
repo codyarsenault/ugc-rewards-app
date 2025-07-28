@@ -141,78 +141,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Debug endpoint to check installed shops
-app.get('/api/debug/shops', async (req, res) => {
-  try {
-    const sessions = await sessionStorage.findSessionsByShop();
-    const shops = sessions.map(session => ({
-      shop: session.shop,
-      isOnline: session.isOnline,
-      scope: session.scope,
-      state: session.state
-    }));
-    res.json({ shops });
-  } catch (error) {
-    console.error('Error fetching shops:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Session validation endpoint
-app.get('/api/admin/validate-session', async (req, res) => {
-  try {
-    const shop = getShopDomain(req, res);
-    if (!shop) {
-      return res.status(400).json({ error: 'No shop domain found' });
-    }
-
-    // Get session
-    let session = res.locals.shopify?.session;
-    if (!session) {
-      const sessions = await sessionStorage.findSessionsByShop(shop);
-      session = sessions?.[0];
-    }
-
-    if (!session) {
-      return res.status(401).json({ 
-        error: 'No session found',
-        needsAuth: true,
-        authUrl: `${process.env.HOST}/api/auth?shop=${shop}`
-      });
-    }
-
-    // Test the session by making a simple API call
-    try {
-      const client = new Shopify.clients.Rest({ session });
-      const response = await client.get({
-        path: 'shop'
-      });
-      
-      res.json({ 
-        valid: true, 
-        shop: response.body.shop,
-        session: {
-          shop: session.shop,
-          isOnline: session.isOnline,
-          scope: session.scope
-        }
-      });
-    } catch (apiError) {
-      console.error('Session validation failed:', apiError);
-      
-      // If the API call fails, the session is invalid
-      return res.status(401).json({ 
-        error: 'Invalid session',
-        needsAuth: true,
-        authUrl: `${process.env.HOST}/api/auth?shop=${shop}`
-      });
-    }
-  } catch (error) {
-    console.error('Error validating session:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Set up Shopify authentication
 app.get(shopify.config.auth.path, shopify.auth.begin());
 app.get(
@@ -2735,30 +2663,6 @@ app.get('/', async (req, res) => {
                 alert('Error saving email settings');
               }
             });
-            
-            // Session validation on page load
-            async function validateSession() {
-              try {
-                const queryParams = window.location.search;
-                const response = await fetch('/api/admin/validate-session' + queryParams, {
-                  credentials: 'include'
-                });
-                
-                if (!response.ok) {
-                  const errorData = await response.json();
-                  if (errorData.needsAuth) {
-                    // Redirect to auth
-                    window.location.href = errorData.authUrl;
-                    return;
-                  }
-                }
-              } catch (error) {
-                console.error('Error validating session:', error);
-              }
-            }
-            
-            // Validate session when page loads
-            validateSession();
           });
         </script>
       </body>
@@ -3547,31 +3451,12 @@ app.post(
           try {
             // a) Grab your Shopify session
             let session = res.locals.shopify?.session;
-            console.log('Session from res.locals:', session ? 'Found' : 'Not found');
-            
             if (!session) {
-              console.log('Looking up sessions for shop:', job.shop_domain);
               const sessions = await sessionStorage.findSessionsByShop(job.shop_domain);
-              console.log('Found sessions:', sessions?.length || 0);
-              if (sessions && sessions.length > 0) {
-                console.log('Session details:', {
-                  shop: sessions[0].shop,
-                  state: sessions[0].state,
-                  isOnline: sessions[0].isOnline,
-                  scope: sessions[0].scope
-                });
-              }
               session = sessions?.[0];
             }
-            
             if (!session) {
-              console.log('No session found for shop:', job.shop_domain);
-              
-              // Try to redirect to auth if no session
-              const authUrl = `${process.env.HOST}/api/auth?shop=${job.shop_domain}`;
-              console.log('Redirecting to auth:', authUrl);
-              
-              throw new Error(`No valid Shopify session for ${job.shop_domain}. Please re-authenticate the app at: ${authUrl}`);
+              throw new Error(`No valid Shopify session for ${job.shop_domain}`);
             }
 
             // b) Instantiate the GraphQL client + your service
