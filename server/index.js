@@ -2547,41 +2547,8 @@ app.get('/', async (req, res) => {
             document.getElementById('quickEmailSetupModal').classList.remove('open');
           }
 
-          // Session validation on page load
-          async function validateSession() {
-            try {
-              const queryParams = window.location.search;
-              const response = await fetch('/api/admin/validate-session' + queryParams, {
-                credentials: 'include'
-              });
-              
-              if (!response.ok) {
-                const errorData = await response.json();
-                if (errorData.needsAuth) {
-                  console.log('Session validation failed, redirecting to auth:', errorData.authUrl);
-                  window.location.href = errorData.authUrl;
-                  return;
-                }
-              } else {
-                console.log('Session validation successful');
-              }
-            } catch (error) {
-              console.error('Error validating session:', error);
-              // If validation fails, try to redirect to auth
-              const shop = new URLSearchParams(window.location.search).get('shop');
-              if (shop) {
-                const authUrl = '/api/auth?shop=' + shop;
-                console.log('Redirecting to auth due to validation error:', authUrl);
-                window.location.href = authUrl;
-              }
-            }
-          }
-
           // Color picker synchronization
           document.addEventListener('DOMContentLoaded', function() {
-            // Validate session first
-            validateSession();
-            
             // Load customizations immediately when DOM is ready
             console.log('DOM ready - loading customizations...');
             loadCustomizations();
@@ -3128,14 +3095,7 @@ app.get('/api/admin/customizations', async (req, res) => {
       console.log('GET customizations - Using shop from session:', shop);
     } else {
       // Fallback: try to get shop from URL params or headers
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'];
-      if (!shop) {
-        console.error('GET customizations - No shop found in session, query params, or headers');
-        return res.status(400).json({ 
-          error: 'Shop parameter required. Please ensure you are accessing this from within the Shopify admin.',
-          needsAuth: true
-        });
-      }
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
       console.log('GET customizations - Using fallback shop:', shop);
     }
     
@@ -3161,14 +3121,7 @@ app.post('/api/admin/customizations', async (req, res) => {
       shop = res.locals.shopify.session.shop;
       console.log('POST customizations - Using shop from session:', shop);
     } else {
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'];
-      if (!shop) {
-        console.error('POST customizations - No shop found in session, query params, or headers');
-        return res.status(400).json({ 
-          error: 'Shop parameter required. Please ensure you are accessing this from within the Shopify admin.',
-          needsAuth: true
-        });
-      }
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
       console.log('POST customizations - Using fallback shop:', shop);
     }
     
@@ -3212,63 +3165,6 @@ app.get('/api/debug/shops', async (req, res) => {
   }
 });
 
-// Session validation endpoint
-app.get('/api/admin/validate-session', async (req, res) => {
-  try {
-    const shop = req.query.shop;
-    if (!shop) {
-      return res.status(400).json({ error: 'Shop parameter required' });
-    }
-
-    // Check if we have a valid session
-    let session = res.locals.shopify?.session;
-    if (!session) {
-      // Try to find session in storage
-      const sessions = await sessionStorage.findSessionsByShop(shop);
-      if (sessions && sessions.length > 0) {
-        session = sessions.reduce((latest, current) => {
-          return new Date(current.expires) > new Date(latest.expires) ? current : latest;
-        });
-      }
-    }
-
-    if (!session || new Date(session.expires) < new Date()) {
-      // Session is invalid or expired
-      const authUrl = shopify.auth.begin({
-        shop: shop,
-        callbackPath: '/api/auth/callback',
-        isOnline: true
-      });
-      
-      return res.status(401).json({ 
-        needsAuth: true, 
-        authUrl: authUrl,
-        message: 'Session expired or invalid. Please re-authenticate.' 
-      });
-    }
-
-    // Test the session with a simple API call
-    const client = new Shopify.clients.Rest({ session });
-    const response = await client.get({
-      path: 'shop'
-    });
-
-    res.json({ 
-      valid: true, 
-      shop: response.body.shop,
-      session: {
-        shop: session.shop,
-        isOnline: session.isOnline,
-        scope: session.scope,
-        expires: session.expires
-      }
-    });
-  } catch (error) {
-    console.error('Error validating session:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // API endpoint to save email settings
 app.post('/api/admin/email-settings', async (req, res) => {
   try {
@@ -3284,14 +3180,7 @@ app.post('/api/admin/email-settings', async (req, res) => {
       console.log('Using shop from session:', shop);
     } else {
       // Fallback: try to get shop from URL params or headers
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'];
-      if (!shop) {
-        console.error('No shop found in session, query params, or headers');
-        return res.status(400).json({ 
-          error: 'Shop parameter required. Please ensure you are accessing this from within the Shopify admin.',
-          needsAuth: true
-        });
-      }
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
       console.log('Using fallback shop:', shop);
     }
     
