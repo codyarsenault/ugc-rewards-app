@@ -89,6 +89,12 @@ async function migrate() {
       );
     `);
 
+    // Add notification_email column to existing customizations table if it doesn't exist
+    console.log('Adding notification_email column to customizations table...');
+    await client.query(`
+      ALTER TABLE customizations ADD COLUMN IF NOT EXISTS notification_email TEXT;
+    `);
+
     console.log('Creating jobs table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS jobs (
