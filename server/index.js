@@ -93,6 +93,16 @@ const shopify = shopifyApp({
 
 const app = express();
 
+// Add this function to check if email setup is complete
+function isEmailSetupComplete(customizations) {
+  return customizations && 
+         customizations.email_from_name && 
+         customizations.notification_email &&
+         customizations.email_from_name.trim() !== '' &&
+         customizations.notification_email.trim() !== '';
+  // Note: reply_to is optional, so we don't require it
+}
+
 // Add this helper function after creating the app
 function getShopDomain(req, res) {
   // Check if we have shopify session data
@@ -184,6 +194,19 @@ app.get('/', async (req, res) => {
   // Get shop from query params or session
   const shop = req.query.shop || res.locals?.shopify?.session?.shop;
   const submitLink = shop ? `${process.env.HOST}/jobs/${encodeURIComponent(shop)}` : `${process.env.HOST}/jobs`;
+  
+  // Get customizations to check email setup
+  let customizations = {};
+  let emailSetupComplete = false;
+  
+  if (shop) {
+    try {
+      customizations = await CustomizationsModel.getByShop(shop) || {};
+      emailSetupComplete = isEmailSetupComplete(customizations);
+    } catch (error) {
+      console.error('Error loading customizations for email check:', error);
+    }
+  }
   
   res.send(`
     <!DOCTYPE html>
@@ -748,6 +771,83 @@ app.get('/', async (req, res) => {
       </head>
       <body>
         <div class="container">
+          <!-- Email Setup Banner (conditionally shown) -->
+          ${!emailSetupComplete ? `
+          <div id="emailSetupBanner" class="card" style="background: #fff5f5; border: 2px solid #d72c0d; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="flex: 1;">
+                <h2 style="color: #d72c0d; margin: 0 0 10px 0; display: flex; align-items: center;">
+                  <span style="font-size: 24px; margin-right: 10px;">⚠️</span>
+                  Email Configuration Required
+                </h2>
+                <p style="margin: 0 0 15px 0; color: #333;">
+                  Before you can start receiving UGC submissions, please configure your email settings. This ensures you receive notifications and your customers receive emails from your brand.
+                </p>
+                <div style="background: white; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                  <p style="margin: 0 0 10px 0; font-weight: 600;">Required settings:</p>
+                  <ul style="margin: 0; padding-left: 20px;">
+                    <li style="color: ${customizations.email_from_name ? '#008060' : '#d72c0d'};">
+                      ${customizations.email_from_name ? '✓' : '✗'} Brand Name (From Name)
+                    </li>
+                    <li style="color: ${customizations.notification_email ? '#008060' : '#d72c0d'};">
+                      ${customizations.notification_email ? '✓' : '✗'} Notification Email Address
+                    </li>
+                  </ul>
+                </div>
+                <button class="btn btn-primary" onclick="openQuickEmailSetup()">
+                  Configure Email Settings Now
+                </button>
+              </div>
+              <div style="padding: 0 20px;">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#d72c0d" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Email Setup Modal -->
+          <div id="quickEmailSetupModal" class="modal">
+            <div class="modal-content" style="max-width: 500px;">
+              <span class="close" onclick="closeQuickEmailSetup()">&times;</span>
+              <h2>Quick Email Setup</h2>
+              <p style="color: #666; margin-bottom: 20px;">Configure these essential settings to start receiving submissions.</p>
+              
+              <form id="quickEmailSetupForm">
+                <div class="form-group">
+                  <label for="quickEmailFromName">Your Brand Name <span style="color: #d72c0d;">*</span></label>
+                  <input type="text" id="quickEmailFromName" name="emailFromName" 
+                        placeholder="e.g., Baby Waves" required
+                        value="${customizations.email_from_name || ''}">
+                  <p class="help-text">This name will appear as the sender in customer emails</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="quickNotificationEmail">Notification Email Address <span style="color: #d72c0d;">*</span></label>
+                  <input type="email" id="quickNotificationEmail" name="notificationEmail" 
+                        placeholder="admin@yourbrand.com" required
+                        value="${customizations.notification_email || ''}">
+                  <p class="help-text">Where you'll receive new submission notifications</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="quickEmailReplyTo">Reply-To Email Address <span style="color: #666;">(Optional)</span></label>
+                  <input type="email" id="quickEmailReplyTo" name="emailReplyTo" 
+                        placeholder="support@yourbrand.com"
+                        value="${customizations.email_reply_to || ''}">
+                  <p class="help-text">Where customer replies will be sent. Leave empty for no-reply.</p>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                  <button type="button" class="btn btn-secondary" onclick="closeQuickEmailSetup()">Cancel</button>
+                  <button type="submit" class="btn btn-primary">Save & Continue</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          ` : ''}
+          
           <!-- Navigation Tabs -->
           <div class="tabs">
             <button class="tab active" onclick="switchTab('submissions')">All Submissions</button>
@@ -2438,6 +2538,15 @@ app.get('/', async (req, res) => {
             }
           }
 
+          // Quick Email Setup Functions
+          function openQuickEmailSetup() {
+            document.getElementById('quickEmailSetupModal').classList.add('open');
+          }
+
+          function closeQuickEmailSetup() {
+            document.getElementById('quickEmailSetupModal').classList.remove('open');
+          }
+
           // Color picker synchronization
           document.addEventListener('DOMContentLoaded', function() {
                       // Load customizations immediately when DOM is ready
@@ -2520,6 +2629,38 @@ app.get('/', async (req, res) => {
               } catch (error) {
                 console.error('Error saving settings:', error);
                 alert('Error saving settings');
+              }
+            });
+
+            // Quick Email Setup form submission
+            document.getElementById('quickEmailSetupForm')?.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              
+              const formData = new FormData(e.target);
+              const emailSettings = Object.fromEntries(formData);
+              
+              try {
+                const queryParams = window.location.search;
+                const response = await fetch('/api/admin/email-settings' + queryParams, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(emailSettings),
+                  credentials: 'include'
+                });
+                
+                if (response.ok) {
+                  // Close modal and reload page to hide the banner
+                  closeQuickEmailSetup();
+                  window.location.reload();
+                } else {
+                  const errorData = await response.json();
+                  alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
+                }
+              } catch (error) {
+                console.error('Error saving email settings:', error);
+                alert('Error saving email settings');
               }
             });
           });
@@ -3170,6 +3311,14 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     // Get customizations once for both notification and confirmation emails
     const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
     console.log('🎨 Loaded customizations:', customizations);
+
+    // Check if email setup is complete
+    if (!isEmailSetupComplete(customizations)) {
+      return res.status(503).json({
+        success: false,
+        message: 'This store is not yet configured to accept submissions. Please contact the store administrator.'
+      });
+    }
 
     // Get notification email address
     const notificationEmailTo = customizations.notification_email || process.env.EMAIL_TO;
