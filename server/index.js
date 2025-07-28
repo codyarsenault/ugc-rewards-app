@@ -212,7 +212,7 @@ app.get('/', async (req, res) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>UGC Rewards Admin</title>
+        <title>Honest UGC Admin</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
@@ -278,7 +278,7 @@ app.get('/', async (req, res) => {
             document.getElementById('emailBodyProduct').value = '';
             document.getElementById('emailFromName').value = '';
             document.getElementById('emailReplyTo').value = '';
-            document.getElementById('fromNamePreview').textContent = 'UGC Rewards';
+            document.getElementById('fromNamePreview').textContent = 'Honest UGC';
             document.getElementById('replyToPreview').textContent = 'no replies (emails will be no-reply)';
             document.getElementById('notificationEmail').value = '';
             
@@ -1127,7 +1127,7 @@ app.get('/', async (req, res) => {
                   <div style="background: #f0f8ff; padding: 15px; border-radius: 4px; margin-top: 15px;">
                     <p style="margin: 0; color: #333; font-size: 13px;">
                       <strong>📧 How it works:</strong><br>
-                      • Emails will be sent from: <strong><span id="fromNamePreview">UGC Rewards</span> &lt;noreply@ugcrewards.com&gt;</strong><br>
+                      • Emails will be sent from: <strong><span id="fromNamePreview">Honest UGC</span> &lt;no-reply@honestugc.com&gt;</strong><br>
                       • Customer replies will go to: <strong><span id="replyToPreview">your reply-to address</span></strong><br>
                       • This ensures reliable email delivery while showing your brand name
                     </p>
@@ -2572,7 +2572,7 @@ app.get('/', async (req, res) => {
 
             document.getElementById('emailFromName').addEventListener('input', function(e) {
               const preview = document.getElementById('fromNamePreview');
-              preview.textContent = e.target.value || 'UGC Rewards';
+              preview.textContent = e.target.value || 'Honest UGC';
             });
 
             document.getElementById('emailReplyTo').addEventListener('input', function(e) {
@@ -2688,7 +2688,7 @@ app.get('/customizations', async (req, res) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Customize UGC Pages - UGC Rewards</title>
+        <title>Customize UGC Pages - Honest UGC</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
@@ -3071,7 +3071,7 @@ app.get('/customizations', async (req, res) => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Error - UGC Rewards</title>
+          <title>Error - Honest UGC</title>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
         </head>
@@ -3095,7 +3095,7 @@ app.get('/api/admin/customizations', async (req, res) => {
       console.log('GET customizations - Using shop from session:', shop);
     } else {
       // Fallback: try to get shop from URL params or headers
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
       console.log('GET customizations - Using fallback shop:', shop);
     }
     
@@ -3121,7 +3121,7 @@ app.post('/api/admin/customizations', async (req, res) => {
       shop = res.locals.shopify.session.shop;
       console.log('POST customizations - Using shop from session:', shop);
     } else {
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
       console.log('POST customizations - Using fallback shop:', shop);
     }
     
@@ -3139,7 +3139,7 @@ app.post('/api/admin/customizations', async (req, res) => {
 app.get('/api/public/customizations', async (req, res) => {
   try {
     // You'll need to pass the shop domain somehow - either from the job or a query param
-    const shopDomain = req.query.shop || 'ugc-rewards-app.myshopify.com';
+    const shopDomain = req.query.shop || 'honest-ugc.myshopify.com';
     const customizations = await CustomizationsModel.getByShop(shopDomain) || {};
     res.json(customizations);
   } catch (error) {
@@ -3163,7 +3163,7 @@ app.post('/api/admin/email-settings', async (req, res) => {
       console.log('Using shop from session:', shop);
     } else {
       // Fallback: try to get shop from URL params or headers
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'ugc-rewards-app.myshopify.com';
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
       console.log('Using fallback shop:', shop);
     }
     
@@ -3324,7 +3324,7 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     const notificationEmailTo = customizations.notification_email || process.env.EMAIL_TO;
     console.log('Notification email will be sent to:', notificationEmailTo);
 
-    const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}` : `https://ugc-rewards-app.myshopify.com/admin/apps/${process.env.SHOPIFY_API_KEY}`;
+          const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}` : `https://honest-ugc.myshopify.com/admin/apps/${process.env.SHOPIFY_API_KEY}`;
 
     // Send notification email to admin
     await sendNotificationEmail({
@@ -3524,7 +3524,7 @@ app.post(
             // Send notification to admin
             await sendNotificationEmail({
               to: notificationEmailTo,  // Use the custom notification email
-              subject: 'Manual Gift Card Required - UGC Rewards',
+              subject: 'Manual Gift Card Required - Honest UGC',
               html: `
                 <h2>Gift Card Needs to be Created</h2>
                 <p>A gift card needs to be manually created for an approved UGC submission:</p>

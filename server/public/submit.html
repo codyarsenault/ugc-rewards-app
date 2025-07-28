@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Share Your Experience - UGC Rewards</title>
+  <title>Share Your Experience - Honest UGC</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -514,7 +514,7 @@
       try {
         // Get shop from URL or default
         const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        const shop = urlParams.get('shop') || 'honest-ugc.myshopify.com';
         
         const response = await fetch(`/api/public/customizations?shop=${shop}`);
         const customizations = await response.json();
@@ -666,7 +666,7 @@
       try {
         // Get shop from URL params (submit page still uses query params)
         const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop') || 'ugc-rewards-app.myshopify.com';
+        const shop = urlParams.get('shop') || 'honest-ugc.myshopify.com';
         
         const response = await fetch(`/api/public/jobs/${id}?shop=${encodeURIComponent(shop)}`);
         const data = await response.json();

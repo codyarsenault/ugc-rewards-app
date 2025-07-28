@@ -8,7 +8,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 // Helper function to get email configuration
 function getEmailConfig(customizations) {
   const fromEmail = process.env.EMAIL_FROM;
-  const fromName = customizations?.email_from_name || process.env.EMAIL_FROM_NAME || 'UGC Rewards';
+  const fromName = customizations?.email_from_name || process.env.EMAIL_FROM_NAME || 'Honest UGC';
   const replyTo = customizations?.email_reply_to || null; // null means no-reply
   
   return {
@@ -163,7 +163,7 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
         <p style="color: #666; margin-top: 20px;">Thank you for sharing your amazing content with us! We truly appreciate your contribution to our community.</p>
         
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from UGC Rewards.</p>
+        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from Honest UGC.</p>
       </div>
     `;
   } else if (status === 'rejected') {
@@ -174,7 +174,7 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from UGC Rewards.</p>
+        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from Honest UGC.</p>
       </div>
     ` : `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -183,7 +183,7 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
         <p>We encourage you to review our guidelines and submit again. We'd love to see more content from you!</p>
         
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from UGC Rewards.</p>
+        <p style="color: #999; font-size: 12px; text-align: center;">This is an automated message from Honest UGC.</p>
       </div>
     `;
   } else {
