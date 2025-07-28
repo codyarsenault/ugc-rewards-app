@@ -3448,12 +3448,9 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
         }
       }
 
-      // 2️⃣ Mark it approved
-      await SubmissionsModel.updateStatus(submissionId, 'approved');
-      console.log(`Approved submission ${submissionId}`);
-
       // Declare job variable here so it's accessible throughout the function
       let job = null;
+      let approvalSuccessful = true; // Track if approval should proceed
 
       // 3️⃣ If tied to a job, update spots + potentially fire reward
       if (submission.job_id) {
@@ -3489,6 +3486,7 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
               // Session is expired or doesn't exist
               console.error(`No valid Shopify session for ${job.shop_domain}`);
               console.log('Skipping automatic reward creation due to missing session');
+              approvalSuccessful = false; // Don't approve if reward creation fails
               
               // Create a pending reward record for manual fulfillment
               await RewardsModel.create({
@@ -3539,7 +3537,7 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
             }
           } catch (err) {
             console.error('Error creating/sending reward:', err);
-            // swallow—approval should not fail
+            approvalSuccessful = false; // Don't approve if reward creation fails
           }
         }
 
@@ -3639,6 +3637,7 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
               // Session is expired or doesn't exist
               console.error(`No valid Shopify session for ${job.shop_domain}`);
               console.log('Skipping free product reward creation due to missing session');
+              approvalSuccessful = false; // Don't approve if reward creation fails
               
               // Create a pending reward record for manual fulfillment
               await RewardsModel.create({
@@ -3703,6 +3702,7 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
           } catch (error) {
             console.error('Error creating free product reward:', error);
             console.error('Error stack:', error.stack);
+            approvalSuccessful = false; // Don't approve if reward creation fails
             
             // Create a fallback test code if Shopify API fails
             console.log('🔄 Creating fallback test code due to Shopify API error');
@@ -3741,6 +3741,16 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
         const customizations = shopDomain ? await CustomizationsModel.getByShop(shopDomain) : {};
         
         // Approval email removed - discount codes are sent via separate reward emails
+      }
+
+      // 2️⃣ Mark it approved ONLY if everything succeeded
+      if (approvalSuccessful) {
+        await SubmissionsModel.updateStatus(submissionId, 'approved');
+        console.log(`Approved submission ${submissionId}`);
+      } else {
+        console.log(`Submission ${submissionId} approval failed - reward creation unsuccessful`);
+        res.json({ success: false, message: 'Approval failed - reward creation unsuccessful. Please try again or contact support.' });
+        return;
       }
 
       res.json({ success: true, message: 'Submission approved' });
