@@ -1922,11 +1922,11 @@ app.get('/', async (req, res) => {
             if (currentSubmissionFilter === 'all') {
               filteredSubmissions = allSubmissions;
             } else if (currentSubmissionFilter === 'pending') {
-              // Show pending submissions OR approved gift card submissions that need manual fulfillment
+              // Show pending submissions OR approved submissions that need manual fulfillment
               filteredSubmissions = allSubmissions.filter(s => 
                 s.status === 'pending' || 
                 (s.status === 'approved' && 
-                 s.reward_type === 'giftcard' && 
+                 (s.reward_type === 'giftcard' || s.reward_type === 'product') && 
                  s.reward_fulfilled !== true)
               );
             } else if (currentSubmissionFilter === 'approved') {
@@ -3488,9 +3488,21 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
             if (!session || new Date(session.expires) < new Date()) {
               // Session is expired or doesn't exist
               console.error(`No valid Shopify session for ${job.shop_domain}`);
-              // Instead of throwing error, skip the reward creation
               console.log('Skipping automatic reward creation due to missing session');
-              // You could send a notification to admin to manually create the reward
+              
+              // Create a pending reward record for manual fulfillment
+              await RewardsModel.create({
+                submissionId: submission.id,
+                jobId: job.id,
+                type: job.reward_type,
+                code: null, // Will be filled manually
+                value: job.reward_value,
+                status: 'pending_fulfillment',
+                expiresAt: null,
+                sentAt: null
+              });
+              console.log('Created pending reward record for manual fulfillment');
+              
             } else {
               // Proceed with discount creation
               const client = new Shopify.clients.Graphql({ session });
@@ -3627,7 +3639,20 @@ app.post('/api/admin/submissions/:id/approve', shopify.ensureInstalledOnShop(), 
               // Session is expired or doesn't exist
               console.error(`No valid Shopify session for ${job.shop_domain}`);
               console.log('Skipping free product reward creation due to missing session');
-              // Skip the reward creation instead of throwing error
+              
+              // Create a pending reward record for manual fulfillment
+              await RewardsModel.create({
+                submissionId: submission.id,
+                jobId: job.id,
+                type: 'product',
+                code: null, // Will be filled manually
+                value: 0, // Product rewards don't have a value
+                status: 'pending_fulfillment',
+                expiresAt: null,
+                sentAt: null
+              });
+              console.log('Created pending reward record for manual fulfillment');
+              
             } else {
               console.log('Creating GraphQL client with session');
               // Create the discount code
