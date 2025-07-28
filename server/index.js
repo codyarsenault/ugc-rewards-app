@@ -3095,7 +3095,7 @@ app.get('/api/admin/customizations', async (req, res) => {
       console.log('GET customizations - Using shop from session:', shop);
     } else {
       // Fallback: try to get shop from URL params or headers
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'];
       console.log('GET customizations - Using fallback shop:', shop);
     }
     
@@ -3121,7 +3121,7 @@ app.post('/api/admin/customizations', async (req, res) => {
       shop = res.locals.shopify.session.shop;
       console.log('POST customizations - Using shop from session:', shop);
     } else {
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'];
       console.log('POST customizations - Using fallback shop:', shop);
     }
     
@@ -3139,7 +3139,7 @@ app.post('/api/admin/customizations', async (req, res) => {
 app.get('/api/public/customizations', async (req, res) => {
   try {
     // You'll need to pass the shop domain somehow - either from the job or a query param
-    const shopDomain = req.query.shop || 'honest-ugc.myshopify.com';
+    const shopDomain = req.query.shop;
     const customizations = await CustomizationsModel.getByShop(shopDomain) || {};
     res.json(customizations);
   } catch (error) {
@@ -3180,7 +3180,7 @@ app.post('/api/admin/email-settings', async (req, res) => {
       console.log('Using shop from session:', shop);
     } else {
       // Fallback: try to get shop from URL params or headers
-      shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'honest-ugc.myshopify.com';
+      shop = req.query.shop || req.headers['x-shopify-shop-domain'];
       console.log('Using fallback shop:', shop);
     }
     
@@ -3348,7 +3348,7 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     }
     console.log('Notification email will be sent to:', notificationEmailTo);
 
-          const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}` : `https://honest-ugc.myshopify.com/admin/apps/${process.env.SHOPIFY_API_KEY}`;
+          const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}` : null;
 
     // Send notification email to admin
     await sendNotificationEmail({

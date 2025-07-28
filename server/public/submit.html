@@ -514,7 +514,7 @@
       try {
         // Get shop from URL or default
         const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop') || 'honest-ugc.myshopify.com';
+        const shop = urlParams.get('shop');
         
         const response = await fetch(`/api/public/customizations?shop=${shop}`);
         const customizations = await response.json();
@@ -666,7 +666,7 @@
       try {
         // Get shop from URL params (submit page still uses query params)
         const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop') || 'honest-ugc.myshopify.com';
+        const shop = urlParams.get('shop');
         
         const response = await fetch(`/api/public/jobs/${id}?shop=${encodeURIComponent(shop)}`);
         const data = await response.json();

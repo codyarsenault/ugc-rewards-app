@@ -687,7 +687,7 @@
     async function loadCustomizations() {
       try {
         // Get shop from URL path or fallback to query params for backward compatibility
-        let shop = 'honest-ugc.myshopify.com'; // default fallback
+        let shop = null; // no default fallback
         
         // First try to get shop from URL path
         const pathParts = window.location.pathname.split('/');
@@ -696,7 +696,7 @@
         } else {
           // Fallback to query params for backward compatibility
           const urlParams = new URLSearchParams(window.location.search);
-          shop = urlParams.get('shop') || shop;
+          shop = urlParams.get('shop');
         }
         
         const response = await fetch(`/api/public/customizations?shop=${shop}`);
@@ -873,7 +873,7 @@
     async function loadJobs() {
       try {
         // Get shop from URL path or fallback to query params for backward compatibility
-        let shop = 'honest-ugc.myshopify.com'; // default fallback
+        let shop = null; // no default fallback
         
         // First try to get shop from URL path
         const pathParts = window.location.pathname.split('/');
@@ -882,7 +882,7 @@
         } else {
           // Fallback to query params for backward compatibility
           const urlParams = new URLSearchParams(window.location.search);
-          shop = urlParams.get('shop') || shop;
+          shop = urlParams.get('shop');
         }
         
         const response = await fetch(`/api/public/jobs?shop=${encodeURIComponent(shop)}`);
@@ -1017,7 +1017,7 @@
     async function openJobModal(jobId) {
       try {
         // Get shop from URL path or fallback to query params for backward compatibility
-        let shop = 'honest-ugc.myshopify.com'; // default fallback
+        let shop = null; // no default fallback
         
         // First try to get shop from URL path
         const pathParts = window.location.pathname.split('/');
@@ -1026,7 +1026,7 @@
         } else {
           // Fallback to query params for backward compatibility
           const urlParams = new URLSearchParams(window.location.search);
-          shop = urlParams.get('shop') || shop;
+          shop = urlParams.get('shop');
         }
         
         const response = await fetch(`/api/public/jobs/${jobId}?shop=${encodeURIComponent(shop)}`);
