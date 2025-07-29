@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Honest UGC Admin</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+    <script>
+      // Session handling functions
+      async function checkSessionAndHandleAuth() {
+        const shop = new URLSearchParams(window.location.search).get('shop');
+        
+        if (!shop) {
+          console.error('No shop parameter found');
+          return false;
+        }
+
+        try {
+          const response = await fetch(`/api/health/${shop}`);
+          const data = await response.json();
+          
+          if (data.needsAuth) {
+            console.log('Session invalid, redirecting to auth...');
+            window.location.href = data.authUrl;
+            return false;
+          }
+          
+          return true;
+        } catch (error) {
+          console.error('Session check failed:', error);
+          return false;
+        }
+      }
+
+      async function makeAuthenticatedRequest(url, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+          credentials: 'include'
+        });
+        
+        if (response.status === 401) {
+          const data = await response.json();
+          if (data.needsAuth && data.authUrl) {
+            window.location.href = data.authUrl;
+            return null;
+          }
+        }
+        
+        return response;
+      }
+
+      // Define global functions immediately in head section
+      console.log('Setting up global functions in head...');
+      
+      function saveEmailSettings() {
+        console.log('saveEmailSettings function called');
+        
+        const form = document.getElementById('emailSettingsForm');
+        const formData = new FormData(form);
+        const emailSettings = Object.fromEntries(formData);
+        
+        console.log('Saving email settings:', emailSettings);
+        console.log('Current URL params:', window.location.search);
+        
+        makeAuthenticatedRequest('/api/admin/email-settings' + window.location.search, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(emailSettings)
+        })
+        .then(response => {
+          if (!response) return; // Redirecting to auth
+          
+          console.log('Response status:', response.status);
+          
+          if (response.ok) {
+            console.log('Email settings saved successfully!');
+            document.getElementById('emailSettingsSuccessMessage').style.display = 'block';
+            setTimeout(() => {
+              document.getElementById('emailSettingsSuccessMessage').style.display = 'none';
+            }, 3000);
+          } else {
+            return response.json().then(errorData => {
+              console.error('Server error:', errorData);
+              alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error saving email settings:', error);
+          alert('Error saving email settings');
+        });
+      }
+      
+      function resetEmailSettingsToDefaults() {
+        console.log('Resetting email settings to defaults');
+        
+        document.getElementById('emailSubjectConfirmation').value = '';
+        document.getElementById('emailBodyConfirmation').value = '';
+        document.getElementById('emailSubjectRejected').value = '';
+        document.getElementById('emailBodyRejected').value = '';
+        document.getElementById('emailSubjectReward').value = '';
+        document.getElementById('emailBodyReward').value = '';
+        document.getElementById('emailSubjectGiftcard').value = '';
+        document.getElementById('emailBodyGiftcard').value = '';
+        document.getElementById('emailSubjectProduct').value = '';
+        document.getElementById('emailBodyProduct').value = '';
+        document.getElementById('emailFromName').value = '';
+        document.getElementById('emailReplyTo').value = '';
+        document.getElementById('fromNamePreview').textContent = 'Honest UGC';
+        document.getElementById('replyToPreview').textContent = 'no replies (emails will be no-reply)';
+        document.getElementById('notificationEmail').value = '';
+        
+        console.log('Email settings reset to defaults');
+      }
+      
+      console.log('Global functions defined successfully in head');
+    </script>
+    <link rel="stylesheet" href="/public/admin-styles.css">
+  </head>
+  <body>
+    <div class="container">
+      <!-- Email Setup Banner (conditionally shown) -->
+      <% if (!emailSetupComplete) { %>
+      <div id="emailSetupBanner" class="card" style="background: #fff5f5; border: 2px solid #d72c0d; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="flex: 1;">
+            <h2 style="color: #d72c0d; margin: 0 0 10px 0; display: flex; align-items: center;">
+              <span style="font-size: 24px; margin-right: 10px;">⚠️</span>
+              Email Configuration Required
+            </h2>
+            <p style="margin: 0 0 15px 0; color: #333;">
+              Before you can start receiving UGC submissions, please configure your email settings. This ensures you receive notifications and your customers receive emails from your brand.
+            </p>
+            <div style="background: white; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+              <p style="margin: 0 0 10px 0; font-weight: 600;">Required settings:</p>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li class="<%= customizations.email_from_name ? 'status-complete' : 'status-incomplete' %>">
+                  <%= customizations.email_from_name ? '✓' : '✗' %> Brand Name (From Name)
+                </li>
+                <li class="<%= customizations.notification_email ? 'status-complete' : 'status-incomplete' %>">
+                  <%= customizations.notification_email ? '✓' : '✗' %> Notification Email Address
+                </li>
+              </ul>
+            </div>
+            <button class="btn btn-primary" onclick="openQuickEmailSetup()">
+              Configure Email Settings Now
+            </button>
+          </div>
+          <div style="padding: 0 20px;">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#d72c0d" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Email Setup Modal -->
+      <div id="quickEmailSetupModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+          <span class="close" onclick="closeQuickEmailSetup()">&times;</span>
+          <h2>Quick Email Setup</h2>
+          <p style="color: #666; margin-bottom: 20px;">Configure these essential settings to start receiving submissions.</p>
+          
+          <form id="quickEmailSetupForm">
+            <div class="form-group">
+              <label for="quickEmailFromName">Your Brand Name <span style="color: #d72c0d;">*</span></label>
+              <input type="text" id="quickEmailFromName" name="emailFromName" 
+                    placeholder="e.g., Baby Waves" required
+                    value="<%= customizations.email_from_name || '' %>">
+              <p class="help-text">This name will appear as the sender in customer emails</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="quickNotificationEmail">Notification Email Address <span style="color: #d72c0d;">*</span></label>
+              <input type="email" id="quickNotificationEmail" name="notificationEmail" 
+                    placeholder="admin@yourbrand.com" required
+                    value="<%= customizations.notification_email || '' %>">
+              <p class="help-text">Where you'll receive new submission notifications</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="quickEmailReplyTo">Reply-To Email Address <span style="color: #666;">(Optional)</span></label>
+              <input type="email" id="quickEmailReplyTo" name="emailReplyTo" 
+                    placeholder="support@yourbrand.com"
+                    value="<%= customizations.email_reply_to || '' %>">
+              <p class="help-text">Where customer replies will be sent. Leave empty for no-reply.</p>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+              <button type="button" class="btn btn-secondary" onclick="closeQuickEmailSetup()">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save & Continue</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <% } %>
+      
+      <!-- Navigation Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('submissions')">All Submissions</button>
+        <button class="tab" onclick="switchTab('jobs')">Jobs</button>
+        <button class="tab" onclick="switchTab('customizations')">Customizations</button>
+        <button class="tab" onclick="switchTab('email-settings')">Email Settings</button>
+      </div>
+
+      <!-- Submissions Tab -->
+      <div id="submissions-tab" class="tab-content active">
+        <div class="card">
+          <h1>UGC Jobs Submission Dashboard</h1>
+          <div class="submission-form-link">
+            Link to UGC Jobs:
+            <a href="<%= submitLink %>" target="_blank"><%= submitLink %></a>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-value" id="totalCount">0</div>
+              <div class="stat-label">Total Submissions</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="pendingCount">0</div>
+              <div class="stat-label">Pending Review</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="approvedCount">0</div>
+              <div class="stat-label">Approved</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h1>Recent Submissions</h1>
+          <div style="margin-bottom: 20px;">
+            <div class="filter-group" style="display: flex; gap: 10px;">
+              <button class="btn btn-sm filter-btn active" onclick="filterSubmissions('pending')">Pending Review</button>
+              <button class="btn btn-sm filter-btn" onclick="filterSubmissions('approved')">Approved</button>
+              <button class="btn btn-sm filter-btn" onclick="filterSubmissions('rejected')">Rejected</button>
+              <button class="btn btn-sm filter-btn" onclick="filterSubmissions('all')">All</button>
+            </div>
+          </div>
+          <div id="submissionsTable">
+            <div class="empty-state">
+              <p>Loading submissions...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jobs Tab -->
+      <div id="jobs-tab" class="tab-content">
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>UGC Jobs</h1>
+            <button class="btn btn-primary" onclick="openJobModal()">Create New Job</button>
+          </div>
+          
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-value" id="totalJobs">0</div>
+              <div class="stat-label">Total Jobs</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="activeJobs">0</div>
+              <div class="stat-label">Active Jobs</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="completedJobs">0</div>
+              <div class="stat-label">Completed</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Your Jobs</h2>
+          <div id="jobsList">
+            <div class="empty-state">
+              <p>Loading jobs...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customizations Tab -->
+      <div id="customizations-tab" class="tab-content">
+        <div class="card">
+          <h1>Customize Your UGC Pages</h1>
+          
+          <form id="customizationForm">
+            <h2>Colors</h2>
+            <div class="form-group">
+              <label for="primaryColor">Primary Color</label>
+              <div class="color-input-wrapper">
+                <input type="color" id="primaryColorPicker" value="#d4b896">
+                <input type="text" id="primaryColor" name="primaryColor" value="#d4b896" pattern="^#[0-9A-Fa-f]{6}$">
+              </div>
+              <p class="help-text">Used for buttons, links, and main accents</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="secondaryColor">Background Color</label>
+              <div class="color-input-wrapper">
+                <input type="color" id="secondaryColorPicker" value="#f8f6f3">
+                <input type="text" id="secondaryColor" name="secondaryColor" value="#f8f6f3" pattern="^#[0-9A-Fa-f]{6}$">
+              </div>
+              <p class="help-text">Background color for sections</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="textColor">Text Color</label>
+              <div class="color-input-wrapper">
+                <input type="color" id="textColorPicker" value="#3a3a3a">
+                <input type="text" id="textColor" name="textColor" value="#3a3a3a" pattern="^#[0-9A-Fa-f]{6}$">
+              </div>
+              <p class="help-text">Main text color</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="accentColor">Accent Color</label>
+              <div class="color-input-wrapper">
+                <input type="color" id="accentColorPicker" value="#c9a961">
+                <input type="text" id="accentColor" name="accentColor" value="#c9a961" pattern="^#[0-9A-Fa-f]{6}$">
+              </div>
+              <p class="help-text">Secondary accent color</p>
+            </div>
+            
+            <h2>Images</h2>
+            <div class="form-group">
+              <label for="heroImageUrl">Hero Image URL</label>
+              <input type="url" id="heroImageUrl" name="heroImageUrl" placeholder="https://example.com/image.jpg">
+              <p class="help-text">Background image for the jobs page header (recommended: 1200x600px)</p>
+              <div id="heroImagePreview" class="image-preview" style="display: none;"></div>
+            </div>
+            
+            <div class="form-group">
+              <label for="logoUrl">Logo URL</label>
+              <input type="url" id="logoUrl" name="logoUrl" placeholder="https://example.com/logo.png">
+              <p class="help-text">Your brand logo (recommended: 200x60px)</p>
+              <div id="logoPreview" class="image-preview" style="display: none;"></div>
+            </div>
+            
+            <div class="form-group">
+              <label for="logoSize">Logo Size</label>
+              <select id="logoSize" name="logoSize">
+                <option value="small">Small (120x40px)</option>
+                <option value="medium">Medium (200x60px)</option>
+                <option value="large">Large (300x90px)</option>
+              </select>
+              <p class="help-text">Choose the size of your logo on the public pages</p>
+            </div>
+            
+            <h2>Typography</h2>
+            <div class="form-group">
+              <label for="headingFont">Heading Font</label>
+              <select id="headingFont" name="headingFont">
+                <option value="Montserrat">Montserrat</option>
+                <option value="Inter">Inter</option>
+                <option value="Playfair Display">Playfair Display</option>
+                <option value="Roboto">Roboto</option>
+                <option value="Open Sans">Open Sans</option>
+                <option value="Lato">Lato</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="bodyFont">Body Font</label>
+              <select id="bodyFont" name="bodyFont">
+                <option value="Inter">Inter</option>
+                <option value="Montserrat">Montserrat</option>
+                <option value="Roboto">Roboto</option>
+                <option value="Open Sans">Open Sans</option>
+                <option value="Lato">Lato</option>
+              </select>
+            </div>
+            
+            <h2>Page Headings</h2>
+            <div class="form-group">
+              <label for="jobsHeading">Jobs Page Heading</label>
+              <input type="text" id="jobsHeading" name="jobsHeading" placeholder="Create Content, Get Rewarded ✨" maxlength="100">
+              <p class="help-text">Main heading for the jobs listing page</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="jobsSubheading">Jobs Page Subheading</label>
+              <input type="text" id="jobsSubheading" name="jobsSubheading" placeholder="Share your authentic experiences with brands you love" maxlength="200">
+              <p class="help-text">Subheading for the jobs listing page</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="submitHeading">Submit Page Heading</label>
+              <input type="text" id="submitHeading" name="submitHeading" placeholder="Share Your Experience ✨" maxlength="100">
+              <p class="help-text">Main heading for the content submission page</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="submitSubheading">Submit Page Subheading</label>
+              <input type="text" id="submitSubheading" name="submitSubheading" placeholder="Get rewarded for your authentic content" maxlength="200">
+              <p class="help-text">Subheading for the content submission page</p>
+            </div>
+            
+            <h2>Example Videos</h2>
+            <div class="form-group">
+              <div class="checkbox-group">
+                <input type="checkbox" id="showExampleVideos" name="showExampleVideos" checked>
+                <label for="showExampleVideos">Show example videos section on jobs page</label>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="exampleVideo1">Example Video 1 URL</label>
+              <input type="url" id="exampleVideo1" name="exampleVideo1" placeholder="https://example.com/video1.mp4">
+              <p class="help-text">First example video (MP4, MOV, or video hosting URL)</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="exampleVideo2">Example Video 2 URL</label>
+              <input type="url" id="exampleVideo2" name="exampleVideo2" placeholder="https://example.com/video2.mp4">
+              <p class="help-text">Second example video (optional)</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="exampleVideo3">Example Video 3 URL</label>
+              <input type="url" id="exampleVideo3" name="exampleVideo3" placeholder="https://example.com/video3.mp4">
+              <p class="help-text">Third example video (optional)</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="exampleVideo4">Example Video 4 URL</label>
+              <input type="url" id="exampleVideo4" name="exampleVideo4" placeholder="https://example.com/video4.mp4">
+              <p class="help-text">Fourth example video (optional)</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="customCss">Custom CSS (Advanced)</label>
+              <textarea id="customCss" name="customCss" placeholder="/* Add custom CSS here */"></textarea>
+              <p class="help-text">Add custom CSS to further customize your pages. Be careful with this option.</p>
+            </div>
+            
+            <div style="margin-top: 30px;">
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+              <button type="button" class="btn btn-secondary" onclick="resetCustomizationsToDefaults()">Reset to Defaults</button>
+            </div>
+            
+            <div id="customizationSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
+              Settings saved successfully!
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Email Settings Tab -->
+      <div id="email-settings-tab" class="tab-content">
+        <div class="card">
+          <h1>Email Content Customization</h1>
+          <p style="color: #666; margin-bottom: 30px;">Customize the email content sent to your customers at different stages of the UGC process.</p>
+          
+          <form id="emailSettingsForm">
+            <!-- Email Sender Configuration -->
+            <div class="email-section" style="background: #fff; border: 2px solid #008060;">
+              <h3>⚙️ Email Sender Settings</h3>
+              <div class="form-group">
+                <label for="emailFromName">From Name</label>
+                <input type="text" id="emailFromName" name="emailFromName" 
+                       placeholder="Your Brand Name" maxlength="100">
+                <small style="color: #666;">The name that will appear as the sender (e.g., "Your Brand Name")</small>
+              </div>
+              <div class="form-group">
+                <label for="emailReplyTo">Reply-To Email Address</label>
+                <input type="email" id="emailReplyTo" name="emailReplyTo" 
+                       placeholder="support@yourbrand.com" maxlength="255">
+                <small style="color: #666;">Where customer replies will be sent. Leave empty to disable replies.</small>
+              </div>
+              <div style="background: #f0f8ff; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                <p style="margin: 0; color: #333; font-size: 13px;">
+                  <strong>📧 How it works:</strong><br>
+                  • Emails will be sent from: <strong><span id="fromNamePreview">Honest UGC</span> &lt;no-reply@honestugc.com&gt;</strong><br>
+                  • Customer replies will go to: <strong><span id="replyToPreview">your reply-to address</span></strong><br>
+                  • This ensures reliable email delivery while showing your brand name
+                </p>
+              </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="email-section" style="background: #fff; border: 2px solid #d72c0d;">
+              <h3>🔔 Admin Notification Settings</h3>
+              <div class="form-group">
+                <label for="notificationEmail">Notification Email Address</label>
+                <input type="email" id="notificationEmail" name="notificationEmail" 
+                      placeholder="admin@yourbrand.com" maxlength="255">
+                <small style="color: #666;">Where admin notifications will be sent when new submissions are received. Leave empty to use the default.</small>
+              </div>
+              <div style="background: #fff5f5; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                <p style="margin: 0; color: #333; font-size: 13px;">
+                  <strong>📨 What notifications you'll receive:</strong><br>
+                  • New UGC submission alerts<br>
+                  • Gift card fulfillment reminders<br>
+                  • Job completion notifications<br>
+                  • System alerts and errors
+                </p>
+              </div>
+            </div>
+
+            <!-- Confirmation Email -->
+            <div class="email-section">
+              <h3>📧 Confirmation Email (Sent when customer submits content)</h3>
+              <div class="form-group">
+                <label for="emailSubjectConfirmation">Email Subject</label>
+                <input type="text" id="emailSubjectConfirmation" name="emailSubjectConfirmation" 
+                       placeholder="Thank you for your submission!" maxlength="255">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyConfirmation">Email Body</label>
+                <textarea id="emailBodyConfirmation" name="emailBodyConfirmation" rows="4"
+                          placeholder="Thank you for sharing your experience! Your submission has been received and is pending review."></textarea>
+                <small style="color: #666;">This email is sent immediately after a customer submits their content.</small>
+              </div>
+            </div>
+
+            <!-- Rejection Email -->
+            <div class="email-section">
+              <h3>❌ Rejection Email (Sent when content is rejected)</h3>
+              <div class="form-group">
+                <label for="emailSubjectRejected">Email Subject</label>
+                <input type="text" id="emailSubjectRejected" name="emailSubjectRejected" 
+                       placeholder="Update on your submission" maxlength="255">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyRejected">Email Body</label>
+                <textarea id="emailBodyRejected" name="emailBodyRejected" rows="4"
+                          placeholder="Thank you for your submission. Unfortunately, your submission was not approved at this time. We encourage you to try again!"></textarea>
+                <small style="color: #666;">This email is sent when you reject a customer's content.</small>
+              </div>
+            </div>
+
+            <!-- Reward Email -->
+            <div class="email-section">
+              <h3>🎁 Reward Email (Sent with discount codes)</h3>
+              <div class="form-group">
+                <label for="emailSubjectReward">Email Subject</label>
+                <input type="text" id="emailSubjectReward" name="emailSubjectReward" 
+                       placeholder="🎉 Your UGC Reward is Here!" maxlength="255">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyReward">Email Body</label>
+                <textarea id="emailBodyReward" name="emailBodyReward" rows="4"
+                          placeholder="Thank you for sharing your amazing content with us. As promised, here is your reward code:"></textarea>
+                <small style="color: #666;">This email is sent when a discount code is automatically generated and sent to the customer.</small>
+              </div>
+            </div>
+
+            <!-- Gift Card Email -->
+            <div class="email-section">
+              <h3>💳 Gift Card Email (Sent with gift card codes)</h3>
+              <div class="form-group">
+                <label for="emailSubjectGiftcard">Email Subject</label>
+                <input type="text" id="emailSubjectGiftcard" name="emailSubjectGiftcard" 
+                       placeholder="🎁 Your Gift Card is Here!" maxlength="255">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyGiftcard">Email Body</label>
+                <textarea id="emailBodyGiftcard" name="emailBodyGiftcard" rows="4"
+                          placeholder="Thank you for your amazing UGC submission! Here is your gift card:"></textarea>
+                <small style="color: #666;">This email is sent when a gift card code is provided to the customer.</small>
+              </div>
+            </div>
+
+            <!-- Free Product Email -->
+            <div class="email-section">
+              <h3>📦 Free Product Email (Sent with free product codes)</h3>
+              <div class="form-group">
+                <label for="emailSubjectProduct">Email Subject</label>
+                <input type="text" id="emailSubjectProduct" name="emailSubjectProduct" 
+                      placeholder="🎁 Your Free Product Code is Here!" maxlength="255">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyProduct">Email Body</label>
+                <textarea id="emailBodyProduct" name="emailBodyProduct" rows="4"
+                          placeholder="Thank you for your amazing UGC submission! Here's your code for a free product:"></textarea>
+                <small style="color: #666;">This email is sent when a free product discount code is generated for the customer.</small>
+              </div>
+            </div>
+
+            <div style="margin-top: 30px;">
+              <button type="button" class="btn btn-primary" onclick="saveEmailSettings()">Save Email Settings</button>
+              <button type="button" class="btn btn-secondary" onclick="resetEmailSettingsToDefaults()">Reset to Defaults</button>
+            </div>
+            
+            <div id="emailSettingsSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
+              Email settings saved successfully!
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Job Creation/Edit Modal -->
+    <div id="jobModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeJobModal()">&times;</span>
+        <h2 id="modalTitle">Create New UGC Job</h2>
+        
+        <form id="jobForm">
+          <input type="hidden" id="jobId" name="jobId">
+          
+          <div class="form-group">
+            <label for="jobTitle">Job Title*</label>
+            <input type="text" id="jobTitle" name="title" required 
+                   placeholder="e.g., 15-second video wearing our shoes at the park">
+          </div>
+
+          <div class="form-group">
+            <label for="jobDescription">Description*</label>
+            <textarea id="jobDescription" name="description" required
+                      placeholder="Describe what you're looking for in detail..."></textarea>
+          </div>
+
+          <div class="form-group">
+             <label>Specific Requirements</label>
+             <ul id="requirementsList" class="requirements-list">
+               <li class="requirement-item">
+                 <input type="text" class="requirement-input" placeholder="e.g., Must show product in use">
+                 <button type="button" class="btn-remove" onclick="removeRequirement(this)">Remove</button>
+               </li>
+             </ul>
+             <button type="button" class="btn-add" onclick="addRequirement()">+ Add Requirement</button>
+           </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="jobType">Content Type*</label>
+              <select id="jobType" name="type" required>
+                <option value="video">Video</option>
+                <option value="photo">Photo</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="spotsAvailable">Number of Spots*</label>
+              <input type="number" id="spotsAvailable" name="spotsAvailable" 
+                     min="1" value="5" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="rewardType">Reward Type*</label>
+              <select id="rewardType" name="rewardType" onchange="updateRewardFields()">
+                <option value="percentage">Percentage Discount</option>
+                <option value="fixed">Fixed Amount Off</option>
+                <option value="product">Free Product</option>
+                <option value="giftcard">Gift Card</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="rewardValueGroup">
+              <label for="rewardValue">Discount Percentage*</label>
+              <input type="number" id="rewardValue" name="rewardValue" 
+                     min="1" value="20" required>
+            </div>
+
+            <div class="form-group" id="rewardProductGroup" style="display:none;">
+              <label for="rewardProduct">Product*</label>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="rewardProduct" name="rewardProduct" 
+                      placeholder="Select a product" readonly style="flex: 1;">
+                <input type="hidden" id="rewardProductId" name="rewardProductId">
+                <input type="hidden" id="rewardProductHandle" name="rewardProductHandle">
+                <button type="button" class="btn btn-secondary" onclick="openProductPicker()">Browse Products</button>
+              </div>
+              <div id="selectedProductInfo" style="margin-top: 10px; display: none;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <img id="productImage" src="" alt="" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                  <div>
+                    <div id="productTitle" style="font-weight: 500;"></div>
+                    <div id="productPrice" style="font-size: 13px; color: #616161;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" id="rewardGiftCardGroup" style="display:none;">
+              <label for="rewardGiftCardAmount">Gift Card Amount*</label>
+              <input type="number" id="rewardGiftCardAmount" name="rewardGiftCardAmount" min="1" placeholder="Amount in $">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="deadline">Deadline*</label>
+            <input type="date" id="deadline" name="deadline">
+          </div>
+
+          <div class="form-group">
+            <label for="exampleContent">Example Content URLs (Optional)</label>
+            <textarea id="exampleContent" name="exampleContent"
+                      placeholder="Links to examples or inspiration..."></textarea>
+          </div>
+
+          <div class="form-group" id="statusGroup" style="display:none;">
+            <label for="status">Status*</label>
+            <select id="status" name="status">
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" onclick="closeJobModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="submitJobBtn">Create Job</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Job View Modal -->
+    <div id="jobViewModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeJobViewModal()">&times;</span>
+        <h2 id="viewModalTitle">Job Details</h2>
+        
+        <div style="margin-top: 20px;">
+          <div class="form-group">
+            <label style="font-weight: 600; color: #202223;">Title</label>
+            <p id="viewJobTitle" style="margin: 5px 0; color: #616161;"></p>
+          </div>
+          
+          <div class="form-group">
+            <label style="font-weight: 600; color: #202223;">Description</label>
+            <p id="viewJobDescription" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+          </div>
+          
+          <div class="form-group">
+            <label style="font-weight: 600; color: #202223;">Requirements</label>
+            <p id="viewJobRequirements" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+              <label style="font-weight: 600; color: #202223;">Content Type</label>
+              <p id="viewJobType" style="margin: 5px 0; color: #616161;"></p>
+            </div>
+            
+            <div class="form-group">
+              <label style="font-weight: 600; color: #202223;">Status</label>
+              <p><span id="viewJobStatus" class="job-status"></span></p>
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+              <label style="font-weight: 600; color: #202223;">Spots</label>
+              <p id="viewJobSpots" style="margin: 5px 0; color: #616161;"></p>
+            </div>
+            
+            <div class="form-group">
+              <label style="font-weight: 600; color: #202223;">Reward</label>
+              <p id="viewJobReward" style="margin: 5px 0; color: #616161;"></p>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label style="font-weight: 600; color: #202223;">Deadline</label>
+            <p id="viewJobDeadline" style="margin: 5px 0; color: #616161;"></p>
+          </div>
+          
+          <div class="form-group">
+            <label style="font-weight: 600; color: #202223;">Example Content URLs</label>
+            <p id="viewJobExample" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+          </div>
+          
+          <div class="form-group">
+            <label style="font-weight: 600; color: #202223;">Direct Link for this Job</label>
+            <p style="margin: 5px 0;">
+              <a id="viewJobLink" href="#" target="_blank" style="color: #2c6ecb; text-decoration: none;"></a>
+            </p>
+          </div>
+          
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+            <button type="button" class="btn btn-secondary" onclick="closeJobViewModal()">Close</button>
+            <button type="button" class="btn btn-primary" id="editFromViewBtn" onclick="">Edit Job</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Media Preview Modal -->
+    <div id="mediaModal" class="modal">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <img class="modal-content" id="modalImage">
+      <video class="modal-content" id="modalVideo" controls style="display:none;"></video>
+    </div>
+
+    <script>
+      // Initialize with server data
+      const HOST = '<%= env.HOST %>';
+      const API_KEY = '<%= env.SHOPIFY_API_KEY %>';
+    </script>
+    <script src="/public/admin-app.js"></script>
+  </body>
+</html> 

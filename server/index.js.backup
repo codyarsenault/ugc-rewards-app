@@ -1,0 +1,3267 @@
+// 0️⃣ Load .env first so process.env is populated
+import dotenv from 'dotenv';
+dotenv.config();
+
+// 1️⃣ Patch Node with the Shopify-API v11 adapter
+import '@shopify/shopify-api/adapters/node';
+
+// 2️⃣ Pull in the v11 initializer
+import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
+
+// 3️⃣ Initialize your single Shopify client
+const Shopify = shopifyApi({
+  apiKey:       process.env.SHOPIFY_API_KEY,
+  apiSecretKey: process.env.SHOPIFY_API_SECRET,
+  scopes:       ['write_discounts', 'read_customers', 'write_price_rules'],
+  hostName:     process.env.HOST.replace(/^https?:\/\//, ''),
+  apiVersion:   LATEST_API_VERSION,
+  isEmbeddedApp:true,
+});
+
+// 4️⃣ Everything else comes after
+import express from 'express';
+import { shopifyApp } from '@shopify/shopify-app-express';
+import { SQLiteSessionStorage } from '@shopify/shopify-app-session-storage-sqlite';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import multer from 'multer';
+import fs from 'fs';
+import { SubmissionsModel } from './models/submissions.js';
+import { uploadToS3 } from './setup-s3.js';
+import {
+  sendNotificationEmail,
+  sendCustomerConfirmationEmail,
+  sendCustomerStatusEmail,
+  sendRewardCodeEmail,
+  sendGiftCardEmail,
+  sendFreeProductEmail,
+} from './services/email.js';
+import { JobsModel } from './models/jobs.js';
+import { ShopifyDiscountService } from './services/shopifyDiscount.js';
+import { RewardsModel } from './models/rewards.js';
+import { publicJobRoutes, adminJobRoutes } from './routes/jobs.js';
+import { CustomizationsModel } from './models/customizations.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter(req, file, cb) {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only images and videos are allowed.'));
+    }
+  },
+});
+
+// Initialize Shopify Express app
+const sessionStorage = new SQLiteSessionStorage(
+  path.join(__dirname, '../database/session.db')
+);
+
+const shopify = shopifyApp({
+  api: {
+    apiKey:       process.env.SHOPIFY_API_KEY,
+    apiSecretKey: process.env.SHOPIFY_API_SECRET,
+    scopes:       ['write_discounts', 'read_customers', 'write_price_rules'],
+    hostName:     process.env.HOST.replace(/^https?:\/\//, ''),
+    apiVersion:   LATEST_API_VERSION,
+  },
+  auth: {
+    path:         '/api/auth',
+    callbackPath: '/api/auth/callback',
+  },
+  webhooks: {
+    path: '/api/webhooks',
+  },
+  sessionStorage,
+});
+
+const app = express();
+
+// Configure EJS templating
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// Helper function to check if email setup is complete
+function isEmailSetupComplete(customizations) {
+  return customizations && 
+         customizations.email_from_name && 
+         customizations.notification_email &&
+         customizations.email_from_name.trim() !== '' &&
+         customizations.notification_email.trim() !== '';
+}
+
+// Enhanced helper function to get shop domain from various sources
+function getShopDomain(req, res) {
+  // For public routes, prioritize query parameters
+  const shopFromQuery = req.query.shop;
+  const shopFromParams = req.params.shop;
+  const shopFromBody = req.body?.shop;
+  const shopFromHeader = req.headers['x-shopify-shop-domain'];
+  const shopFromSession = res.locals?.shopify?.session?.shop;
+  
+  // For embedded app routes, we might have the shop in the URL
+  const shopFromHost = req.query.host ? new URLSearchParams(req.query.host).get('shop') : null;
+  
+  const shop = shopFromQuery || shopFromParams || shopFromBody || shopFromHost || shopFromHeader || shopFromSession;
+  
+  console.log('Shop domain resolution:', {
+    fromQuery: shopFromQuery,
+    fromParams: shopFromParams,
+    fromBody: shopFromBody,
+    fromHost: shopFromHost,
+    fromHeader: shopFromHeader,
+    fromSession: shopFromSession,
+    final: shop
+  });
+  
+  return shop;
+}
+
+// Session validation middleware for admin routes
+const validateShopifySession = async (req, res, next) => {
+  try {
+    const shop = getShopDomain(req, res);
+    
+    if (!shop) {
+      return res.status(400).json({ 
+        error: 'Shop parameter required',
+        needsAuth: true 
+      });
+    }
+
+    // Check if we have a valid session
+    let session = res.locals?.shopify?.session;
+    
+    if (!session || !session.accessToken) {
+      // Try to load from database
+      const sessions = await sessionStorage.findSessionsByShop(shop);
+      
+      if (!sessions || sessions.length === 0) {
+        return res.status(401).json({ 
+          error: 'No valid session found. Please reinstall the app.',
+          needsAuth: true,
+          authUrl: `/api/auth?shop=${shop}`
+        });
+      }
+
+      // Check if any session is valid (not expired)
+      const validSession = sessions.find(s => new Date(s.expires) > new Date());
+      
+      if (!validSession) {
+        return res.status(401).json({ 
+          error: 'Session expired. Please reinstall the app.',
+          needsAuth: true,
+          authUrl: `/api/auth?shop=${shop}`
+        });
+      }
+
+      // Attach the valid session to the request
+      res.locals.shopify = { session: validSession };
+      session = validSession;
+    }
+
+    // Store shop in request for easy access
+    req.shop = shop;
+    req.shopifySession = session;
+
+    next();
+  } catch (error) {
+    console.error('Session validation error:', error);
+    res.status(500).json({ error: 'Session validation failed' });
+  }
+};
+
+// Add ngrok bypass header
+app.use((req, res, next) => {
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  next();
+});
+
+// Add debugging middleware
+app.use((req, res, next) => {
+  console.log('Request URL:', req.url);
+  console.log('Request method:', req.method);
+  console.log('Query params:', req.query);
+  next();
+});
+
+// Set up Shopify authentication
+app.get(shopify.config.auth.path, shopify.auth.begin());
+app.get(
+  shopify.config.auth.callbackPath,
+  shopify.auth.callback(),
+  shopify.redirectToShopifyOrAppRoot()
+);
+
+// Webhook processing (empty for now - webhooks can be added later if needed)
+app.post(
+  shopify.config.webhooks.path,
+  shopify.processWebhooks({ webhookHandlers: {} })
+);
+
+// Middleware
+app.use(express.json());
+app.use(shopify.cspHeaders());
+
+// Serve static files
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(uploadsDir));
+
+// Health check endpoint (public)
+app.get('/api/health/:shop', async (req, res) => {
+  try {
+    const shop = req.params.shop;
+    const sessions = await sessionStorage.findSessionsByShop(shop);
+    const validSession = sessions?.find(s => new Date(s.expires) > new Date());
+    
+    res.json({
+      shop,
+      hasSession: !!validSession,
+      sessionValid: !!validSession,
+      needsAuth: !validSession,
+      authUrl: !validSession ? `/api/auth?shop=${shop}` : null
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Health check failed' });
+  }
+});
+
+// Public routes (no auth required)
+app.use('/api/public', publicJobRoutes);
+
+// Public submission form route
+app.get('/submit', (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) {
+    return res.status(400).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Error - Honest UGC</title>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; text-align: center;">
+          <h1>Shop Required</h1>
+          <p>Please access this page through your store's UGC job listing.</p>
+        </body>
+      </html>
+    `);
+  }
+  res.sendFile(path.join(__dirname, 'public', 'submit.html'));
+});
+
+// Public jobs browsing page
+app.get('/jobs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'jobs.html'));
+});
+
+// Jobs page for specific shop
+app.get('/jobs/:shop', (req, res) => {
+  if (!req.params.shop || req.params.shop.trim() === '') {
+    return res.redirect('/');
+  }
+  res.sendFile(path.join(__dirname, 'public', 'jobs.html'));
+});
+
+// Apply session validation to all admin routes
+app.use('/api/admin', shopify.ensureInstalledOnShop(), validateShopifySession);
+
+// Admin routes (with authentication)
+app.use('/api/admin', adminJobRoutes);
+
+// Public API endpoint to get customizations
+app.get('/api/public/customizations', async (req, res) => {
+  try {
+    const shopDomain = getShopDomain(req, res);
+    const customizations = await CustomizationsModel.getByShop(shopDomain) || {};
+    res.json(customizations);
+  } catch (error) {
+    console.error('Error fetching customizations:', error);
+    res.json({});
+  }
+});
+
+// Public submission endpoint with file upload
+app.post('/api/public/submit', upload.single('media'), async (req, res) => {
+  try {
+    console.log('Received submission:', req.body);
+    console.log('File:', req.file);
+
+    // Get shop domain from multiple sources
+    let shopDomain = getShopDomain(req, res);
+
+    // If no shop domain from standard sources, try to get it from the job
+    if (!shopDomain && req.body.jobId) {
+      try {
+        const job = await JobsModel.getById(req.body.jobId);
+        if (job && job.shop_domain) {
+          shopDomain = job.shop_domain;
+          console.log('Got shop domain from job:', shopDomain);
+        }
+      } catch (error) {
+        console.error('Error getting job for shop domain:', error);
+      }
+    }
+
+    if (!shopDomain) {
+      return res.status(400).json({
+        success: false,
+        message: 'Shop domain is required'
+      });
+    }
+
+    // Validate required fields
+    const { customerEmail, type, content } = req.body;
+    if (!customerEmail || !type || !content) {
+      console.error('Missing required fields:', req.body);
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: customerEmail, type, content'
+      });
+    }
+
+    // Prevent submissions to full jobs
+    if (req.body.jobId) {
+      const job = await JobsModel.getById(req.body.jobId);
+      if (!job) {
+        return res.status(400).json({
+          success: false,
+          message: 'Job not found'
+        });
+      }
+      if (job.spots_filled >= job.spots_available) {
+        return res.status(400).json({
+          success: false,
+          message: 'This job is no longer accepting submissions'
+        });
+      }
+    }
+
+    // Prepare media URL if file was uploaded
+    let mediaUrl = null;
+    if (req.file) {
+      const hasS3Creds = (
+        process.env.AWS_ACCESS_KEY_ID &&
+        process.env.AWS_SECRET_ACCESS_KEY &&
+        process.env.AWS_REGION &&
+        process.env.S3_BUCKET_NAME
+      );
+      
+      if (hasS3Creds) {
+        try {
+          mediaUrl = await uploadToS3(req.file, req.file.originalname);
+          console.log('Uploaded to S3:', mediaUrl);
+        } catch (error) {
+          console.error('S3 upload failed:', error);
+          // Fallback to local storage
+          const filename = Date.now() + '-' + req.file.originalname;
+          const localPath = path.join(uploadsDir, filename);
+          fs.writeFileSync(localPath, req.file.buffer);
+          mediaUrl = `/uploads/${filename}`;
+        }
+      } else {
+        // Local storage
+        const filename = Date.now() + '-' + req.file.originalname;
+        const localPath = path.join(uploadsDir, filename);
+        fs.writeFileSync(localPath, req.file.buffer);
+        mediaUrl = `/uploads/${filename}`;
+      }
+      console.log('File uploaded:', mediaUrl);
+    }
+
+    // Save to database with shop domain
+    const submission = await SubmissionsModel.create({
+      customerEmail,
+      type,
+      content,
+      mediaUrl,
+      status: 'pending',
+      jobId: req.body.jobId || null,
+      shopDomain: shopDomain // Make sure your model supports this
+    });
+
+    console.log('Saved submission:', submission);
+
+    // Get job details if jobId is provided
+    let jobName = 'General Submission';
+    let job = null;
+    if (req.body.jobId) {
+      try {
+        job = await JobsModel.getById(req.body.jobId);
+        if (job) {
+          jobName = job.title;
+        }
+      } catch (error) {
+        console.error('Error getting job details:', error);
+      }
+    }
+
+    console.log('🔍 Shop domain for customizations:', shopDomain);
+
+    // Get customizations for email content
+    const customizations = await CustomizationsModel.getByShop(shopDomain) || {};
+    console.log('🎨 Loaded customizations:', customizations);
+
+    // Check if email setup is complete
+    if (!isEmailSetupComplete(customizations)) {
+      return res.status(503).json({
+        success: false,
+        message: 'This store is not yet configured to accept submissions. The store administrator needs to configure email settings in the app dashboard before submissions can be accepted.'
+      });
+    }
+
+    // Get notification email address
+    const notificationEmailTo = customizations.notification_email;
+    if (!notificationEmailTo) {
+      console.error('No notification email configured for shop:', shopDomain);
+      return res.status(500).json({
+        success: false,
+        message: 'Email settings not configured. Please configure email settings in the admin dashboard.'
+      });
+    }
+
+    const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}` : null;
+
+    // Send notification email to admin
+    await sendNotificationEmail({
+      to: notificationEmailTo,
+      subject: 'New UGC Submission Received',
+      text: `A new submission was received from ${customerEmail}.\nJob: ${jobName}\nType: ${type}\n\nView in app: ${appUrl}`,
+      html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p><strong>Job:</strong> ${jobName}</p><p><strong>Type:</strong> ${type}</p><p><br><a href="${appUrl}" style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View in App</a></p>`
+    });
+
+    // Send confirmation email to customer
+    await sendCustomerConfirmationEmail({
+      to: customerEmail,
+      customerName: customerEmail,
+      type,
+      customSubject: customizations.email_subject_confirmation,
+      customBody: customizations.email_body_confirmation,
+      customizations
+    });
+
+    res.json({
+      success: true,
+      message: 'Submission received!',
+      submissionId: submission.id
+    });
+  } catch (error) {
+    console.error('Error saving submission:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save submission',
+      error: error.message
+    });
+  }
+});
+
+// Admin API endpoints
+
+// Get submissions
+app.get('/api/admin/submissions', async (req, res) => {
+  try {
+    const shop = req.shop; // Set by validateShopifySession
+    
+    console.log('Fetching submissions for shop:', shop);
+    const submissions = await SubmissionsModel.getByShop(shop);
+    
+    // Transform the data to match the frontend expectations
+    const transformedSubmissions = submissions.map(sub => ({
+      id: sub.id,
+      customerEmail: sub.customer_email,
+      type: sub.type,
+      content: sub.content,
+      status: sub.status,
+      mediaUrl: sub.media_url,
+      createdAt: sub.created_at,
+      job_title: sub.job_title,
+      job_id: sub.job_id,
+      reward_type: sub.reward_type || null,
+      reward_fulfilled: sub.reward_fulfilled || false
+    }));
+    
+    res.json({ submissions: transformedSubmissions });
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
+// Approve submission
+app.post('/api/admin/submissions/:id/approve', async (req, res) => {
+  try {
+    const submissionId = req.params.id;
+    const shop = req.shop;
+    const session = req.shopifySession;
+    
+    // Fetch submission
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ success: false, message: 'Submission not found' });
+    }
+
+    // Validate ownership
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to approve this submission' });
+      }
+    }
+
+    let job = null;
+    let approvalSuccessful = true;
+
+    // Handle job-related rewards
+    if (submission.job_id) {
+      await JobsModel.incrementSpotsFilled(submission.job_id);
+      job = await JobsModel.getById(submission.job_id);
+      console.log('Job details:', job);
+
+      // Mark job as completed if full
+      if (job.spots_filled >= job.spots_available) {
+        await JobsModel.updateStatus(job.id, 'completed');
+      }
+
+      // Handle automatic discount rewards
+      if (['percentage', 'fixed'].includes(job.reward_type)) {
+        console.log('Creating discount code for job:', job.id);
+
+        try {
+          const client = new Shopify.clients.Graphql({ session });
+          const discountService = new ShopifyDiscountService(client);
+
+          const { code } = await discountService.createDiscountCode(job, submission);
+          console.log(`Discount code created: ${code}`);
+
+          const customizations = await CustomizationsModel.getByShop(shop) || {};
+          
+          await sendRewardCodeEmail({
+            to: submission.customer_email,
+            code,
+            value: job.reward_value,
+            type: job.reward_type,
+            expiresIn: '30 days',
+            customSubject: customizations.email_subject_reward,
+            customBody: customizations.email_body_reward,
+            customizations
+          });
+
+          const reward = await RewardsModel.getBySubmissionId(submission.id);
+          if (reward) {
+            await RewardsModel.markAsSent(reward.id);
+            await RewardsModel.updateSubmissionRewardStatus(submission.id);
+          }
+
+          console.log(`Reward sent to ${submission.customer_email}: ${code}`);
+        } catch (err) {
+          console.error('Error creating/sending reward:', err);
+          
+          // Create pending reward for manual fulfillment
+          await RewardsModel.create({
+            submissionId: submission.id,
+            jobId: job.id,
+            type: job.reward_type,
+            code: null,
+            value: job.reward_value,
+            status: 'pending_fulfillment',
+            expiresAt: null,
+            sentAt: null
+          });
+          
+          console.log('Created pending reward record for manual fulfillment');
+        }
+      }
+
+      // Handle gift card rewards
+      if (job.reward_type === 'giftcard') {
+        console.log('Processing gift card reward for job:', job.id);
+        
+        try {
+          await RewardsModel.create({
+            submissionId: submission.id,
+            jobId: job.id,
+            type: 'giftcard',
+            code: null,
+            value: job.reward_giftcard_amount,
+            status: 'pending_fulfillment',
+            expiresAt: null,
+            shopifyPriceRuleId: null,
+            shopifyDiscountCodeId: null
+          });
+          
+          const customizations = await CustomizationsModel.getByShop(shop) || {};
+          const notificationEmailTo = customizations.notification_email;
+          
+          if (notificationEmailTo) {
+            await sendNotificationEmail({
+              to: notificationEmailTo,
+              subject: 'Manual Gift Card Required - Honest UGC',
+              html: `
+                <h2>Gift Card Needs to be Created</h2>
+                <p>A gift card needs to be manually created for an approved UGC submission:</p>
+                <ul>
+                  <li><strong>Customer:</strong> ${submission.customer_email}</li>
+                  <li><strong>Amount:</strong> $${job.reward_giftcard_amount}</li>
+                  <li><strong>Job:</strong> ${job.title}</li>
+                  <li><strong>Submission ID:</strong> ${submission.id}</li>
+                </ul>
+                <p><strong>Action Required:</strong></p>
+                <ol>
+                  <li>Go to Shopify Admin > Products > Gift cards</li>
+                  <li>Create a new gift card for $${job.reward_giftcard_amount}</li>
+                  <li>Return to Honest UGC and click "Send Gift Card Email" on this submission</li>
+                </ol>
+              `
+            });
+          }
+          
+          console.log(`Gift card reward pending for ${submission.customer_email}: $${job.reward_giftcard_amount}`);
+        } catch (error) {
+          console.error('Error processing gift card reward:', error);
+        }
+      }
+
+      // Handle free product rewards
+      if (job.reward_type === 'product') {
+        console.log('Processing free product reward for job:', job.id);
+        
+        try {
+          const client = new Shopify.clients.Graphql({ session });
+          const discountService = new ShopifyDiscountService(client);
+          
+          const { code } = await discountService.createProductDiscountCode(job, submission);
+          console.log(`Free product discount code created: ${code}`);
+
+          const customizations = await CustomizationsModel.getByShop(shop) || {};
+
+          await sendFreeProductEmail({
+            to: submission.customer_email,
+            code: code,
+            productName: job.reward_product,
+            customSubject: customizations.email_subject_product,
+            customBody: customizations.email_body_product,
+            customizations
+          });
+
+          const reward = await RewardsModel.getBySubmissionId(submission.id);
+          if (reward) {
+            await RewardsModel.markAsSent(reward.id);
+            await RewardsModel.updateSubmissionRewardStatus(submission.id);
+          }
+          
+          console.log(`Free product code sent to ${submission.customer_email}: ${code}`);
+        } catch (error) {
+          console.error('Error creating free product reward:', error);
+          
+          await RewardsModel.create({
+            submissionId: submission.id,
+            jobId: job.id,
+            type: 'product',
+            code: null,
+            value: 0,
+            status: 'pending_fulfillment',
+            expiresAt: null,
+            sentAt: null
+          });
+          
+          console.log('Created pending reward record for manual fulfillment');
+        }
+      }
+    }
+
+    // Update submission status
+    if (approvalSuccessful) {
+      await SubmissionsModel.updateStatus(submissionId, 'approved');
+      console.log(`Approved submission ${submissionId}`);
+    }
+
+    res.json({ success: true, message: 'Submission approved' });
+  } catch (error) {
+    console.error('Error approving submission:', error);
+    res.status(500).json({ success: false, message: 'Failed to approve submission' });
+  }
+});
+
+// Reject submission
+app.post('/api/admin/submissions/:id/reject', async (req, res) => {
+  try {
+    const submissionId = req.params.id;
+    const shop = req.shop;
+    
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ success: false, message: 'Submission not found' });
+    }
+
+    // Validate ownership
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to reject this submission' });
+      }
+    }
+    
+    // Handle job spot adjustment
+    if (submission.status === 'approved' && submission.job_id) {
+      await JobsModel.decrementSpotsFilled(submission.job_id);
+      
+      const job = await JobsModel.getById(submission.job_id);
+      if (job && job.status === 'completed' && job.spots_filled < job.spots_available) {
+        await JobsModel.updateStatus(submission.job_id, 'active');
+      }
+    }
+    
+    await SubmissionsModel.updateStatus(submissionId, 'rejected');
+    console.log('Rejected submission ' + submissionId);
+
+    const customizations = await CustomizationsModel.getByShop(shop) || {};
+    
+    await sendCustomerStatusEmail({
+      to: submission.customer_email,
+      status: 'rejected',
+      type: submission.type,
+      customSubject: customizations.email_subject_rejected,
+      customBody: customizations.email_body_rejected,
+      customizations
+    });
+    
+    res.json({ success: true, message: 'Submission rejected' });
+  } catch (error) {
+    console.error('Error rejecting submission:', error);
+    res.status(500).json({ success: false, message: 'Failed to reject submission' });
+  }
+});
+
+// Send gift card email
+app.post('/api/admin/rewards/:submissionId/send-giftcard', async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { giftCardCode, amount } = req.body;
+    const shop = req.shop;
+    
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Validate ownership
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to access this submission' });
+      }
+    }
+    
+    const customizations = await CustomizationsModel.getByShop(shop) || {};
+    
+    await sendGiftCardEmail({
+      to: submission.customer_email,
+      code: giftCardCode,
+      amount: amount,
+      customSubject: customizations.email_subject_giftcard,
+      customBody: customizations.email_body_giftcard,
+      customizations
+    });
+    
+    const reward = await RewardsModel.getBySubmissionId(submissionId);
+    if (reward) {
+      await RewardsModel.update(reward.id, {
+        code: giftCardCode,
+        status: 'fulfilled',
+        fulfilled_at: new Date()
+      });
+    }
+    
+    await SubmissionsModel.update(submissionId, {
+      reward_fulfilled: true,
+      reward_fulfilled_at: new Date()
+    });
+    
+    res.json({ success: true, message: 'Gift card email sent successfully' });
+  } catch (error) {
+    console.error('Error sending gift card email:', error);
+    res.status(500).json({ error: 'Failed to send gift card email' });
+  }
+});
+
+// Get customizations
+app.get('/api/admin/customizations', async (req, res) => {
+  try {
+    const shop = req.shop;
+    console.log('GET customizations - Shop:', shop);
+    
+    const customizations = await CustomizationsModel.getByShop(shop);
+    console.log('GET customizations - Found:', customizations ? 'Yes' : 'No');
+    
+    res.json(customizations || {});
+  } catch (error) {
+    console.error('Error loading customizations:', error);
+    res.status(500).json({ error: 'Failed to load customizations' });
+  }
+});
+
+// Save customizations
+app.post('/api/admin/customizations', async (req, res) => {
+  try {
+    const shop = req.shop;
+    console.log('POST customizations - Shop:', shop);
+    console.log('POST customizations - Body:', req.body);
+    
+    const customizations = await CustomizationsModel.upsert(shop, req.body);
+    console.log('POST customizations - Saved successfully');
+    
+    res.json({ success: true, customizations });
+  } catch (error) {
+    console.error('Error saving customizations:', error);
+    res.status(500).json({ error: 'Failed to save customizations' });
+  }
+});
+
+// Save email settings
+app.post('/api/admin/email-settings', async (req, res) => {
+  try {
+    const shop = req.shop;
+    console.log('Saving email settings - Shop:', shop);
+    console.log('Email settings body:', req.body);
+    
+    // Get existing customizations and merge with email settings
+    const existingCustomizations = await CustomizationsModel.getByShop(shop) || {};
+    
+    const updatedCustomizations = {
+      ...existingCustomizations,
+      email_subject_confirmation: req.body.emailSubjectConfirmation,
+      email_body_confirmation: req.body.emailBodyConfirmation,
+      email_subject_rejected: req.body.emailSubjectRejected,
+      email_body_rejected: req.body.emailBodyRejected,
+      email_subject_reward: req.body.emailSubjectReward,
+      email_body_reward: req.body.emailBodyReward,
+      email_subject_giftcard: req.body.emailSubjectGiftcard,
+      email_body_giftcard: req.body.emailBodyGiftcard,
+      email_subject_product: req.body.emailSubjectProduct,
+      email_body_product: req.body.emailBodyProduct,
+      email_from_name: req.body.emailFromName,
+      email_reply_to: req.body.emailReplyTo,
+      notification_email: req.body.notificationEmail
+    };
+    
+    const customizations = await CustomizationsModel.upsert(shop, updatedCustomizations);
+    console.log('Saved email settings:', customizations);
+    
+    res.json({ success: true, customizations });
+  } catch (error) {
+    console.error('Error saving email settings:', error);
+    res.status(500).json({ error: 'Failed to save email settings' });
+  }
+});
+
+// Root route - Admin dashboard
+app.get('/', async (req, res) => {
+  try {
+    const shop = getShopDomain(req, res);
+    const submitLink = shop ? `${process.env.HOST}/jobs/${encodeURIComponent(shop)}` : `${process.env.HOST}/jobs`;
+    
+    // Get customizations to check email setup
+    let customizations = {};
+    let emailSetupComplete = false;
+    
+    if (shop) {
+      try {
+        customizations = await CustomizationsModel.getByShop(shop) || {};
+        emailSetupComplete = isEmailSetupComplete(customizations);
+      } catch (error) {
+        console.error('Error loading customizations for email check:', error);
+      }
+    }
+    
+    // Render the EJS template
+    res.render('admin-dashboard', {
+      shop,
+      submitLink,
+      emailSetupComplete,
+      customizations,
+      env: process.env
+    });
+  } catch (error) {
+    console.error('Error rendering admin dashboard:', error);
+    res.status(500).send('Error loading admin dashboard');
+  }
+});
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Honest UGC Admin</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+        <script>
+          // Session handling functions
+          async function checkSessionAndHandleAuth() {
+            const shop = new URLSearchParams(window.location.search).get('shop');
+            
+            if (!shop) {
+              console.error('No shop parameter found');
+              return false;
+            }
+
+            try {
+              const response = await fetch(\`/api/health/\${shop}\`);
+              const data = await response.json();
+              
+              if (data.needsAuth) {
+                console.log('Session invalid, redirecting to auth...');
+                window.location.href = data.authUrl;
+                return false;
+              }
+              
+              return true;
+            } catch (error) {
+              console.error('Session check failed:', error);
+              return false;
+            }
+          }
+
+          async function makeAuthenticatedRequest(url, options = {}) {
+            const response = await fetch(url, {
+              ...options,
+              credentials: 'include'
+            });
+            
+            if (response.status === 401) {
+              const data = await response.json();
+              if (data.needsAuth && data.authUrl) {
+                window.location.href = data.authUrl;
+                return null;
+              }
+            }
+            
+            return response;
+          }
+
+          // Define global functions immediately in head section
+          console.log('Setting up global functions in head...');
+          
+          function saveEmailSettings() {
+            console.log('saveEmailSettings function called');
+            
+            const form = document.getElementById('emailSettingsForm');
+            const formData = new FormData(form);
+            const emailSettings = Object.fromEntries(formData);
+            
+            console.log('Saving email settings:', emailSettings);
+            console.log('Current URL params:', window.location.search);
+            
+            makeAuthenticatedRequest('/api/admin/email-settings' + window.location.search, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(emailSettings)
+            })
+            .then(response => {
+              if (!response) return; // Redirecting to auth
+              
+              console.log('Response status:', response.status);
+              
+              if (response.ok) {
+                console.log('Email settings saved successfully!');
+                document.getElementById('emailSettingsSuccessMessage').style.display = 'block';
+                setTimeout(() => {
+                  document.getElementById('emailSettingsSuccessMessage').style.display = 'none';
+                }, 3000);
+              } else {
+                return response.json().then(errorData => {
+                  console.error('Server error:', errorData);
+                  alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
+                });
+              }
+            })
+            .catch(error => {
+              console.error('Error saving email settings:', error);
+              alert('Error saving email settings');
+            });
+          }
+          
+          function resetEmailSettingsToDefaults() {
+            console.log('Resetting email settings to defaults');
+            
+            document.getElementById('emailSubjectConfirmation').value = '';
+            document.getElementById('emailBodyConfirmation').value = '';
+            document.getElementById('emailSubjectRejected').value = '';
+            document.getElementById('emailBodyRejected').value = '';
+            document.getElementById('emailSubjectReward').value = '';
+            document.getElementById('emailBodyReward').value = '';
+            document.getElementById('emailSubjectGiftcard').value = '';
+            document.getElementById('emailBodyGiftcard').value = '';
+            document.getElementById('emailSubjectProduct').value = '';
+            document.getElementById('emailBodyProduct').value = '';
+            document.getElementById('emailFromName').value = '';
+            document.getElementById('emailReplyTo').value = '';
+            document.getElementById('fromNamePreview').textContent = 'Honest UGC';
+            document.getElementById('replyToPreview').textContent = 'no replies (emails will be no-reply)';
+            document.getElementById('notificationEmail').value = '';
+            
+            console.log('Email settings reset to defaults');
+          }
+          
+          console.log('Global functions defined successfully in head');
+        </script>
+        <style>
+          *, *::before, *::after {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f6f6f7;
+          }
+          .container {
+            max-width: 1200px;
+            margin: 0 auto;
+          }
+          .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e1e3e5;
+          }
+          .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #616161;
+            transition: all 0.2s;
+          }
+          .requirements-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+          }
+          .requirement-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+          }
+          .requirement-item input {
+            flex: 1;
+          }
+          .btn-remove {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+          }
+          .btn-remove:hover {
+            background: #c82333;
+          }
+          .btn-add {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+          }
+          .btn-add:hover {
+            background: #218838;
+          }
+          .tab:hover {
+            color: #202223;
+          }
+          .tab.active {
+            color: #008060;
+            border-bottom-color: #008060;
+          }
+          .filter-btn {
+            background: #f6f6f7;
+            color: #202223;
+            border: 1px solid #c9cccf;
+          }
+          .filter-btn.active {
+            background: #008060;
+            color: white;
+            border-color: #008060;
+          }
+          .tab-content {
+            display: none;
+          }
+          .tab-content.active {
+            display: block;
+          }
+          .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 0 1px rgba(63,63,68,.05), 0 1px 3px 0 rgba(63,63,68,.15);
+          }
+          h1 {
+            margin: 0 0 20px 0;
+            font-size: 20px;
+            font-weight: 600;
+          }
+          h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 600;
+          }
+          .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+          }
+          .stat {
+            text-align: center;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 6px;
+          }
+          .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #202223;
+          }
+          .stat-label {
+            font-size: 13px;
+            color: #616161;
+            margin-top: 5px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #e1e3e5;
+            font-weight: 600;
+            font-size: 13px;
+            color: #202223;
+          }
+          td {
+            padding: 12px;
+            border-bottom: 1px solid #e1e3e5;
+            font-size: 14px;
+            vertical-align: top;
+            word-break: break-word;
+          }
+          .col-date { width: 100px; }
+          .col-customer { width: 200px; }
+          .col-type { width: 80px; }
+          .col-job { width: 75px; }
+          
+          /* Customizations Tab Styles */
+          .color-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+          }
+          .color-input-wrapper input[type="color"] {
+            width: 60px;
+            height: 40px;
+            padding: 4px;
+            cursor: pointer;
+          }
+          .color-input-wrapper input[type="text"] {
+            flex: 1;
+          }
+          .help-text {
+            font-size: 13px;
+            color: #616161;
+            margin-top: 5px;
+          }
+          .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+          }
+          .success-message {
+            background: #e3f1df;
+            color: #4b5943;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+          }
+          .image-preview {
+            margin-top: 10px;
+          }
+          .image-preview img {
+            max-width: 200px;
+            max-height: 100px;
+            border: 1px solid #e1e3e5;
+            border-radius: 4px;
+          }
+          .preview-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 6px;
+          }
+          .preview-iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #e1e3e5;
+            border-radius: 4px;
+            background: white;
+          }
+          
+          /* Email Settings Tab Styles */
+          .email-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e1e3e5;
+          }
+          .email-section h3 {
+            margin: 0 0 20px 0;
+            color: #333;
+            font-size: 18px;
+            font-weight: 600;
+          }
+          .email-section .form-group {
+            margin-bottom: 20px;
+          }
+          .email-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+          }
+          .email-section input[type="text"],
+          .email-section textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e3e5;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+          }
+          .email-section input[type="text"]:focus,
+          .email-section textarea:focus {
+            outline: none;
+            border-color: #008060;
+            box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.1);
+          }
+          .email-section textarea {
+            resize: vertical;
+            min-height: 100px;
+          }
+          .email-section small {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+          }
+          .col-content { width: 300px; }
+          .col-media { width: 120px; }
+          .col-actions { width: 120px; }
+          
+          .job-title {
+            max-width: 70px;
+            word-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            line-height: 1.2;
+            font-size: 13px;
+          }
+          .review-content {
+            white-space: pre-line;
+            word-break: break-word;
+            max-width: 280px;
+            max-height: 60px;
+            overflow: hidden;
+          }
+          .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #616161;
+          }
+          .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+          }
+          .btn-primary {
+            background: #008060;
+            color: white;
+          }
+          .btn-primary:hover {
+            background: #006e52;
+          }
+          .btn-secondary {
+            background: #f6f6f7;
+            color: #202223;
+            border: 1px solid #c9cccf;
+          }
+          .btn-secondary:hover {
+            background: #e4e5e7;
+          }
+          .btn-danger {
+            background: #d72c0d;
+            color: white;
+          }
+          .btn-danger:hover {
+            background: #bc2200;
+          }
+          .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+          }
+          .form-group {
+            margin-bottom: 20px;
+          }
+          .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #202223;
+          }
+          .form-group input,
+          .form-group textarea,
+          .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #c9cccf;
+            border-radius: 4px;
+            font-size: 14px;
+          }
+          .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+          }
+          .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+          }
+          .modal {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0,0,0,0.5);
+          }
+          .modal-content form {
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+          }
+          .modal.open {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+          .modal-content {
+            background: white;
+            margin: auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-sizing: border-box;
+          }
+          .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #616161;
+          }
+          .close:hover {
+            color: #202223;
+          }
+          .media-preview {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+          }
+          .job-card {
+            border: 1px solid #e1e3e5;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+          }
+          .job-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+          }
+          .job-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #616161;
+          }
+          .job-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+          }
+          .job-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            cursor: pointer;
+            color: #2c6ecb;
+          }
+          .job-info h3:hover {
+            text-decoration: underline;
+          }
+          .status-active {
+            background: #e3f1df;
+            color: #4b5943;
+          }
+          .status-paused {
+            background: #fff4e5;
+            color: #b86e00;
+          }
+          .status-completed {
+            background: #f1f1f1;
+            color: #616161;
+          }
+          .submission-form-link {
+            background: #f6f6f7;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+          }
+          .submission-form-link a {
+            color: #2c6ecb;
+            text-decoration: none;
+          }
+          #mediaModal img,
+          #mediaModal video {
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+          }
+          .job-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <!-- Email Setup Banner (conditionally shown) -->
+          ${!emailSetupComplete ? `
+          <div id="emailSetupBanner" class="card" style="background: #fff5f5; border: 2px solid #d72c0d; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="flex: 1;">
+                <h2 style="color: #d72c0d; margin: 0 0 10px 0; display: flex; align-items: center;">
+                  <span style="font-size: 24px; margin-right: 10px;">⚠️</span>
+                  Email Configuration Required
+                </h2>
+                <p style="margin: 0 0 15px 0; color: #333;">
+                  Before you can start receiving UGC submissions, please configure your email settings. This ensures you receive notifications and your customers receive emails from your brand.
+                </p>
+                <div style="background: white; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                  <p style="margin: 0 0 10px 0; font-weight: 600;">Required settings:</p>
+                  <ul style="margin: 0; padding-left: 20px;">
+                    <li style="color: ${customizations.email_from_name ? '#008060' : '#d72c0d'};">
+                      ${customizations.email_from_name ? '✓' : '✗'} Brand Name (From Name)
+                    </li>
+                    <li style="color: ${customizations.notification_email ? '#008060' : '#d72c0d'};">
+                      ${customizations.notification_email ? '✓' : '✗'} Notification Email Address
+                    </li>
+                  </ul>
+                </div>
+                <button class="btn btn-primary" onclick="openQuickEmailSetup()">
+                  Configure Email Settings Now
+                </button>
+              </div>
+              <div style="padding: 0 20px;">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#d72c0d" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Email Setup Modal -->
+          <div id="quickEmailSetupModal" class="modal">
+            <div class="modal-content" style="max-width: 500px;">
+              <span class="close" onclick="closeQuickEmailSetup()">&times;</span>
+              <h2>Quick Email Setup</h2>
+              <p style="color: #666; margin-bottom: 20px;">Configure these essential settings to start receiving submissions.</p>
+              
+              <form id="quickEmailSetupForm">
+                <div class="form-group">
+                  <label for="quickEmailFromName">Your Brand Name <span style="color: #d72c0d;">*</span></label>
+                  <input type="text" id="quickEmailFromName" name="emailFromName" 
+                        placeholder="e.g., Baby Waves" required
+                        value="${customizations.email_from_name || ''}">
+                  <p class="help-text">This name will appear as the sender in customer emails</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="quickNotificationEmail">Notification Email Address <span style="color: #d72c0d;">*</span></label>
+                  <input type="email" id="quickNotificationEmail" name="notificationEmail" 
+                        placeholder="admin@yourbrand.com" required
+                        value="${customizations.notification_email || ''}">
+                  <p class="help-text">Where you'll receive new submission notifications</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="quickEmailReplyTo">Reply-To Email Address <span style="color: #666;">(Optional)</span></label>
+                  <input type="email" id="quickEmailReplyTo" name="emailReplyTo" 
+                        placeholder="support@yourbrand.com"
+                        value="${customizations.email_reply_to || ''}">
+                  <p class="help-text">Where customer replies will be sent. Leave empty for no-reply.</p>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                  <button type="button" class="btn btn-secondary" onclick="closeQuickEmailSetup()">Cancel</button>
+                  <button type="submit" class="btn btn-primary">Save & Continue</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          ` : ''}
+          
+          <!-- Navigation Tabs -->
+          <div class="tabs">
+            <button class="tab active" onclick="switchTab('submissions')">All Submissions</button>
+            <button class="tab" onclick="switchTab('jobs')">Jobs</button>
+            <button class="tab" onclick="switchTab('customizations')">Customizations</button>
+            <button class="tab" onclick="switchTab('email-settings')">Email Settings</button>
+          </div>
+
+          <!-- Submissions Tab -->
+          <div id="submissions-tab" class="tab-content active">
+          <div class="card">
+              <h1>UGC Jobs Submission Dashboard</h1>
+            <div class="submission-form-link">
+                Link to UGC Jobs:
+                <a href="${submitLink}" target="_blank">${submitLink}</a>
+            </div>
+
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value" id="totalCount">0</div>
+                <div class="stat-label">Total Submissions</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">Pending Review</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="approvedCount">0</div>
+                <div class="stat-label">Approved</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h1>Recent Submissions</h1>
+              <div style="margin-bottom: 20px;">
+                <div class="filter-group" style="display: flex; gap: 10px;">
+                  <button class="btn btn-sm filter-btn active" onclick="filterSubmissions('pending')">Pending Review</button>
+                  <button class="btn btn-sm filter-btn" onclick="filterSubmissions('approved')">Approved</button>
+                  <button class="btn btn-sm filter-btn" onclick="filterSubmissions('rejected')">Rejected</button>
+                  <button class="btn btn-sm filter-btn" onclick="filterSubmissions('all')">All</button>
+                </div>
+              </div>
+            <div id="submissionsTable">
+              <div class="empty-state">
+                <p>Loading submissions...</p>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Jobs Tab -->
+          <div id="jobs-tab" class="tab-content">
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>UGC Jobs</h1>
+                <button class="btn btn-primary" onclick="openJobModal()">Create New Job</button>
+              </div>
+              
+              <div class="stats">
+                <div class="stat">
+                  <div class="stat-value" id="totalJobs">0</div>
+                  <div class="stat-label">Total Jobs</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="activeJobs">0</div>
+                  <div class="stat-label">Active Jobs</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="completedJobs">0</div>
+                  <div class="stat-label">Completed</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Your Jobs</h2>
+              <div id="jobsList">
+                <div class="empty-state">
+                  <p>Loading jobs...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customizations Tab -->
+          <div id="customizations-tab" class="tab-content">
+            <div class="card">
+              <h1>Customize Your UGC Pages</h1>
+              
+              <form id="customizationForm">
+                <h2>Colors</h2>
+                <div class="form-group">
+                  <label for="primaryColor">Primary Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="primaryColorPicker" value="#d4b896">
+                    <input type="text" id="primaryColor" name="primaryColor" value="#d4b896" pattern="^#[0-9A-Fa-f]{6}$">
+                  </div>
+                  <p class="help-text">Used for buttons, links, and main accents</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="secondaryColor">Background Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="secondaryColorPicker" value="#f8f6f3">
+                    <input type="text" id="secondaryColor" name="secondaryColor" value="#f8f6f3" pattern="^#[0-9A-Fa-f]{6}$">
+                  </div>
+                  <p class="help-text">Background color for sections</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="textColor">Text Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="textColorPicker" value="#3a3a3a">
+                    <input type="text" id="textColor" name="textColor" value="#3a3a3a" pattern="^#[0-9A-Fa-f]{6}$">
+                  </div>
+                  <p class="help-text">Main text color</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="accentColor">Accent Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="accentColorPicker" value="#c9a961">
+                    <input type="text" id="accentColor" name="accentColor" value="#c9a961" pattern="^#[0-9A-Fa-f]{6}$">
+                  </div>
+                  <p class="help-text">Secondary accent color</p>
+                </div>
+                
+                <h2>Images</h2>
+                <div class="form-group">
+                  <label for="heroImageUrl">Hero Image URL</label>
+                  <input type="url" id="heroImageUrl" name="heroImageUrl" placeholder="https://example.com/image.jpg">
+                  <p class="help-text">Background image for the jobs page header (recommended: 1200x600px)</p>
+                  <div id="heroImagePreview" class="image-preview" style="display: none;"></div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="logoUrl">Logo URL</label>
+                  <input type="url" id="logoUrl" name="logoUrl" placeholder="https://example.com/logo.png">
+                  <p class="help-text">Your brand logo (recommended: 200x60px)</p>
+                  <div id="logoPreview" class="image-preview" style="display: none;"></div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="logoSize">Logo Size</label>
+                  <select id="logoSize" name="logoSize">
+                    <option value="small">Small (120x40px)</option>
+                    <option value="medium">Medium (200x60px)</option>
+                    <option value="large">Large (300x90px)</option>
+                  </select>
+                  <p class="help-text">Choose the size of your logo on the public pages</p>
+                </div>
+                
+                <h2>Typography</h2>
+                <div class="form-group">
+                  <label for="headingFont">Heading Font</label>
+                  <select id="headingFont" name="headingFont">
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Inter">Inter</option>
+                    <option value="Playfair Display">Playfair Display</option>
+                    <option value="Roboto">Roboto</option>
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Lato">Lato</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="bodyFont">Body Font</label>
+                  <select id="bodyFont" name="bodyFont">
+                    <option value="Inter">Inter</option>
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Roboto">Roboto</option>
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Lato">Lato</option>
+                  </select>
+                </div>
+                
+                <h2>Page Headings</h2>
+                <div class="form-group">
+                  <label for="jobsHeading">Jobs Page Heading</label>
+                  <input type="text" id="jobsHeading" name="jobsHeading" placeholder="Create Content, Get Rewarded ✨" maxlength="100">
+                  <p class="help-text">Main heading for the jobs listing page</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="jobsSubheading">Jobs Page Subheading</label>
+                  <input type="text" id="jobsSubheading" name="jobsSubheading" placeholder="Share your authentic experiences with brands you love" maxlength="200">
+                  <p class="help-text">Subheading for the jobs listing page</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="submitHeading">Submit Page Heading</label>
+                  <input type="text" id="submitHeading" name="submitHeading" placeholder="Share Your Experience ✨" maxlength="100">
+                  <p class="help-text">Main heading for the content submission page</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="submitSubheading">Submit Page Subheading</label>
+                  <input type="text" id="submitSubheading" name="submitSubheading" placeholder="Get rewarded for your authentic content" maxlength="200">
+                  <p class="help-text">Subheading for the content submission page</p>
+                </div>
+                
+                <h2>Example Videos</h2>
+                <div class="form-group">
+                  <div class="checkbox-group">
+                    <input type="checkbox" id="showExampleVideos" name="showExampleVideos" checked>
+                    <label for="showExampleVideos">Show example videos section on jobs page</label>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="exampleVideo1">Example Video 1 URL</label>
+                  <input type="url" id="exampleVideo1" name="exampleVideo1" placeholder="https://example.com/video1.mp4">
+                  <p class="help-text">First example video (MP4, MOV, or video hosting URL)</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="exampleVideo2">Example Video 2 URL</label>
+                  <input type="url" id="exampleVideo2" name="exampleVideo2" placeholder="https://example.com/video2.mp4">
+                  <p class="help-text">Second example video (optional)</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="exampleVideo3">Example Video 3 URL</label>
+                  <input type="url" id="exampleVideo3" name="exampleVideo3" placeholder="https://example.com/video3.mp4">
+                  <p class="help-text">Third example video (optional)</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="exampleVideo4">Example Video 4 URL</label>
+                  <input type="url" id="exampleVideo4" name="exampleVideo4" placeholder="https://example.com/video4.mp4">
+                  <p class="help-text">Fourth example video (optional)</p>
+                </div>
+                
+                <div class="form-group">
+                  <label for="customCss">Custom CSS (Advanced)</label>
+                  <textarea id="customCss" name="customCss" placeholder="/* Add custom CSS here */"></textarea>
+                  <p class="help-text">Add custom CSS to further customize your pages. Be careful with this option.</p>
+                </div>
+                
+                <div style="margin-top: 30px;">
+                  <button type="submit" class="btn btn-primary">Save Changes</button>
+                  <button type="button" class="btn btn-secondary" onclick="resetCustomizationsToDefaults()">Reset to Defaults</button>
+                </div>
+                
+                <div id="customizationSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
+                  Settings saved successfully!
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Email Settings Tab -->
+          <div id="email-settings-tab" class="tab-content">
+            <div class="card">
+              <h1>Email Content Customization</h1>
+              <p style="color: #666; margin-bottom: 30px;">Customize the email content sent to your customers at different stages of the UGC process.</p>
+              
+              <form id="emailSettingsForm">
+                <!-- Email Sender Configuration -->
+                <div class="email-section" style="background: #fff; border: 2px solid #008060;">
+                  <h3>⚙️ Email Sender Settings</h3>
+                  <div class="form-group">
+                    <label for="emailFromName">From Name</label>
+                    <input type="text" id="emailFromName" name="emailFromName" 
+                           placeholder="Your Brand Name" maxlength="100">
+                    <small style="color: #666;">The name that will appear as the sender (e.g., "Your Brand Name")</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="emailReplyTo">Reply-To Email Address</label>
+                    <input type="email" id="emailReplyTo" name="emailReplyTo" 
+                           placeholder="support@yourbrand.com" maxlength="255">
+                    <small style="color: #666;">Where customer replies will be sent. Leave empty to disable replies.</small>
+                  </div>
+                  <div style="background: #f0f8ff; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                    <p style="margin: 0; color: #333; font-size: 13px;">
+                      <strong>📧 How it works:</strong><br>
+                      • Emails will be sent from: <strong><span id="fromNamePreview">Honest UGC</span> &lt;no-reply@honestugc.com&gt;</strong><br>
+                      • Customer replies will go to: <strong><span id="replyToPreview">your reply-to address</span></strong><br>
+                      • This ensures reliable email delivery while showing your brand name
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div class="email-section" style="background: #fff; border: 2px solid #d72c0d;">
+                  <h3>🔔 Admin Notification Settings</h3>
+                  <div class="form-group">
+                    <label for="notificationEmail">Notification Email Address</label>
+                    <input type="email" id="notificationEmail" name="notificationEmail" 
+                          placeholder="admin@yourbrand.com" maxlength="255">
+                    <small style="color: #666;">Where admin notifications will be sent when new submissions are received. Leave empty to use the default.</small>
+                  </div>
+                  <div style="background: #fff5f5; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                    <p style="margin: 0; color: #333; font-size: 13px;">
+                      <strong>📨 What notifications you'll receive:</strong><br>
+                      • New UGC submission alerts<br>
+                      • Gift card fulfillment reminders<br>
+                      • Job completion notifications<br>
+                      • System alerts and errors
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Confirmation Email -->
+                <div class="email-section">
+                  <h3>📧 Confirmation Email (Sent when customer submits content)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectConfirmation">Email Subject</label>
+                    <input type="text" id="emailSubjectConfirmation" name="emailSubjectConfirmation" 
+                           placeholder="Thank you for your submission!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyConfirmation">Email Body</label>
+                    <textarea id="emailBodyConfirmation" name="emailBodyConfirmation" rows="4"
+                              placeholder="Thank you for sharing your experience! Your submission has been received and is pending review."></textarea>
+                    <small style="color: #666;">This email is sent immediately after a customer submits their content.</small>
+                  </div>
+                </div>
+
+                <!-- Rejection Email -->
+                <div class="email-section">
+                  <h3>❌ Rejection Email (Sent when content is rejected)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectRejected">Email Subject</label>
+                    <input type="text" id="emailSubjectRejected" name="emailSubjectRejected" 
+                           placeholder="Update on your submission" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyRejected">Email Body</label>
+                    <textarea id="emailBodyRejected" name="emailBodyRejected" rows="4"
+                              placeholder="Thank you for your submission. Unfortunately, your submission was not approved at this time. We encourage you to try again!"></textarea>
+                    <small style="color: #666;">This email is sent when you reject a customer's content.</small>
+                  </div>
+                </div>
+
+                <!-- Reward Email -->
+                <div class="email-section">
+                  <h3>🎁 Reward Email (Sent with discount codes)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectReward">Email Subject</label>
+                    <input type="text" id="emailSubjectReward" name="emailSubjectReward" 
+                           placeholder="🎉 Your UGC Reward is Here!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyReward">Email Body</label>
+                    <textarea id="emailBodyReward" name="emailBodyReward" rows="4"
+                              placeholder="Thank you for sharing your amazing content with us. As promised, here is your reward code:"></textarea>
+                    <small style="color: #666;">This email is sent when a discount code is automatically generated and sent to the customer.</small>
+                  </div>
+                </div>
+
+                <!-- Gift Card Email -->
+                <div class="email-section">
+                  <h3>💳 Gift Card Email (Sent with gift card codes)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectGiftcard">Email Subject</label>
+                    <input type="text" id="emailSubjectGiftcard" name="emailSubjectGiftcard" 
+                           placeholder="🎁 Your Gift Card is Here!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyGiftcard">Email Body</label>
+                    <textarea id="emailBodyGiftcard" name="emailBodyGiftcard" rows="4"
+                              placeholder="Thank you for your amazing UGC submission! Here is your gift card:"></textarea>
+                    <small style="color: #666;">This email is sent when a gift card code is provided to the customer.</small>
+                  </div>
+                </div>
+
+                <!-- Free Product Email -->
+                <div class="email-section">
+                  <h3>📦 Free Product Email (Sent with free product codes)</h3>
+                  <div class="form-group">
+                    <label for="emailSubjectProduct">Email Subject</label>
+                    <input type="text" id="emailSubjectProduct" name="emailSubjectProduct" 
+                          placeholder="🎁 Your Free Product Code is Here!" maxlength="255">
+                  </div>
+                  <div class="form-group">
+                    <label for="emailBodyProduct">Email Body</label>
+                    <textarea id="emailBodyProduct" name="emailBodyProduct" rows="4"
+                              placeholder="Thank you for your amazing UGC submission! Here's your code for a free product:"></textarea>
+                    <small style="color: #666;">This email is sent when a free product discount code is generated for the customer.</small>
+                  </div>
+                </div>
+
+                <div style="margin-top: 30px;">
+                  <button type="button" class="btn btn-primary" onclick="saveEmailSettings()">Save Email Settings</button>
+                  <button type="button" class="btn btn-secondary" onclick="resetEmailSettingsToDefaults()">Reset to Defaults</button>
+                </div>
+                
+                <div id="emailSettingsSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
+                  Email settings saved successfully!
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Job Creation/Edit Modal -->
+        <div id="jobModal" class="modal">
+          <div class="modal-content">
+            <span class="close" onclick="closeJobModal()">&times;</span>
+            <h2 id="modalTitle">Create New UGC Job</h2>
+            
+            <form id="jobForm">
+              <input type="hidden" id="jobId" name="jobId">
+              
+              <div class="form-group">
+                <label for="jobTitle">Job Title*</label>
+                <input type="text" id="jobTitle" name="title" required 
+                       placeholder="e.g., 15-second video wearing our shoes at the park">
+              </div>
+
+              <div class="form-group">
+                <label for="jobDescription">Description*</label>
+                <textarea id="jobDescription" name="description" required
+                          placeholder="Describe what you're looking for in detail..."></textarea>
+              </div>
+
+              <div class="form-group">
+                 <label>Specific Requirements</label>
+                 <ul id="requirementsList" class="requirements-list">
+                   <li class="requirement-item">
+                     <input type="text" class="requirement-input" placeholder="e.g., Must show product in use">
+                     <button type="button" class="btn-remove" onclick="removeRequirement(this)">Remove</button>
+                   </li>
+                 </ul>
+                 <button type="button" class="btn-add" onclick="addRequirement()">+ Add Requirement</button>
+               </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="jobType">Content Type*</label>
+                  <select id="jobType" name="type" required>
+                    <option value="video">Video</option>
+                    <option value="photo">Photo</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="spotsAvailable">Number of Spots*</label>
+                  <input type="number" id="spotsAvailable" name="spotsAvailable" 
+                         min="1" value="5" required>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rewardType">Reward Type*</label>
+                  <select id="rewardType" name="rewardType" onchange="updateRewardFields()">
+                    <option value="percentage">Percentage Discount</option>
+                    <option value="fixed">Fixed Amount Off</option>
+                    <option value="product">Free Product</option>
+                    <option value="giftcard">Gift Card</option>
+                  </select>
+                </div>
+
+                <div class="form-group" id="rewardValueGroup">
+                  <label for="rewardValue">Discount Percentage*</label>
+                  <input type="number" id="rewardValue" name="rewardValue" 
+                         min="1" value="20" required>
+                </div>
+
+                <div class="form-group" id="rewardProductGroup" style="display:none;">
+                  <label for="rewardProduct">Product*</label>
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="rewardProduct" name="rewardProduct" 
+                          placeholder="Select a product" readonly style="flex: 1;">
+                    <input type="hidden" id="rewardProductId" name="rewardProductId">
+                    <input type="hidden" id="rewardProductHandle" name="rewardProductHandle">
+                    <button type="button" class="btn btn-secondary" onclick="openProductPicker()">Browse Products</button>
+                  </div>
+                  <div id="selectedProductInfo" style="margin-top: 10px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <img id="productImage" src="" alt="" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                      <div>
+                        <div id="productTitle" style="font-weight: 500;"></div>
+                        <div id="productPrice" style="font-size: 13px; color: #616161;"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group" id="rewardGiftCardGroup" style="display:none;">
+                  <label for="rewardGiftCardAmount">Gift Card Amount*</label>
+                  <input type="number" id="rewardGiftCardAmount" name="rewardGiftCardAmount" min="1" placeholder="Amount in $">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="deadline">Deadline*</label>
+                <input type="date" id="deadline" name="deadline">
+              </div>
+
+              <div class="form-group">
+                <label for="exampleContent">Example Content URLs (Optional)</label>
+                <textarea id="exampleContent" name="exampleContent"
+                          placeholder="Links to examples or inspiration..."></textarea>
+              </div>
+
+              <div class="form-group" id="statusGroup" style="display:none;">
+                <label for="status">Status*</label>
+                <select id="status" name="status">
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeJobModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="submitJobBtn">Create Job</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Job View Modal -->
+        <div id="jobViewModal" class="modal">
+          <div class="modal-content">
+            <span class="close" onclick="closeJobViewModal()">&times;</span>
+            <h2 id="viewModalTitle">Job Details</h2>
+            
+            <div style="margin-top: 20px;">
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Title</label>
+                <p id="viewJobTitle" style="margin: 5px 0; color: #616161;"></p>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Description</label>
+                <p id="viewJobDescription" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Requirements</label>
+                <p id="viewJobRequirements" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                  <label style="font-weight: 600; color: #202223;">Content Type</label>
+                  <p id="viewJobType" style="margin: 5px 0; color: #616161;"></p>
+                </div>
+                
+                <div class="form-group">
+                  <label style="font-weight: 600; color: #202223;">Status</label>
+                  <p><span id="viewJobStatus" class="job-status"></span></p>
+                </div>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                  <label style="font-weight: 600; color: #202223;">Spots</label>
+                  <p id="viewJobSpots" style="margin: 5px 0; color: #616161;"></p>
+                </div>
+                
+                <div class="form-group">
+                  <label style="font-weight: 600; color: #202223;">Reward</label>
+                  <p id="viewJobReward" style="margin: 5px 0; color: #616161;"></p>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Deadline</label>
+                <p id="viewJobDeadline" style="margin: 5px 0; color: #616161;"></p>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Example Content URLs</label>
+                <p id="viewJobExample" style="margin: 5px 0; color: #616161; white-space: pre-line;"></p>
+              </div>
+              
+              <div class="form-group">
+                <label style="font-weight: 600; color: #202223;">Direct Link for this Job</label>
+                <p style="margin: 5px 0;">
+                  <a id="viewJobLink" href="#" target="_blank" style="color: #2c6ecb; text-decoration: none;"></a>
+                </p>
+              </div>
+              
+              <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                <button type="button" class="btn btn-secondary" onclick="closeJobViewModal()">Close</button>
+                <button type="button" class="btn btn-primary" id="editFromViewBtn" onclick="">Edit Job</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Media Preview Modal -->
+        <div id="mediaModal" class="modal">
+          <span class="close" onclick="closeModal()">&times;</span>
+          <img class="modal-content" id="modalImage">
+          <video class="modal-content" id="modalVideo" controls style="display:none;"></video>
+        </div>
+
+        <script>
+          // Initialize Shopify App Bridge
+          const AppBridge = window['app-bridge'];
+          const createApp = AppBridge.default;
+          const app = createApp({
+            apiKey: '${process.env.SHOPIFY_API_KEY}',
+            host: new URLSearchParams(location.search).get("host"),
+          });
+
+          // Initialize Shopify App Bridge ResourcePicker
+          const ResourcePicker = window['app-bridge'].actions.ResourcePicker;
+
+          // Open product picker
+          function openProductPicker() {
+            const productPicker = ResourcePicker.create(app, {
+              resourceType: ResourcePicker.ResourceType.Product,
+              options: {
+                selectMultiple: false,
+                showVariants: false
+              }
+            });
+
+            productPicker.subscribe(ResourcePicker.Action.SELECT, (selectPayload) => {
+              const selection = selectPayload.selection;
+              if (selection && selection.length > 0) {
+                const product = selection[0];
+                
+                document.getElementById('rewardProduct').value = product.title;
+                document.getElementById('rewardProductId').value = product.id;
+                document.getElementById('rewardProductHandle').value = product.handle;
+                
+                const productInfo = document.getElementById('selectedProductInfo');
+                productInfo.style.display = 'block';
+                
+                const productImage = document.getElementById('productImage');
+                if (product.images && product.images.length > 0) {
+                  productImage.src = product.images[0].originalSrc;
+                  productImage.alt = product.title;
+                } else {
+                  productImage.src = '';
+                }
+                
+                document.getElementById('productTitle').textContent = product.title;
+                
+                if (product.variants && product.variants.length > 0) {
+                  const price = product.variants[0].price;
+                  document.getElementById('productPrice').textContent = '
+     + price;
+                }
+              }
+            });
+
+            productPicker.dispatch(ResourcePicker.Action.OPEN);
+          }
+
+          // Clear product selection
+          function clearProductSelection() {
+            document.getElementById('rewardProduct').value = '';
+            document.getElementById('rewardProductId').value = '';
+            document.getElementById('rewardProductHandle').value = '';
+            document.getElementById('selectedProductInfo').style.display = 'none';
+          }
+
+          let editingJobId = null;
+
+          // Tab switching
+          function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+            
+            // Load data for the tab
+            if (tab === 'jobs') {
+              loadJobs();
+            } else if (tab === 'customizations') {
+              loadCustomizations();
+            } else if (tab === 'email-settings') {
+              loadEmailSettings();
+            } else {
+              loadSubmissions();
+            }
+          }
+
+          // Job Modal Functions
+          function openJobModal(jobId = null) {
+            editingJobId = jobId;
+            
+            if (jobId) {
+              // Edit mode
+              document.getElementById('modalTitle').textContent = 'Edit UGC Job';
+              document.getElementById('submitJobBtn').textContent = 'Update Job';
+              document.getElementById('statusGroup').style.display = 'block';
+              
+              // Load job data
+              const job = currentJobs.find(j => j.id === jobId);
+              if (job) {
+                document.getElementById('jobId').value = job.id;
+                document.getElementById('jobTitle').value = job.title;
+                document.getElementById('jobDescription').value = job.description;
+                setRequirementsFromString(job.requirements || '');
+                document.getElementById('jobType').value = job.type;
+                document.getElementById('spotsAvailable').value = job.spots_available;
+                document.getElementById('rewardType').value = job.reward_type;
+                document.getElementById('rewardValue').value = job.reward_value;
+                document.getElementById('rewardProduct').value = job.reward_product || '';
+                document.getElementById('rewardGiftCardAmount').value = job.reward_giftcard_amount || '';
+                
+                // Handle product data when editing
+                if (job.reward_type === 'product' && job.reward_product) {
+                  document.getElementById('rewardProduct').value = job.reward_product;
+                  document.getElementById('rewardProductId').value = job.reward_product_id || '';
+                  document.getElementById('rewardProductHandle').value = job.reward_product_handle || '';
+                  
+                  // Show product info if we have the data
+                  if (job.reward_product_image || job.reward_product_price) {
+                    const productInfo = document.getElementById('selectedProductInfo');
+                    productInfo.style.display = 'block';
+                    
+                    if (job.reward_product_image) {
+                      document.getElementById('productImage').src = job.reward_product_image;
+                      document.getElementById('productImage').alt = job.reward_product;
+                    }
+                    
+                    document.getElementById('productTitle').textContent = job.reward_product;
+                    if (job.reward_product_price) {
+                      document.getElementById('productPrice').textContent = '
+     + job.reward_product_price;
+                    }
+                  }
+                }
+                
+                document.getElementById('deadline').value = job.deadline ? new Date(job.deadline).toISOString().slice(0, 10) : '';
+                document.getElementById('exampleContent').value = job.example_content || '';
+                document.getElementById('status').value = job.status;
+                
+                // Update reward fields visibility
+                updateRewardFields();
+              }
+            } else {
+              // Create mode
+              document.getElementById('modalTitle').textContent = 'Create New UGC Job';
+              document.getElementById('submitJobBtn').textContent = 'Create Job';
+              document.getElementById('statusGroup').style.display = 'none';
+              document.getElementById('jobForm').reset();
+              document.getElementById('jobId').value = '';
+              setRequirementsFromString(''); // This will create one empty requirement input
+              updateRewardFields();
+            }
+            
+            document.getElementById('jobModal').classList.add('open');
+          }
+
+          function closeJobModal() {
+            document.getElementById('jobModal').classList.remove('open');
+            document.getElementById('jobForm').reset();
+            editingJobId = null;
+          }
+
+          function updateRewardFields() {
+            const rewardType = document.getElementById('rewardType').value;
+            const valueGroup = document.getElementById('rewardValueGroup');
+            const productGroup = document.getElementById('rewardProductGroup');
+            const giftCardGroup = document.getElementById('rewardGiftCardGroup');
+            
+            if (rewardType === 'product') {
+              valueGroup.style.display = 'none';
+              productGroup.style.display = 'block';
+              giftCardGroup.style.display = 'none';
+              document.getElementById('rewardValue').required = false;
+              document.getElementById('rewardProduct').required = true;
+              document.getElementById('rewardGiftCardAmount').required = false;
+            } else if (rewardType === 'giftcard') {
+              valueGroup.style.display = 'none';
+              productGroup.style.display = 'none';
+              giftCardGroup.style.display = 'block';
+              document.getElementById('rewardValue').required = false;
+              document.getElementById('rewardProduct').required = false;
+              document.getElementById('rewardGiftCardAmount').required = true;
+              // Clear product selection when switching away
+              clearProductSelection();
+            } else {
+              valueGroup.style.display = 'block';
+              productGroup.style.display = 'none';
+              giftCardGroup.style.display = 'none';
+              document.getElementById('rewardValue').required = true;
+              document.getElementById('rewardProduct').required = false;
+              document.getElementById('rewardGiftCardAmount').required = false;
+              // Update label based on type
+              const label = rewardType === 'percentage' ? 'Discount Percentage' : 'Amount Off ($)';
+              valueGroup.querySelector('label').textContent = label + '*';
+              // Clear product selection when switching away
+              clearProductSelection();
+            }
+          }
+
+          // Create/Update Job
+          document.getElementById('jobForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get requirements as a newline-separated string
+            const requirementsString = getRequirementsString();
+            
+            const formData = new FormData(e.target);
+            const jobData = Object.fromEntries(formData);
+            jobData.requirements = requirementsString;
+            const jobId = jobData.jobId;
+            delete jobData.jobId;
+            
+            // Convert deadline to end of day ISO format if provided
+            if (jobData.deadline) {
+              if (/^\d{4}-\d{2}-\d{2}$/.test(jobData.deadline)) {
+                jobData.deadline = jobData.deadline + 'T23:59:59';
+              }
+              jobData.deadline = new Date(jobData.deadline).toISOString();
+            }
+            
+            try {
+              const queryParams = window.location.search;
+              const url = jobId 
+                ? '/api/admin/jobs/' + jobId + queryParams
+                : '/api/admin/jobs' + queryParams;
+              const method = jobId ? 'PUT' : 'POST';
+              
+              const response = await makeAuthenticatedRequest(url, {
+                method: method,
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(jobData)
+              });
+              
+              if (!response) return; // Redirecting to auth
+              
+              if (response.ok) {
+                closeJobModal();
+                loadJobs();
+                alert(jobId ? 'Job updated successfully!' : 'Job created successfully!');
+              } else {
+                alert('Failed to ' + (jobId ? 'update' : 'create') + ' job');
+              }
+            } catch (error) {
+              console.error('Error saving job:', error);
+              alert('Error saving job');
+            }
+          });
+
+          let currentJobs = [];
+
+          // Load Jobs
+          async function loadJobs() {
+            const sessionValid = await checkSessionAndHandleAuth();
+            if (!sessionValid) return;
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await makeAuthenticatedRequest('/api/admin/jobs' + queryParams);
+              if (!response) return; // Redirecting to auth
+              
+              const data = await response.json();
+              
+              currentJobs = data.jobs || [];
+              
+              // Update stats
+              document.getElementById('totalJobs').textContent = currentJobs.length;
+              document.getElementById('activeJobs').textContent = 
+                currentJobs.filter(j => j.status === 'active').length;
+              document.getElementById('completedJobs').textContent = 
+                currentJobs.filter(j => j.status === 'completed').length;
+              
+              // Update jobs list
+              const jobsList = document.getElementById('jobsList');
+              
+              if (currentJobs.length === 0) {
+                jobsList.innerHTML = \`
+                  <div class="empty-state">
+                    <p>No jobs created yet.</p>
+                    <p>Create your first job to start receiving targeted UGC!</p>
+                  </div>
+                \`;
+              } else {
+                jobsList.innerHTML = currentJobs.map(job => \`
+                  <div class="job-card">
+                    <div class="job-info">
+                      <h3 onclick="viewJobDetails(\${job.id})">\${job.title}</h3>
+                      <div class="job-meta">
+                        <span>Type: \${job.type}</span>
+                        <span>Spots: \${job.spots_filled}/\${job.spots_available}</span>
+                        <span>Reward: \${formatReward(job)}</span>
+                        \${job.deadline ? \`<span>Deadline: \${new Date(job.deadline).toLocaleDateString()}</span>\` : ''}
+                      </div>
+                    </div>
+                    <div class="job-actions">
+                      <span class="job-status status-\${job.status}">\${job.status}</span>
+                      <button class="btn btn-sm btn-secondary" onclick="openJobModal(\${job.id})">Edit</button>
+                      <button class="btn btn-sm btn-danger" onclick="deleteJob(\${job.id})">Delete</button>
+                    </div>
+                  </div>
+                \`).join('');
+              }
+            } catch (error) {
+              console.error('Error loading jobs:', error);
+              document.getElementById('jobsList').innerHTML = \`
+                <div class="empty-state">
+                  <p>Error loading jobs. Please refresh the page.</p>
+                </div>
+              \`;
+            }
+          }
+
+          // Delete job
+          async function deleteJob(jobId) {
+            if (!confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+              return;
+            }
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await makeAuthenticatedRequest('/api/admin/jobs/' + jobId + queryParams, {
+                method: 'DELETE'
+              });
+              
+              if (!response) return; // Redirecting to auth
+              
+              if (response.ok) {
+                loadJobs();
+                alert('Job deleted successfully!');
+              } else {
+                alert('Failed to delete job');
+              }
+            } catch (error) {
+              console.error('Error deleting job:', error);
+              alert('Error deleting job');
+            }
+          }
+
+          // View job details
+          function viewJobDetails(jobId) {
+            const job = currentJobs.find(j => j.id === jobId);
+            if (!job) return;
+            
+            document.getElementById('viewJobTitle').textContent = job.title;
+            document.getElementById('viewJobDescription').textContent = job.description;
+            
+            // Display requirements as bullet points
+            const requirementsElement = document.getElementById('viewJobRequirements');
+            if (job.requirements) {
+              const requirements = job.requirements.split('\\n').filter(r => r.trim());
+              if (requirements.length > 0) {
+                requirementsElement.innerHTML = '<ul style="margin: 5px 0; padding-left: 20px;">' + 
+                  requirements.map(req => \`<li>\${req}</li>\`).join('') + 
+                  '</ul>';
+              } else {
+                requirementsElement.textContent = 'No specific requirements';
+              }
+            } else {
+              requirementsElement.textContent = 'No specific requirements';
+            }
+            
+            document.getElementById('viewJobType').textContent = job.type.charAt(0).toUpperCase() + job.type.slice(1);
+            document.getElementById('viewJobStatus').textContent = job.status;
+            document.getElementById('viewJobStatus').className = 'job-status status-' + job.status;
+            document.getElementById('viewJobSpots').textContent = job.spots_filled + ' filled out of ' + job.spots_available + ' spots';
+            document.getElementById('viewJobReward').textContent = formatReward(job);
+            document.getElementById('viewJobDeadline').textContent = job.deadline ? new Date(job.deadline).toLocaleDateString() : 'No deadline';
+            document.getElementById('viewJobExample').textContent = job.example_content || 'No examples provided';
+            
+            // Set the direct link
+            const shop = new URLSearchParams(window.location.search).get('shop');
+            const jobLink = shop ? '${process.env.HOST}/submit?jobId=' + job.id + '&shop=' + encodeURIComponent(shop) : '${process.env.HOST}/submit?jobId=' + job.id;
+            document.getElementById('viewJobLink').href = jobLink;
+            document.getElementById('viewJobLink').textContent = jobLink;
+            
+            // Set up the edit button
+            document.getElementById('editFromViewBtn').onclick = function() {
+              closeJobViewModal();
+              openJobModal(jobId);
+            };
+            
+            // Show the modal
+            document.getElementById('jobViewModal').classList.add('open');
+          }
+
+          function closeJobViewModal() {
+            document.getElementById('jobViewModal').classList.remove('open');
+          }
+
+          // View job from submission link
+          async function viewJobFromSubmission(event, jobId) {
+            event.preventDefault();
+            
+            // If we're not on the jobs tab, we need to fetch the job data
+            if (!currentJobs || currentJobs.length === 0) {
+              try {
+                const queryParams = window.location.search;
+                const response = await makeAuthenticatedRequest('/api/admin/jobs' + queryParams);
+                if (!response) return; // Redirecting to auth
+                
+                const data = await response.json();
+                currentJobs = data.jobs || [];
+              } catch (error) {
+                console.error('Error loading jobs:', error);
+                alert('Failed to load job details');
+                return;
+              }
+            }
+            
+            // Now show the job details
+            viewJobDetails(jobId);
+          }
+
+          // Format reward display
+          function formatReward(job) {
+            if (job.reward_type === 'percentage') {
+              return job.reward_value + '% off';
+            } else if (job.reward_type === 'fixed') {
+              return '
+     + job.reward_value + ' off';
+            } else if (job.reward_type === 'giftcard') {
+              return '
+     + job.reward_giftcard_amount + ' gift card';
+            } else {
+              return 'Free ' + (job.reward_product || 'product');
+            }
+          }
+
+          let allSubmissions = [];
+          let currentSubmissionFilter = 'pending';
+          let customizationsLoaded = false;
+          
+          // Update the loadSubmissions function
+          async function loadSubmissions() {
+            const sessionValid = await checkSessionAndHandleAuth();
+            if (!sessionValid) return;
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await makeAuthenticatedRequest('/api/admin/submissions' + queryParams);
+              if (!response) return; // Redirecting to auth
+              
+              const data = await response.json();
+
+              allSubmissions = data.submissions || [];
+
+              // Update stats
+              document.getElementById('totalCount').textContent = allSubmissions.length;
+              
+              // Count pending submissions
+              const pendingCount = allSubmissions.filter(s => 
+                s.status === 'pending' || 
+                (s.status === 'approved' && 
+                 (s.reward_type === 'giftcard' || s.reward_type === 'product') && 
+                 s.reward_fulfilled !== true)
+              ).length;
+              
+              const approvedCount = allSubmissions.filter(s => 
+                s.status === 'approved' && 
+                (s.reward_type !== 'giftcard' && s.reward_type !== 'product' || s.reward_fulfilled === true)
+              ).length;
+              
+              document.getElementById('pendingCount').textContent = pendingCount;
+              document.getElementById('approvedCount').textContent = approvedCount;
+
+              // Display filtered submissions
+              displaySubmissions();
+            } catch (error) {
+              console.error('Error loading submissions:', error);
+              document.getElementById('submissionsTable').innerHTML = \`
+                <div class="empty-state">
+                  <p>Error loading submissions. Please refresh the page.</p>
+                </div>
+              \`;
+            }
+          }
+
+          // Display filtered submissions
+          function displaySubmissions() {
+            let filteredSubmissions;
+            
+            if (currentSubmissionFilter === 'all') {
+              filteredSubmissions = allSubmissions;
+            } else if (currentSubmissionFilter === 'pending') {
+              filteredSubmissions = allSubmissions.filter(s => 
+                s.status === 'pending' || 
+                (s.status === 'approved' && 
+                 (s.reward_type === 'giftcard' || s.reward_type === 'product') && 
+                 s.reward_fulfilled !== true)
+              );
+            } else if (currentSubmissionFilter === 'approved') {
+              filteredSubmissions = allSubmissions.filter(s => 
+                s.status === 'approved' && 
+                (s.reward_type !== 'giftcard' || s.reward_fulfilled === true)
+              );
+            } else {
+              filteredSubmissions = allSubmissions.filter(s => s.status === currentSubmissionFilter);
+            }
+
+            const tableDiv = document.getElementById('submissionsTable');
+
+            if (filteredSubmissions.length === 0) {
+              tableDiv.innerHTML = \`
+                <div class="empty-state">
+                  <p>No \${currentSubmissionFilter === 'all' ? '' : currentSubmissionFilter} submissions.</p>
+                </div>
+              \`;
+              return;
+            }
+
+            tableDiv.innerHTML = \`
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Type</th>
+                    <th>Job</th>
+                    <th>Content</th>
+                    <th>Media</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  \${filteredSubmissions.map(sub => \`
+                    <tr>
+                      <td style="font-weight: 600; color: #666; font-size: 13px;">#\${sub.id}</td>
+                      <td>\${new Date(sub.createdAt).toLocaleDateString()}</td>
+                      <td>\${sub.customerEmail}</td>
+                      <td>\${sub.type}</td>
+                      <td style="max-width: 100px; word-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.2; font-size: 13px;">\${sub.job_title ? \`<a href="#" onclick="viewJobFromSubmission(event, \${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">\${sub.job_title}</a>\` : '-'}</td>
+                      <td class="review-content">\${sub.content || 'No content'}</td>
+                      <td>
+                        \${sub.mediaUrl ? (
+                          sub.type === 'video' 
+                            ? \`<video class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'video')" src="\${sub.mediaUrl}"></video>\`
+                            : \`<img class="media-preview" onclick="openModal('\${sub.mediaUrl}', 'image')" src="\${sub.mediaUrl}" alt="Submission media">\`
+                        ) : '-'}
+                      </td>
+                      <td>
+                        \${sub.status === 'pending' ? \`
+                          <button onclick="approveSubmission(\${sub.id})" class="btn btn-primary btn-sm">Approve</button>
+                          <button onclick="rejectSubmission(\${sub.id})" class="btn btn-danger btn-sm">Reject</button>
+                        \` : \`
+                          <span class="status-\${sub.status}">\${sub.status}</span>
+                          \${sub.status === 'approved' && sub.reward_type === 'giftcard' ? \`
+                            <div style="margin-top: 8px;">
+                              \${!sub.reward_fulfilled ? \`
+                                <button onclick="sendGiftCard(\${sub.id})" class="btn btn-primary btn-sm">Send Gift Card Email</button>
+                              \` : \`
+                                <span style="font-size: 12px; color: #008060;">
+                                  ✓ Gift card email sent
+                                </span>
+                              \`}
+                            </div>
+                          \` : ''}
+                        \`}
+                      </td>
+                    </tr>
+                  \`).join('')}
+                </tbody>
+              </table>
+            \`;
+          }
+
+          // Filter submissions
+          function filterSubmissions(filter) {
+            currentSubmissionFilter = filter;
+            
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+              btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            displaySubmissions();
+          }
+
+          // Approve submission
+          async function approveSubmission(submissionId) {
+            if (!confirm('Are you sure you want to approve this submission? This will trigger any associated rewards.')) {
+              return;
+            }
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await makeAuthenticatedRequest('/api/admin/submissions/' + submissionId + '/approve' + queryParams, {
+                method: 'POST'
+              });
+              
+              if (!response) return; // Redirecting to auth
+              
+              if (response.ok) {
+                loadSubmissions();
+              } else {
+                alert('Failed to approve submission');
+              }
+            } catch (error) {
+              console.error('Error approving submission:', error);
+              alert('Error approving submission');
+            }
+          }
+
+          // Reject submission
+          async function rejectSubmission(submissionId) {
+            if (!confirm('Are you sure you want to reject this submission?')) {
+              return;
+            }
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await makeAuthenticatedRequest('/api/admin/submissions/' + submissionId + '/reject' + queryParams, {
+                method: 'POST'
+              });
+              
+              if (!response) return; // Redirecting to auth
+              
+              if (response.ok) {
+                loadSubmissions();
+              } else {
+                alert('Failed to reject submission');
+              }
+            } catch (error) {
+              console.error('Error rejecting submission:', error);
+              alert('Error rejecting submission');
+            }
+          }
+
+          // Send gift card
+          async function sendGiftCard(submissionId) {
+            const code = prompt('Enter the gift card code:');
+            const amount = prompt('Enter the gift card amount (numbers only):');
+            
+            if (!code || !amount) {
+              alert('Gift card code and amount are required');
+              return;
+            }
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await makeAuthenticatedRequest(\`/api/admin/rewards/\${submissionId}/send-giftcard\${queryParams}\`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                  giftCardCode: code,
+                  amount: parseFloat(amount)
+                })
+              });
+              
+              if (!response) return; // Redirecting to auth
+              
+              if (response.ok) {
+                alert('Gift card email sent successfully!');
+                loadSubmissions();
+              } else {
+                alert('Failed to send gift card email');
+              }
+            } catch (error) {
+              console.error('Error sending gift card:', error);
+              alert('Error sending gift card email');
+            }
+          }
+
+          // Modal functions
+          function openModal(src, type) {
+            const modal = document.getElementById('mediaModal');
+            const modalImg = document.getElementById('modalImage');
+            const modalVideo = document.getElementById('modalVideo');
+            
+            modal.classList.add('open');
+            
+            if (type === 'video') {
+              modalImg.style.display = 'none';
+              modalVideo.style.display = 'block';
+              modalVideo.src = src;
+            } else {
+              modalVideo.style.display = 'none';
+              modalImg.style.display = 'block';
+              modalImg.src = src;
+            }
+          }
+
+          function closeModal() {
+            const modal = document.getElementById('mediaModal');
+            const modalVideo = document.getElementById('modalVideo');
+            modal.classList.remove('open');
+            modalVideo.pause();
+            modalVideo.src = '';
+          }
+
+          // Close modals when clicking outside
+          window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+              if (event.target.id === 'jobModal') {
+                closeJobModal();
+              } else if (event.target.id === 'mediaModal') {
+                closeModal();
+              } else if (event.target.id === 'jobViewModal') {
+                closeJobViewModal();
+              }
+            }
+          }
+
+          // Add new requirement input
+          function addRequirement() {
+            const requirementsList = document.getElementById('requirementsList');
+            const newItem = document.createElement('li');
+            newItem.className = 'requirement-item';
+            newItem.innerHTML = \`
+              <input type="text" class="requirement-input" placeholder="Enter requirement">
+              <button type="button" class="btn-remove" onclick="removeRequirement(this)">Remove</button>
+            \`;
+            requirementsList.appendChild(newItem);
+          }
+
+          // Remove requirement input
+          function removeRequirement(button) {
+            const requirementsList = document.getElementById('requirementsList');
+            if (requirementsList.children.length > 1) {
+              button.parentElement.remove();
+            }
+          }
+
+          // Get requirements as formatted string
+          function getRequirementsString() {
+            const inputs = document.querySelectorAll('.requirement-input');
+            const requirements = Array.from(inputs)
+              .map(input => input.value.trim())
+              .filter(value => value !== '');
+            return requirements.join('\\n');
+          }
+
+          // Set requirements from string
+          function setRequirementsFromString(requirementsString) {
+            const requirementsList = document.getElementById('requirementsList');
+            requirementsList.innerHTML = '';
+            
+            if (requirementsString) {
+              const requirements = requirementsString.split('\\n').filter(r => r.trim());
+              requirements.forEach(req => {
+                const newItem = document.createElement('li');
+                newItem.className = 'requirement-item';
+                newItem.innerHTML = \`
+                  <input type="text" class="requirement-input" value="\${req}" placeholder="Enter requirement">
+                  <button type="button" class="btn-remove" onclick="removeRequirement(this)">Remove</button>
+                \`;
+                requirementsList.appendChild(newItem);
+              });
+            }
+            
+            if (requirementsList.children.length === 0) {
+              addRequirement();
+            }
+          }
+
+          // Customizations Functions
+          async function loadCustomizations() {
+            const sessionValid = await checkSessionAndHandleAuth();
+            if (!sessionValid) return;
+            
+            try {
+              console.log('=== loadCustomizations called ===');
+              const queryParams = window.location.search;
+              const cacheBuster = '&_t=' + Date.now();
+              const response = await makeAuthenticatedRequest('/api/admin/customizations' + queryParams + cacheBuster);
+              if (!response) return; // Redirecting to auth
+              
+              const customizations = await response.json();
+              
+              console.log('Loaded customizations:', customizations);
+              
+              // Populate form with existing customizations
+              if (customizations.primary_color) {
+                document.getElementById('primaryColor').value = customizations.primary_color;
+                document.getElementById('primaryColorPicker').value = customizations.primary_color;
+              }
+              if (customizations.secondary_color) {
+                document.getElementById('secondaryColor').value = customizations.secondary_color;
+                document.getElementById('secondaryColorPicker').value = customizations.secondary_color;
+              }
+              if (customizations.text_color) {
+                document.getElementById('textColor').value = customizations.text_color;
+                document.getElementById('textColorPicker').value = customizations.text_color;
+              }
+              if (customizations.accent_color) {
+                document.getElementById('accentColor').value = customizations.accent_color;
+                document.getElementById('accentColorPicker').value = customizations.accent_color;
+              }
+              if (customizations.hero_image_url) {
+                document.getElementById('heroImageUrl').value = customizations.hero_image_url;
+                showImagePreview('heroImagePreview', customizations.hero_image_url);
+              }
+              if (customizations.logo_url) {
+                document.getElementById('logoUrl').value = customizations.logo_url;
+                showImagePreview('logoPreview', customizations.logo_url);
+              }
+              if (customizations.logo_size) {
+                document.getElementById('logoSize').value = customizations.logo_size;
+              }
+              if (customizations.heading_font) {
+                document.getElementById('headingFont').value = customizations.heading_font;
+              }
+              if (customizations.body_font) {
+                document.getElementById('bodyFont').value = customizations.body_font;
+              }
+              if (customizations.jobs_heading) {
+                document.getElementById('jobsHeading').value = customizations.jobs_heading;
+              }
+              if (customizations.jobs_subheading) {
+                document.getElementById('jobsSubheading').value = customizations.jobs_subheading;
+              }
+              if (customizations.submit_heading) {
+                document.getElementById('submitHeading').value = customizations.submit_heading;
+              }
+              if (customizations.submit_subheading) {
+                document.getElementById('submitSubheading').value = customizations.submit_subheading;
+              }
+              if (customizations.show_example_videos !== undefined) {
+                document.getElementById('showExampleVideos').checked = customizations.show_example_videos;
+              }
+              if (customizations.example_video_1) {
+                document.getElementById('exampleVideo1').value = customizations.example_video_1;
+              }
+              if (customizations.example_video_2) {
+                document.getElementById('exampleVideo2').value = customizations.example_video_2;
+              }
+              if (customizations.example_video_3) {
+                document.getElementById('exampleVideo3').value = customizations.example_video_3;
+              }
+              if (customizations.example_video_4) {
+                document.getElementById('exampleVideo4').value = customizations.example_video_4;
+              }
+              if (customizations.custom_css) {
+                document.getElementById('customCss').value = customizations.custom_css;
+              }
+              
+              console.log('Customizations loaded successfully');
+            } catch (error) {
+              console.error('Error loading customizations:', error);
+            }
+          }
+
+          function showImagePreview(previewId, imageUrl) {
+            const preview = document.getElementById(previewId);
+            if (preview && imageUrl) {
+              preview.style.display = 'block';
+              preview.innerHTML = '<img src="' + imageUrl + '" alt="Preview">';
+            }
+          }
+
+          function resetCustomizationsToDefaults() {
+            if (confirm('Are you sure you want to reset all customizations to default values?')) {
+              document.getElementById('primaryColor').value = '#d4b896';
+              document.getElementById('primaryColorPicker').value = '#d4b896';
+              document.getElementById('secondaryColor').value = '#f8f6f3';
+              document.getElementById('secondaryColorPicker').value = '#f8f6f3';
+              document.getElementById('textColor').value = '#3a3a3a';
+              document.getElementById('textColorPicker').value = '#3a3a3a';
+              document.getElementById('accentColor').value = '#c9a961';
+              document.getElementById('accentColorPicker').value = '#c9a961';
+              document.getElementById('heroImageUrl').value = '';
+              document.getElementById('logoUrl').value = '';
+              document.getElementById('logoSize').value = 'medium';
+              document.getElementById('headingFont').value = 'Montserrat';
+              document.getElementById('bodyFont').value = 'Inter';
+              document.getElementById('showExampleVideos').checked = true;
+              document.getElementById('exampleVideo1').value = '';
+              document.getElementById('exampleVideo2').value = '';
+              document.getElementById('exampleVideo3').value = '';
+              document.getElementById('exampleVideo4').value = '';
+              document.getElementById('customCss').value = '';
+              
+              // Clear image previews
+              document.getElementById('heroImagePreview').style.display = 'none';
+              document.getElementById('logoPreview').style.display = 'none';
+            }
+          }
+
+          // Email Settings Functions
+          async function loadEmailSettings() {
+            const sessionValid = await checkSessionAndHandleAuth();
+            if (!sessionValid) return;
+            
+            try {
+              const queryParams = window.location.search;
+              const response = await makeAuthenticatedRequest('/api/admin/customizations' + queryParams);
+              if (!response) return; // Redirecting to auth
+              
+              const customizations = await response.json();
+              
+              console.log('Loaded email settings:', customizations);
+              
+              // Populate email settings form
+              if (customizations.email_subject_confirmation) {
+                document.getElementById('emailSubjectConfirmation').value = customizations.email_subject_confirmation;
+              }
+              if (customizations.email_body_confirmation) {
+                document.getElementById('emailBodyConfirmation').value = customizations.email_body_confirmation;
+              }
+              if (customizations.email_subject_rejected) {
+                document.getElementById('emailSubjectRejected').value = customizations.email_subject_rejected;
+              }
+              if (customizations.email_body_rejected) {
+                document.getElementById('emailBodyRejected').value = customizations.email_body_rejected;
+              }
+              if (customizations.email_subject_reward) {
+                document.getElementById('emailSubjectReward').value = customizations.email_subject_reward;
+              }
+              if (customizations.email_body_reward) {
+                document.getElementById('emailBodyReward').value = customizations.email_body_reward;
+              }
+              if (customizations.email_subject_giftcard) {
+                document.getElementById('emailSubjectGiftcard').value = customizations.email_subject_giftcard;
+              }
+              if (customizations.email_body_giftcard) {
+                document.getElementById('emailBodyGiftcard').value = customizations.email_body_giftcard;
+              }
+              if (customizations.email_subject_product) {
+                document.getElementById('emailSubjectProduct').value = customizations.email_subject_product;
+              }
+              if (customizations.email_body_product) {
+                document.getElementById('emailBodyProduct').value = customizations.email_body_product;
+              }
+              if (customizations.email_from_name) {
+                document.getElementById('emailFromName').value = customizations.email_from_name;
+                document.getElementById('fromNamePreview').textContent = customizations.email_from_name;
+              }
+              if (customizations.email_reply_to) {
+                document.getElementById('emailReplyTo').value = customizations.email_reply_to;
+                document.getElementById('replyToPreview').textContent = customizations.email_reply_to;
+              }
+              if (customizations.notification_email) {
+                document.getElementById('notificationEmail').value = customizations.notification_email;
+              }
+              
+              console.log('Email settings loaded successfully');
+            } catch (error) {
+              console.error('Error loading email settings:', error);
+            }
+          }
+
+          // Quick Email Setup Functions
+          function openQuickEmailSetup() {
+            document.getElementById('quickEmailSetupModal').classList.add('open');
+          }
+
+          function closeQuickEmailSetup() {
+            document.getElementById('quickEmailSetupModal').classList.remove('open');
+          }
+
+          // Load initial data
+          loadSubmissions();
+
+          // Color picker synchronization
+          document.addEventListener('DOMContentLoaded', function() {
+            // Color picker synchronization
+            document.querySelectorAll('input[type="color"]').forEach(picker => {
+              const textInput = picker.nextElementSibling;
+              picker.addEventListener('change', (e) => {
+                textInput.value = e.target.value;
+              });
+            });
+
+            document.querySelectorAll('input[type="text"][pattern]').forEach(input => {
+              const picker = input.previousElementSibling;
+              input.addEventListener('input', (e) => {
+                if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                  picker.value = e.target.value;
+                }
+              });
+            });
+
+            document.getElementById('emailFromName').addEventListener('input', function(e) {
+              const preview = document.getElementById('fromNamePreview');
+              preview.textContent = e.target.value || 'Honest UGC';
+            });
+
+            document.getElementById('emailReplyTo').addEventListener('input', function(e) {
+              const preview = document.getElementById('replyToPreview');
+              preview.textContent = e.target.value || 'no replies (emails will be no-reply)';
+            });
+
+            // Image preview on URL change
+            document.getElementById('heroImageUrl').addEventListener('input', function() {
+              if (this.value) {
+                showImagePreview('heroImagePreview', this.value);
+              } else {
+                document.getElementById('heroImagePreview').style.display = 'none';
+              }
+            });
+
+            document.getElementById('logoUrl').addEventListener('input', function() {
+              if (this.value) {
+                showImagePreview('logoPreview', this.value);
+              } else {
+                document.getElementById('logoPreview').style.display = 'none';
+              }
+            });
+
+            // Customization form submission
+            document.getElementById('customizationForm').addEventListener('submit', async function(e) {
+              e.preventDefault();
+              
+              const formData = new FormData(this);
+              const settings = Object.fromEntries(formData);
+              settings.showExampleVideos = formData.has('showExampleVideos');
+              
+              try {
+                const queryParams = window.location.search;
+                const response = await makeAuthenticatedRequest('/api/admin/customizations' + queryParams, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(settings),
+                });
+                
+                if (!response) return; // Redirecting to auth
+                
+                if (response.ok) {
+                  console.log('Customizations saved successfully');
+                  document.getElementById('customizationSuccessMessage').style.display = 'block';
+                  setTimeout(() => {
+                    document.getElementById('customizationSuccessMessage').style.display = 'none';
+                  }, 3000);
+                } else {
+                  console.error('Failed to save customizations');
+                  alert('Failed to save settings');
+                }
+              } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings');
+              }
+            });
+
+            // Quick Email Setup form submission
+            document.getElementById('quickEmailSetupForm')?.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              
+              const formData = new FormData(e.target);
+              const emailSettings = Object.fromEntries(formData);
+              
+              try {
+                const queryParams = window.location.search;
+                const response = await makeAuthenticatedRequest('/api/admin/email-settings' + queryParams, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(emailSettings)
+                });
+                
+                if (!response) return; // Redirecting to auth
+                
+                if (response.ok) {
+                  // Close modal and reload page to hide the banner
+                  closeQuickEmailSetup();
+                  window.location.reload();
+                } else {
+                  const errorData = await response.json();
+                  alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
+                }
+              } catch (error) {
+                console.error('Error saving email settings:', error);
+                alert('Error saving email settings');
+              }
+            });
+          });
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+// Error handling
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
+const PORT = parseInt(process.env.PORT || '3000', 10);
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Ngrok URL: ${process.env.HOST}`);
+  console.log(`Install URL: ${process.env.HOST}/api/auth?shop=YOUR-SHOP.myshopify.com`);
+});

@@ -90,10 +90,20 @@ async function migrate() {
     `);
 
     // Add notification_email column to existing customizations table if it doesn't exist
-    console.log('Adding notification_email column to customizations table...');
-    await client.query(`
-      ALTER TABLE customizations ADD COLUMN IF NOT EXISTS notification_email TEXT;
-    `);
+    console.log('Ensuring all customizations columns exist...');
+    const customizationColumns = [
+      { name: 'notification_email', type: 'TEXT' },
+      { name: 'email_from_name', type: 'TEXT' },
+      { name: 'email_reply_to', type: 'TEXT' },
+      { name: 'email_subject_product', type: 'TEXT' },
+      { name: 'email_body_product', type: 'TEXT' }
+    ];
+
+    for (const column of customizationColumns) {
+      await client.query(`
+        ALTER TABLE customizations ADD COLUMN IF NOT EXISTS ${column.name} ${column.type};
+      `);
+    }
 
     console.log('Creating jobs table...');
     await client.query(`
@@ -136,12 +146,30 @@ async function migrate() {
         status VARCHAR(50) DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         job_id INTEGER REFERENCES jobs(id) ON DELETE SET NULL,
+        shop_domain VARCHAR(255),
         reward_sent BOOLEAN DEFAULT false,
         reward_sent_at TIMESTAMP,
         reward_fulfilled BOOLEAN DEFAULT false,
         reward_fulfilled_at TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Add shop_domain column to submissions if it doesn't exist
+    console.log('Adding shop_domain column to submissions table if needed...');
+    await client.query(`
+      ALTER TABLE submissions ADD COLUMN IF NOT EXISTS shop_domain VARCHAR(255);
+    `);
+
+    // Update existing submissions with shop domain from their jobs
+    console.log('Migrating shop domains for existing submissions...');
+    await client.query(`
+      UPDATE submissions 
+      SET shop_domain = jobs.shop_domain
+      FROM jobs 
+      WHERE submissions.job_id = jobs.id 
+        AND submissions.shop_domain IS NULL 
+        AND submissions.job_id IS NOT NULL;
     `);
 
     console.log('Creating job_submissions table...');
@@ -184,16 +212,44 @@ async function migrate() {
     console.log('Creating indexes...');
     const indexes = [
       'CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)',
+      'CREATE INDEX IF NOT EXISTS idx_jobs_shop_domain ON jobs(shop_domain)',
       'CREATE INDEX IF NOT EXISTS idx_jobs_deadline ON jobs(deadline)',
       'CREATE INDEX IF NOT EXISTS idx_job_submissions_job ON job_submissions(job_id)',
       'CREATE INDEX IF NOT EXISTS idx_submissions_job ON submissions(job_id)',
+      'CREATE INDEX IF NOT EXISTS idx_submissions_shop_domain ON submissions(shop_domain)',
       'CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON submissions(created_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status)',
-      'CREATE INDEX IF NOT EXISTS idx_submissions_reward_fulfilled ON submissions(reward_fulfilled)'
+      'CREATE INDEX IF NOT EXISTS idx_submissions_reward_fulfilled ON submissions(reward_fulfilled)',
+      'CREATE INDEX IF NOT EXISTS idx_customizations_shop_domain ON customizations(shop_domain)',
+      'CREATE INDEX IF NOT EXISTS idx_rewards_submission ON rewards(submission_id)'
     ];
 
     for (const index of indexes) {
       await client.query(index);
+      console.log(`Created/verified index: ${index.match(/idx_\w+/)[0]}`);
+    }
+
+    // Verify critical columns exist
+    console.log('Verifying critical columns...');
+    const criticalChecks = [
+      { table: 'submissions', column: 'shop_domain' },
+      { table: 'jobs', column: 'shop_domain' },
+      { table: 'customizations', column: 'notification_email' },
+      { table: 'customizations', column: 'email_from_name' }
+    ];
+
+    for (const check of criticalChecks) {
+      const result = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = $1 AND column_name = $2
+      `, [check.table, check.column]);
+      
+      if (result.rows.length > 0) {
+        console.log(`✅ ${check.table}.${check.column} exists`);
+      } else {
+        console.log(`❌ ${check.table}.${check.column} is missing!`);
+      }
     }
 
     console.log('Migration completed successfully!');
