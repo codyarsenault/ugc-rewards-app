@@ -208,6 +208,27 @@ async function migrate() {
       );
     `);
 
+    console.log('Creating sessions table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id VARCHAR(255) PRIMARY KEY,
+        shop VARCHAR(255) NOT NULL,
+        state VARCHAR(255) NOT NULL,
+        is_online BOOLEAN NOT NULL DEFAULT false,
+        scope VARCHAR(255),
+        expires TIMESTAMP,
+        access_token VARCHAR(255),
+        user_id BIGINT,
+        first_name VARCHAR(255),
+        last_name VARCHAR(255),
+        email VARCHAR(255),
+        account_owner BOOLEAN,
+        locale VARCHAR(10),
+        collaborator BOOLEAN,
+        email_verified BOOLEAN
+      );
+    `);
+
     // Create indexes
     console.log('Creating indexes...');
     const indexes = [
@@ -237,6 +258,20 @@ async function migrate() {
       { table: 'customizations', column: 'notification_email' },
       { table: 'customizations', column: 'email_from_name' }
     ];
+
+    // Verify sessions table exists
+    console.log('Verifying sessions table...');
+    const sessionsResult = await client.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'sessions'
+    `);
+    
+    if (sessionsResult.rows.length > 0) {
+      console.log('✅ sessions table exists');
+    } else {
+      console.log('❌ sessions table is missing!');
+    }
 
     for (const check of criticalChecks) {
       const result = await client.query(`
