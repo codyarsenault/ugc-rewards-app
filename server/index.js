@@ -68,7 +68,12 @@ const upload = multer({
 
 // Initialize Shopify Express app
 const sessionStorage = process.env.NODE_ENV === 'production' 
-  ? new PostgreSQLSessionStorage(process.env.DATABASE_URL)
+  ? new PostgreSQLSessionStorage(process.env.DATABASE_URL, {
+      sessionTableName: 'sessions',
+      connectionOptions: {
+        ssl: { rejectUnauthorized: false }
+      }
+    })
   : new SQLiteSessionStorage(path.join(__dirname, '../database/session.db'));
 
 const shopify = shopifyApp({
