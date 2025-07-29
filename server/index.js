@@ -71,9 +71,16 @@ const upload = multer({
 let sessionStorage;
 
 if (process.env.NODE_ENV === 'production') {
-  // Use PostgreSQL in production
-  sessionStorage = new PostgreSQLSessionStorage(process.env.DATABASE_URL);
-  console.log('Using PostgreSQL session storage for production');
+  // Use PostgreSQL in production with SSL configuration
+  const postgresConfig = {
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  };
+  
+  sessionStorage = new PostgreSQLSessionStorage(postgresConfig);
+  console.log('Using PostgreSQL session storage for production with SSL');
 } else {
   // Use SQLite in development
   sessionStorage = new SQLiteSessionStorage(path.join(__dirname, '../database/session.db'));
