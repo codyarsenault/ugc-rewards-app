@@ -233,19 +233,38 @@ app.get('/api/health/:shop', async (req, res) => {
     const shop = req.params.shop;
     console.log('Health check for shop:', shop);
     
-    const sessions = await sessionStorage.findSessionsByShop(shop);
-    console.log('Found sessions:', sessions?.length || 0);
+    // Check if there's a session in the request parameters
+    const sessionId = req.query.session;
+    console.log('Session ID from request:', sessionId);
     
-    const validSession = sessions?.find(s => {
-      // If expires is null, the session is valid (no expiration)
-      if (!s.expires) {
-        console.log('Session with no expiration found:', s.id);
-        return true;
+    let validSession = null;
+    
+    if (sessionId) {
+      // Try to load the specific session
+      try {
+        validSession = await sessionStorage.loadSession(sessionId);
+        console.log('Loaded session by ID:', validSession ? 'Yes' : 'No');
+      } catch (error) {
+        console.log('Error loading session by ID:', error.message);
       }
-      const isValid = new Date(s.expires) > new Date();
-      console.log('Session', s.id, 'expires:', s.expires, 'valid:', isValid);
-      return isValid;
-    });
+    }
+    
+    // If no session found by ID, try to find by shop
+    if (!validSession) {
+      const sessions = await sessionStorage.findSessionsByShop(shop);
+      console.log('Found sessions by shop:', sessions?.length || 0);
+      
+      validSession = sessions?.find(s => {
+        // If expires is null, the session is valid (no expiration)
+        if (!s.expires) {
+          console.log('Session with no expiration found:', s.id);
+          return true;
+        }
+        const isValid = new Date(s.expires) > new Date();
+        console.log('Session', s.id, 'expires:', s.expires, 'valid:', isValid);
+        return isValid;
+      });
+    }
     
     console.log('Valid session found:', !!validSession);
     
