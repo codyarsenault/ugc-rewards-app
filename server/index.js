@@ -22,7 +22,7 @@ const Shopify = shopifyApi({
 import express from 'express';
 import { shopifyApp } from '@shopify/shopify-app-express';
 import { SQLiteSessionStorage } from '@shopify/shopify-app-session-storage-sqlite';
-import { PostgreSQLSessionStorage } from '@shopify/shopify-app-session-storage-postgresql';
+import { MemorySessionStorage } from '@shopify/shopify-app-session-storage-memory';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
@@ -68,12 +68,7 @@ const upload = multer({
 
 // Initialize Shopify Express app
 const sessionStorage = process.env.NODE_ENV === 'production' 
-  ? new PostgreSQLSessionStorage(process.env.DATABASE_URL, {
-      sessionTableName: 'sessions',
-      connectionOptions: {
-        ssl: { rejectUnauthorized: false }
-      }
-    })
+  ? new MemorySessionStorage()
   : new SQLiteSessionStorage(path.join(__dirname, '../database/session.db'));
 
 const shopify = shopifyApp({
