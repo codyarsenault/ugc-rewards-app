@@ -73,6 +73,17 @@ function saveEmailSettings() {
       setTimeout(() => {
         document.getElementById('emailSettingsSuccessMessage').style.display = 'none';
       }, 3000);
+      
+      // Check if we now have the required email settings and hide the banner
+      const emailFromName = document.getElementById('emailFromName').value.trim();
+      const notificationEmail = document.getElementById('notificationEmail').value.trim();
+      
+      if (emailFromName && notificationEmail) {
+        const banner = document.getElementById('emailSetupBanner');
+        if (banner) {
+          banner.style.display = 'none';
+        }
+      }
     } else {
       return response.json().then(errorData => {
         alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
