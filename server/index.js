@@ -252,6 +252,26 @@ app.post('/api/webhooks/customers/redact', async (req, res) => {
   }
 });
 
+// App uninstall webhook
+app.post('/api/webhooks/app/uninstalled', async (req, res) => {
+  try {
+    const { shop_domain } = req.body;
+    console.log('App uninstalled for shop:', shop_domain);
+    
+    // Clean up shop data
+    await CustomizationsModel.redactShopData(shop_domain);
+    await JobsModel.redactShopData(shop_domain);
+    await RewardsModel.redactShopData(shop_domain);
+    
+    // Keep submissions for GDPR compliance (they're already redacted)
+    console.log('Shop data cleaned up successfully for:', shop_domain);
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error cleaning up shop data for uninstall:', error);
+    res.status(500).send('Error processing uninstall');
+  }
+});
+
 app.post('/api/webhooks/customers/data_request', async (req, res) => {
   try {
     const { shop_domain, customer } = req.body;
@@ -308,6 +328,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   
   // For OAuth callbacks specifically
   if (req.path === '/api/auth/callback') {
