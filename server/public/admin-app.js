@@ -6,6 +6,17 @@ const app = createApp({
   host: new URLSearchParams(location.search).get("host"),
 });
 
+// Add lazy loading for images in admin-app.js
+const lazyImageObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const img = entry.target;
+      img.src = img.dataset.src;
+      lazyImageObserver.unobserve(img);
+    }
+  });
+});
+
 // Initialize Shopify App Bridge ResourcePicker
 const ResourcePicker = window['app-bridge'].actions.ResourcePicker;
 
@@ -635,8 +646,8 @@ function displaySubmissions() {
             <td class="col-media">
               ${sub.mediaUrl ? (
                 sub.type === 'video' 
-                  ? `<video class="media-preview" onclick="openModal('${sub.mediaUrl}', 'video')" src="${sub.mediaUrl}"></video>`
-                  : `<img class="media-preview" onclick="openModal('${sub.mediaUrl}', 'image')" src="${sub.mediaUrl}" alt="Submission media">`
+                  ? `<video class="media-preview lazy" data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'video')"></video>`
+                  : `<img class="media-preview lazy" data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'image')" alt="Submission media">`
               ) : '-'}
             </td>
             <td class="col-actions">
@@ -674,6 +685,11 @@ function displaySubmissions() {
       </tbody>
     </table>
   `;
+  
+  // Observe lazy-loaded images and videos
+  tableDiv.querySelectorAll('.lazy').forEach(element => {
+    lazyImageObserver.observe(element);
+  });
 }
 
 // Filter submissions
