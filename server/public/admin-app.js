@@ -563,13 +563,13 @@ async function loadSubmissions() {
     const pendingCount = allSubmissions.filter(s => 
       s.status === 'pending' || 
       (s.status === 'approved' && 
-       (s.reward_type === 'giftcard' || s.reward_type === 'product') && 
+       s.reward_type === 'giftcard' && 
        s.reward_fulfilled !== true)
     ).length;
     
     const approvedCount = allSubmissions.filter(s => 
       s.status === 'approved' && 
-      (s.reward_type !== 'giftcard' && s.reward_type !== 'product' || s.reward_fulfilled === true)
+      (s.reward_type !== 'giftcard' || s.reward_fulfilled === true)
     ).length;
     
     document.getElementById('pendingCount').textContent = pendingCount;
@@ -597,7 +597,7 @@ function displaySubmissions() {
     filteredSubmissions = allSubmissions.filter(s => 
       s.status === 'pending' || 
       (s.status === 'approved' && 
-       (s.reward_type === 'giftcard' || s.reward_type === 'product') && 
+       s.reward_type === 'giftcard' && 
        s.reward_fulfilled !== true)
     );
   } else if (currentSubmissionFilter === 'approved') {
