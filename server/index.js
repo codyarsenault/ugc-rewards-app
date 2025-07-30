@@ -1093,31 +1093,298 @@ app.post('/api/admin/email-settings', async (req, res) => {
   }
 });
 
+// Add these routes to your index.js file
+
+app.get('/privacy', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Privacy Policy - Honest UGC</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+            color: #333;
+          }
+          h1, h2 { color: #202223; }
+        </style>
+      </head>
+      <body>
+        <h1>Privacy Policy</h1>
+        <p>Last updated: ${new Date().toLocaleDateString()}</p>
+        
+        <h2>Information We Collect</h2>
+        <p>Honest UGC collects information necessary to provide our services:</p>
+        <ul>
+          <li>Store information from Shopify (store name, email)</li>
+          <li>Customer submissions (email, content, media files)</li>
+          <li>Usage data to improve our services</li>
+        </ul>
+        
+        <h2>How We Use Information</h2>
+        <p>We use collected information to:</p>
+        <ul>
+          <li>Process and manage UGC submissions</li>
+          <li>Send reward emails to customers</li>
+          <li>Provide customer support</li>
+          <li>Improve our services</li>
+        </ul>
+        
+        <h2>Data Security</h2>
+        <p>We implement appropriate security measures to protect your data. All data is transmitted over secure HTTPS connections.</p>
+        
+        <h2>Contact Us</h2>
+        <p>If you have questions about this privacy policy, please contact us through your Shopify admin.</p>
+      </body>
+    </html>
+  `);
+});
+
+app.get('/terms', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Terms of Service - Honest UGC</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+            color: #333;
+          }
+          h1, h2 { color: #202223; }
+        </style>
+      </head>
+      <body>
+        <h1>Terms of Service</h1>
+        <p>Last updated: ${new Date().toLocaleDateString()}</p>
+        
+        <h2>Acceptance of Terms</h2>
+        <p>By using Honest UGC, you agree to these terms of service.</p>
+        
+        <h2>Description of Service</h2>
+        <p>Honest UGC is a Shopify app that helps stores collect and manage user-generated content with automated rewards.</p>
+        
+        <h2>User Responsibilities</h2>
+        <ul>
+          <li>Provide accurate information</li>
+          <li>Comply with all applicable laws</li>
+          <li>Respect intellectual property rights</li>
+          <li>Not use the service for deceptive or harmful purposes</li>
+        </ul>
+        
+        <h2>Limitation of Liability</h2>
+        <p>Honest UGC is provided "as is" without warranties. We are not liable for any damages arising from use of our service.</p>
+        
+        <h2>Contact</h2>
+        <p>For questions about these terms, contact us through your Shopify admin.</p>
+      </body>
+    </html>
+  `);
+});
+
+// Add this route to your index.js
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send(`User-agent: *
+Allow: /
+Allow: /jobs/
+Allow: /privacy
+Allow: /terms
+Disallow: /api/
+Disallow: /admin/
+Disallow: /submit
+
+Sitemap: ${process.env.HOST}/sitemap.xml`);
+});
+
 // Root route - Admin dashboard
+// Replace your current root route with this updated version that handles direct access
+
 app.get('/', async (req, res) => {
   console.log('=== ROOT ROUTE CALLED ===');
+  
   try {
     const shop = getShopDomain(req, res);
-    const submitLink = shop ? `${process.env.HOST}/jobs/${encodeURIComponent(shop)}` : `${process.env.HOST}/jobs`;
     
-    // Get customizations to check email setup
+    // If no shop parameter, show a landing page
+    if (!shop) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Honest UGC - User Generated Content Platform</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="description" content="Honest UGC helps Shopify stores collect and manage user-generated content with rewards.">
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                margin: 0;
+                padding: 0;
+                background: #f8f9fa;
+              }
+              .container {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 60px 20px;
+                text-align: center;
+              }
+              h1 {
+                color: #202223;
+                font-size: 48px;
+                margin-bottom: 20px;
+              }
+              p {
+                color: #616161;
+                font-size: 20px;
+                line-height: 1.5;
+                margin-bottom: 40px;
+              }
+              .features {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 30px;
+                margin: 60px 0;
+              }
+              .feature {
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              }
+              .feature h3 {
+                color: #202223;
+                margin-bottom: 10px;
+              }
+              .cta {
+                background: #008060;
+                color: white;
+                padding: 16px 32px;
+                text-decoration: none;
+                border-radius: 4px;
+                display: inline-block;
+                font-size: 18px;
+                margin-top: 30px;
+              }
+              .cta:hover {
+                background: #006e52;
+              }
+              .shopify-section {
+                margin-top: 60px;
+                padding: 40px;
+                background: white;
+                border-radius: 8px;
+              }
+              .install-form {
+                margin-top: 20px;
+              }
+              .install-form input {
+                padding: 12px;
+                font-size: 16px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                width: 300px;
+                margin-right: 10px;
+              }
+              .install-form button {
+                padding: 12px 24px;
+                font-size: 16px;
+                background: #008060;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+              }
+              .install-form button:hover {
+                background: #006e52;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Honest UGC</h1>
+              <p>Collect authentic user-generated content from your customers with automated rewards</p>
+              
+              <div class="features">
+                <div class="feature">
+                  <h3>📸 Collect Content</h3>
+                  <p>Let customers submit photos and videos of your products in action</p>
+                </div>
+                <div class="feature">
+                  <h3>🎁 Automated Rewards</h3>
+                  <p>Automatically send discount codes, gift cards, or free products</p>
+                </div>
+                <div class="feature">
+                  <h3>💼 Easy Management</h3>
+                  <p>Review and approve submissions from your Shopify admin</p>
+                </div>
+              </div>
+              
+              <div class="shopify-section">
+                <h2>For Shopify Store Owners</h2>
+                <p>Install Honest UGC in your Shopify store to start collecting user-generated content</p>
+                
+                <div class="install-form">
+                  <form action="/install" method="get">
+                    <input type="text" name="shop" placeholder="your-store.myshopify.com" required pattern="[a-zA-Z0-9-]+\\.myshopify\\.com">
+                    <button type="submit">Install App</button>
+                  </form>
+                </div>
+                
+                <p style="margin-top: 30px; font-size: 14px; color: #616161;">
+                  Already installed? Access the app from your Shopify admin.
+                </p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+    
+    // If shop parameter exists, check for session
+    const session = res.locals?.shopify?.session;
+    
+    if (!session || !session.accessToken) {
+      // Check if we have a stored session
+      const sessions = await sessionStorage.findSessionsByShop(shop);
+      const validSession = sessions?.find(s => !s.expires || new Date(s.expires) > new Date());
+      
+      if (!validSession) {
+        console.log('No valid session found, redirecting to auth');
+        return res.redirect(`/api/auth?shop=${shop}`);
+      }
+      
+      // Attach the session
+      res.locals = res.locals || {};
+      res.locals.shopify = { session: validSession };
+    }
+    
+    // Render the admin dashboard
+    const submitLink = `${process.env.HOST}/jobs/${encodeURIComponent(shop)}`;
+    
     let customizations = {};
     let emailSetupComplete = false;
     
-    if (shop) {
-      try {
-        customizations = await CustomizationsModel.getByShop(shop) || {};
-        console.log('Loaded customizations for email check:', customizations);
-        emailSetupComplete = isEmailSetupComplete(customizations);
-        console.log('Email setup complete:', emailSetupComplete);
-        console.log('email_from_name:', customizations.email_from_name);
-        console.log('notification_email:', customizations.notification_email);
-      } catch (error) {
-        console.error('Error loading customizations for email check:', error);
-      }
+    try {
+      customizations = await CustomizationsModel.getByShop(shop) || {};
+      emailSetupComplete = isEmailSetupComplete(customizations);
+    } catch (error) {
+      console.error('Error loading customizations:', error);
     }
     
-    // Render the EJS template
     res.render('admin-dashboard', {
       shop,
       submitLink,
@@ -1126,8 +1393,8 @@ app.get('/', async (req, res) => {
       env: process.env
     });
   } catch (error) {
-    console.error('Error rendering admin dashboard:', error);
-    res.status(500).send('Error loading admin dashboard');
+    console.error('Error in root route:', error);
+    res.status(500).send('An error occurred. Please try again.');
   }
 });
 
