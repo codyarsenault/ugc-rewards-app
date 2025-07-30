@@ -28,6 +28,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import fs from 'fs';
+import rateLimit from 'express-rate-limit';
 import { SubmissionsModel } from './models/submissions.js';
 import { uploadToS3 } from './setup-s3.js';
 import {
@@ -309,6 +310,16 @@ app.post('/api/webhooks/shop/redact', async (req, res) => {
     res.status(500).send('Error processing shop redact request');
   }
 });
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP'
+});
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
 
 // Middleware
 app.use(express.json());
