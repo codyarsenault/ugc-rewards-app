@@ -6,7 +6,7 @@ dotenv.config();
 import '@shopify/shopify-api/adapters/node';
 
 // 2️⃣ Pull in the v11 initializer
-import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
+import { shopifyApi, LATEST_API_VERSION, DeliveryMethod } from '@shopify/shopify-api';
 
 // 3️⃣ Initialize your single Shopify client
 const Shopify = shopifyApi({
@@ -223,93 +223,99 @@ app.get(
   shopify.redirectToShopifyOrAppRoot()
 );
 
-// GDPR webhook handlers
-const gdprWebhooks = {
-  CUSTOMERS_REDACT: '/api/webhooks/customers/redact',
-  CUSTOMERS_DATA_REQUEST: '/api/webhooks/customers/data_request',
-  SHOP_REDACT: '/api/webhooks/shop/redact',
-};
 
-// Webhook processing
+
+// Webhook processing with proper registration
 app.post(
   shopify.config.webhooks.path,
-  shopify.processWebhooks({ webhookHandlers: {} })
+  shopify.processWebhooks({
+    webhookHandlers: {
+      CUSTOMERS_REDACT: {
+        deliveryMethod: DeliveryMethod.Http,
+        callbackUrl: "/api/webhooks/customers/redact",
+        callback: async (topic, shop, body) => {
+          try {
+            const { shop_domain, customer } = body;
+            console.log('Customer redact request for:', shop_domain, customer.email);
+            
+            // Delete customer data from your database
+            await SubmissionsModel.redactCustomerData(shop_domain, customer.email);
+            
+            console.log('Customer data redacted successfully');
+          } catch (error) {
+            console.error('Error processing customer redact:', error);
+            throw error;
+          }
+        }
+      },
+      
+      CUSTOMERS_DATA_REQUEST: {
+        deliveryMethod: DeliveryMethod.Http,
+        callbackUrl: "/api/webhooks/customers/data_request",
+        callback: async (topic, shop, body) => {
+          try {
+            const { shop_domain, customer } = body;
+            console.log('Customer data request for:', shop_domain, customer.email);
+            
+            // Get customer data from your database
+            const customerData = await SubmissionsModel.getCustomerData(shop_domain, customer.email);
+            
+            // In a real implementation, you would send this data to the customer
+            // For now, we'll just log it
+            console.log('Customer data retrieved:', customerData);
+          } catch (error) {
+            console.error('Error processing customer data request:', error);
+            throw error;
+          }
+        }
+      },
+      
+      SHOP_REDACT: {
+        deliveryMethod: DeliveryMethod.Http,
+        callbackUrl: "/api/webhooks/shop/redact",
+        callback: async (topic, shop, body) => {
+          try {
+            const { shop_domain } = body;
+            console.log('Shop redact request for:', shop_domain);
+            
+            // Delete all shop data from your database
+            await SubmissionsModel.redactShopData(shop_domain);
+            await JobsModel.redactShopData(shop_domain);
+            await CustomizationsModel.redactShopData(shop_domain);
+            await RewardsModel.redactShopData(shop_domain);
+            
+            console.log('Shop data redacted successfully');
+          } catch (error) {
+            console.error('Error processing shop redact:', error);
+            throw error;
+          }
+        }
+      },
+      
+      APP_UNINSTALLED: {
+        deliveryMethod: DeliveryMethod.Http,
+        callbackUrl: "/api/webhooks/app/uninstalled",
+        callback: async (topic, shop, body) => {
+          try {
+            const { shop_domain } = body;
+            console.log('App uninstalled for shop:', shop_domain);
+            
+            // Clean up shop data
+            await CustomizationsModel.redactShopData(shop_domain);
+            await JobsModel.redactShopData(shop_domain);
+            await RewardsModel.redactShopData(shop_domain);
+            
+            // Keep submissions for GDPR compliance (they're already redacted)
+            console.log('Shop data cleaned up successfully for:', shop_domain);
+          } catch (error) {
+            console.error('Error cleaning up shop data for uninstall:', error);
+            throw error;
+          }
+        }
+      }
+    }
+  })
 );
-
-// Register GDPR webhooks
-app.post('/api/webhooks/customers/redact', async (req, res) => {
-  try {
-    const { shop_domain, customer } = req.body;
-    console.log('Customer redact request for:', shop_domain, customer.email);
-    
-    // Delete customer data from your database
-    await SubmissionsModel.redactCustomerData(shop_domain, customer.email);
-    
-    console.log('Customer data redacted successfully');
-    res.status(200).send('OK');
-  } catch (error) {
-    console.error('Error processing customer redact:', error);
-    res.status(500).send('Error processing redact request');
-  }
-});
-
-// App uninstall webhook
-app.post('/api/webhooks/app/uninstalled', async (req, res) => {
-  try {
-    const { shop_domain } = req.body;
-    console.log('App uninstalled for shop:', shop_domain);
-    
-    // Clean up shop data
-    await CustomizationsModel.redactShopData(shop_domain);
-    await JobsModel.redactShopData(shop_domain);
-    await RewardsModel.redactShopData(shop_domain);
-    
-    // Keep submissions for GDPR compliance (they're already redacted)
-    console.log('Shop data cleaned up successfully for:', shop_domain);
-    res.status(200).send('OK');
-  } catch (error) {
-    console.error('Error cleaning up shop data for uninstall:', error);
-    res.status(500).send('Error processing uninstall');
-  }
-});
-
-app.post('/api/webhooks/customers/data_request', async (req, res) => {
-  try {
-    const { shop_domain, customer } = req.body;
-    console.log('Customer data request for:', shop_domain, customer.email);
-    
-    // Get customer data from your database
-    const customerData = await SubmissionsModel.getCustomerData(shop_domain, customer.email);
-    
-    // In a real implementation, you would send this data to the customer
-    // For now, we'll just log it and return success
-    console.log('Customer data retrieved:', customerData);
-    
-    res.status(200).send('OK');
-  } catch (error) {
-    console.error('Error processing customer data request:', error);
-    res.status(500).send('Error processing data request');
-  }
-});
-
-app.post('/api/webhooks/shop/redact', async (req, res) => {
-  try {
-    const { shop_domain } = req.body;
-    console.log('Shop redact request for:', shop_domain);
-    
-    // Delete all shop data from your database
-    await SubmissionsModel.redactShopData(shop_domain);
-    await JobsModel.redactShopData(shop_domain);
-    await CustomizationsModel.redactShopData(shop_domain);
-    await RewardsModel.redactShopData(shop_domain);
-    
-    console.log('Shop data redacted successfully');
-    res.status(200).send('OK');
-  } catch (error) {
-    console.error('Error processing shop redact:', error);
-    res.status(500).send('Error processing shop redact request');
-  }
-});
 
 // Rate limiting
 const apiLimiter = rateLimit({
