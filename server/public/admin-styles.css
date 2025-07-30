@@ -270,9 +270,9 @@ td {
   color: #666;
   line-height: 1.4;
 }
-.col-content { width: 200px; }
+.col-content { width: 100px; }
 .col-media { width: 120px; }
-.col-actions { width: 120px; }
+.col-actions { width: 180px; }
 
 .job-title {
   max-width: 70px;
