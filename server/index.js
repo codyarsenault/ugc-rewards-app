@@ -236,6 +236,26 @@ app.use(shopify.cspHeaders());
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadsDir));
 
+// Security headers middleware
+app.use((req, res, next) => {
+  // Existing ngrok bypass
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  
+  // Add security headers for better browser trust
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  
+  // For OAuth callbacks specifically
+  if (req.path === '/api/auth/callback') {
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // Allow Shopify iframe
+    res.setHeader('Content-Security-Policy', "frame-ancestors https://*.myshopify.com https://admin.shopify.com");
+  }
+  
+  next();
+});
+
 // Health check endpoint (public)
 app.get('/api/health/:shop', async (req, res) => {
   try {
