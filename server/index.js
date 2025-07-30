@@ -105,6 +105,50 @@ const app = express();
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// 3. Add the webhook registration function (from previous artifact)
+async function registerWebhooks(session) {
+  const client = new Shopify.clients.Rest({ session });
+  
+  const webhooks = [
+    {
+      topic: 'customers/redact',
+      address: `${process.env.HOST}/api/webhooks/customers/redact`,
+      format: 'json'
+    },
+    {
+      topic: 'customers/data_request',
+      address: `${process.env.HOST}/api/webhooks/customers/data_request`,
+      format: 'json'
+    },
+    {
+      topic: 'shop/redact',
+      address: `${process.env.HOST}/api/webhooks/shop/redact`,
+      format: 'json'
+    },
+    {
+      topic: 'app/uninstalled',
+      address: `${process.env.HOST}/api/webhooks/app/uninstalled`,
+      format: 'json'
+    }
+  ];
+
+  for (const webhook of webhooks) {
+    try {
+      await client.post({
+        path: 'webhooks',
+        data: webhook
+      });
+      console.log(`Registered webhook: ${webhook.topic}`);
+    } catch (error) {
+      if (error.response?.code === 422) {
+        console.log(`Webhook ${webhook.topic} already exists`);
+      } else {
+        console.error(`Failed to register webhook ${webhook.topic}:`, error);
+      }
+    }
+  }
+}
+
 // Helper function to check if email setup is complete
 function isEmailSetupComplete(customizations) {
   return customizations && 
@@ -220,26 +264,41 @@ app.get(shopify.config.auth.path, shopify.auth.begin());
 app.get(
   shopify.config.auth.callbackPath,
   shopify.auth.callback(),
+  async (req, res, next) => {
+    try {
+      // After successful auth, register webhooks
+      const session = res.locals.shopify.session;
+      if (session && session.accessToken) {
+        await registerWebhooks(session);
+      }
+      next();
+    } catch (error) {
+      console.error('Error in auth callback:', error);
+      next();
+    }
+  },
   shopify.redirectToShopifyOrAppRoot()
 );
 
 
-
-// Webhook processing with proper registration
+// 2. Update your webhook configuration to use the proper Shopify webhook processor
+// This replaces your current webhook processing setup
 app.post(
   shopify.config.webhooks.path,
+  // This middleware automatically verifies HMAC signatures
   shopify.processWebhooks({
     webhookHandlers: {
+      // Customer data redaction (GDPR required)
       CUSTOMERS_REDACT: {
         deliveryMethod: DeliveryMethod.Http,
-        callbackUrl: "/api/webhooks/customers/redact",
-        callback: async (topic, shop, body) => {
+        callbackUrl: shopify.config.webhooks.path,
+        callback: async (topic, shop, body, webhookId) => {
           try {
-            const { shop_domain, customer } = body;
-            console.log('Customer redact request for:', shop_domain, customer.email);
+            const payload = JSON.parse(body);
+            console.log('Customer redact request for:', shop, payload.customer.email);
             
             // Delete customer data from your database
-            await SubmissionsModel.redactCustomerData(shop_domain, customer.email);
+            await SubmissionsModel.redactCustomerData(shop, payload.customer.email);
             
             console.log('Customer data redacted successfully');
           } catch (error) {
@@ -249,20 +308,23 @@ app.post(
         }
       },
       
+      // Customer data request (GDPR required)
       CUSTOMERS_DATA_REQUEST: {
         deliveryMethod: DeliveryMethod.Http,
-        callbackUrl: "/api/webhooks/customers/data_request",
-        callback: async (topic, shop, body) => {
+        callbackUrl: shopify.config.webhooks.path,
+        callback: async (topic, shop, body, webhookId) => {
           try {
-            const { shop_domain, customer } = body;
-            console.log('Customer data request for:', shop_domain, customer.email);
+            const payload = JSON.parse(body);
+            console.log('Customer data request for:', shop, payload.customer.email);
             
             // Get customer data from your database
-            const customerData = await SubmissionsModel.getCustomerData(shop_domain, customer.email);
+            const customerData = await SubmissionsModel.getCustomerData(shop, payload.customer.email);
             
-            // In a real implementation, you would send this data to the customer
+            // In production, you would send this data to the customer
             // For now, we'll just log it
             console.log('Customer data retrieved:', customerData);
+            
+            // TODO: Implement email sending to customer with their data
           } catch (error) {
             console.error('Error processing customer data request:', error);
             throw error;
@@ -270,19 +332,19 @@ app.post(
         }
       },
       
+      // Shop data redaction (GDPR required)
       SHOP_REDACT: {
         deliveryMethod: DeliveryMethod.Http,
-        callbackUrl: "/api/webhooks/shop/redact",
-        callback: async (topic, shop, body) => {
+        callbackUrl: shopify.config.webhooks.path,
+        callback: async (topic, shop, body, webhookId) => {
           try {
-            const { shop_domain } = body;
-            console.log('Shop redact request for:', shop_domain);
+            console.log('Shop redact request for:', shop);
             
             // Delete all shop data from your database
-            await SubmissionsModel.redactShopData(shop_domain);
-            await JobsModel.redactShopData(shop_domain);
-            await CustomizationsModel.redactShopData(shop_domain);
-            await RewardsModel.redactShopData(shop_domain);
+            await SubmissionsModel.redactShopData(shop);
+            await JobsModel.redactShopData(shop);
+            await CustomizationsModel.redactShopData(shop);
+            await RewardsModel.redactShopData(shop);
             
             console.log('Shop data redacted successfully');
           } catch (error) {
@@ -292,21 +354,23 @@ app.post(
         }
       },
       
+      // App uninstalled webhook
       APP_UNINSTALLED: {
         deliveryMethod: DeliveryMethod.Http,
-        callbackUrl: "/api/webhooks/app/uninstalled",
-        callback: async (topic, shop, body) => {
+        callbackUrl: shopify.config.webhooks.path,
+        callback: async (topic, shop, body, webhookId) => {
           try {
-            const { shop_domain } = body;
-            console.log('App uninstalled for shop:', shop_domain);
+            console.log('App uninstalled for shop:', shop);
             
-            // Clean up shop data
-            await CustomizationsModel.redactShopData(shop_domain);
-            await JobsModel.redactShopData(shop_domain);
-            await RewardsModel.redactShopData(shop_domain);
+            // Clean up shop data (but keep submissions for GDPR)
+            await CustomizationsModel.redactShopData(shop);
+            await JobsModel.redactShopData(shop);
+            await RewardsModel.redactShopData(shop);
             
-            // Keep submissions for GDPR compliance (they're already redacted)
-            console.log('Shop data cleaned up successfully for:', shop_domain);
+            // Delete session
+            await sessionStorage.deleteSessionsByShop(shop);
+            
+            console.log('Shop data cleaned up successfully for:', shop);
           } catch (error) {
             console.error('Error cleaning up shop data for uninstall:', error);
             throw error;

@@ -219,10 +219,11 @@ export const SubmissionsModel = {
   },
 
   async redactShopData(shopDomain) {
+    // When a shop is deleted, we should remove all their submissions
+    // But first redact any personally identifiable information
     const query = `
-      UPDATE submissions 
-      SET customer_email = 'REDACTED', content = 'REDACTED', media_url = NULL 
-      WHERE shop_domain = $1
+      DELETE FROM submissions 
+      WHERE shop_domain = $1 OR job_id IN (SELECT id FROM jobs WHERE shop_domain = $1)
     `;
     
     await pool.query(query, [shopDomain]);
