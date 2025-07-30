@@ -661,10 +661,7 @@ function displaySubmissions() {
                     ${!sub.reward_fulfilled ? `
                       <button onclick="sendGiftCard(${sub.id})" class="btn btn-primary btn-sm">Send Gift Card Email</button>
                     ` : `
-                      <span style="font-size: 12px; color: #008060;">
-                        ✓ Gift card email sent
-                      </span>
-                      <button onclick="sendGiftCard(${sub.id})" class="btn btn-secondary btn-sm" style="margin-top: 4px;">Resend Gift Card Email</button>
+                      <button onclick="sendGiftCard(${sub.id})" class="btn btn-secondary btn-sm">Resend Gift Card Email</button>
                     `}
                   </div>
                 ` : ''}
