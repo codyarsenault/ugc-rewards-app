@@ -1213,6 +1213,8 @@ Sitemap: ${process.env.HOST}/sitemap.xml`);
 // Root route - Admin dashboard
 // Replace your current root route with this updated version that handles direct access
 
+// Replace your current root route with this updated version that handles direct access
+
 app.get('/', async (req, res) => {
   console.log('=== ROOT ROUTE CALLED ===');
   
@@ -1311,6 +1313,30 @@ app.get('/', async (req, res) => {
               .install-form button:hover {
                 background: #006e52;
               }
+              footer {
+                margin-top: 80px;
+                padding: 40px 0;
+                border-top: 1px solid #e1e1e1;
+              }
+              .footer-links {
+                display: flex;
+                justify-content: center;
+                gap: 30px;
+                margin-bottom: 20px;
+              }
+              .footer-links a {
+                color: #616161;
+                text-decoration: none;
+                font-size: 14px;
+              }
+              .footer-links a:hover {
+                color: #202223;
+              }
+              .copyright {
+                text-align: center;
+                color: #999;
+                font-size: 14px;
+              }
             </style>
           </head>
           <body>
@@ -1348,6 +1374,16 @@ app.get('/', async (req, res) => {
                   Already installed? Access the app from your Shopify admin.
                 </p>
               </div>
+              
+              <footer>
+                <div class="footer-links">
+                  <a href="/privacy">Privacy Policy</a>
+                  <a href="/terms">Terms of Service</a>
+                </div>
+                <div class="copyright">
+                  © ${new Date().getFullYear()} Honest UGC. All rights reserved.
+                </div>
+              </footer>
             </div>
           </body>
         </html>
