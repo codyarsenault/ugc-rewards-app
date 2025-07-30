@@ -574,18 +574,14 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
     }
 
     let job = null;
-    let approvalSuccessful = true;
+    let approvalSuccessful = false;
+    let rewardSentSuccessfully = false;
+    let errorMessage = null;
 
     // Handle job-related rewards
     if (submission.job_id) {
-      await JobsModel.incrementSpotsFilled(submission.job_id);
       job = await JobsModel.getById(submission.job_id);
       console.log('Job details:', job);
-
-      // Mark job as completed if full
-      if (job.spots_filled >= job.spots_available) {
-        await JobsModel.updateStatus(job.id, 'completed');
-      }
 
       // Handle automatic discount rewards
       if (['percentage', 'fixed'].includes(job.reward_type)) {
@@ -618,8 +614,10 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
           }
 
           console.log(`Reward sent to ${submission.customer_email}: ${code}`);
+          rewardSentSuccessfully = true;
         } catch (err) {
           console.error('Error creating/sending reward:', err);
+          errorMessage = 'Failed to create or send discount code. The submission remains pending.';
           
           // Create pending reward for manual fulfillment
           await RewardsModel.create({
@@ -638,7 +636,7 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
       }
 
       // Handle gift card rewards
-      if (job.reward_type === 'giftcard') {
+      else if (job.reward_type === 'giftcard') {
         console.log('Processing gift card reward for job:', job.id);
         
         try {
@@ -681,13 +679,15 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
           }
           
           console.log(`Gift card reward pending for ${submission.customer_email}: $${job.reward_giftcard_amount}`);
+          rewardSentSuccessfully = true; // Gift cards are manual, so we consider this successful
         } catch (error) {
           console.error('Error processing gift card reward:', error);
+          errorMessage = 'Failed to process gift card reward. The submission remains pending.';
         }
       }
 
       // Handle free product rewards
-      if (job.reward_type === 'product') {
+      else if (job.reward_type === 'product') {
         console.log('Processing free product reward for job:', job.id);
         
         try {
@@ -715,8 +715,10 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
           }
           
           console.log(`Free product code sent to ${submission.customer_email}: ${code}`);
+          rewardSentSuccessfully = true;
         } catch (error) {
           console.error('Error creating free product reward:', error);
+          errorMessage = 'Failed to create or send free product code. The submission remains pending.';
           
           await RewardsModel.create({
             submissionId: submission.id,
@@ -732,18 +734,47 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
           console.log('Created pending reward record for manual fulfillment');
         }
       }
-    }
+      // No reward type
+      else {
+        rewardSentSuccessfully = true; // No reward to send
+      }
 
-    // Update submission status
-    if (approvalSuccessful) {
+      // Only update submission status and increment spots if reward was handled successfully
+      if (rewardSentSuccessfully) {
+        await SubmissionsModel.updateStatus(submissionId, 'approved');
+        await JobsModel.incrementSpotsFilled(submission.job_id);
+        
+        // Check if job should be marked as completed
+        const updatedJob = await JobsModel.getById(submission.job_id);
+        if (updatedJob.spots_filled >= updatedJob.spots_available) {
+          await JobsModel.updateStatus(updatedJob.id, 'completed');
+        }
+        
+        approvalSuccessful = true;
+        console.log(`Approved submission ${submissionId}`);
+      }
+    } else {
+      // No job associated - just approve
       await SubmissionsModel.updateStatus(submissionId, 'approved');
-      console.log(`Approved submission ${submissionId}`);
+      approvalSuccessful = true;
     }
 
-    res.json({ success: true, message: 'Submission approved' });
+    if (approvalSuccessful) {
+      res.json({ success: true, message: 'Submission approved successfully' });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: errorMessage || 'Failed to approve submission due to reward processing error',
+        keepPending: true 
+      });
+    }
   } catch (error) {
     console.error('Error approving submission:', error);
-    res.status(500).json({ success: false, message: 'Failed to approve submission' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to approve submission',
+      error: error.message 
+    });
   }
 });
 

@@ -613,33 +613,33 @@ function displaySubmissions() {
     <table>
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Date</th>
-          <th>Customer</th>
-          <th>Type</th>
-          <th>Job</th>
-          <th>Content</th>
-          <th>Media</th>
-          <th>Actions</th>
+          <th class="col-id">ID</th>
+          <th class="col-date">Date</th>
+          <th class="col-customer">Customer</th>
+          <th class="col-type">Type</th>
+          <th class="col-job">Job</th>
+          <th class="col-content">Content</th>
+          <th class="col-media">Media</th>
+          <th class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
         ${filteredSubmissions.map(sub => `
           <tr>
-            <td style="font-weight: 600; color: #666; font-size: 13px;">#${sub.id}</td>
-            <td>${new Date(sub.createdAt).toLocaleDateString()}</td>
-            <td>${sub.customerEmail}</td>
-            <td>${sub.type}</td>
-            <td style="max-width: 100px; word-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.2; font-size: 13px;">${sub.job_title ? `<a href="#" onclick="viewJobFromSubmission(event, ${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">${sub.job_title}</a>` : '-'}</td>
-            <td class="review-content">${sub.content || 'No content'}</td>
-            <td>
+            <td class="col-id" style="font-weight: 600; color: #666; font-size: 13px;">#${sub.id}</td>
+            <td class="col-date">${new Date(sub.createdAt).toLocaleDateString()}</td>
+            <td class="col-customer">${sub.customerEmail}</td>
+            <td class="col-type">${sub.type}</td>
+            <td class="col-job" style="max-width: 100px; word-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.2; font-size: 13px;">${sub.job_title ? `<a href="#" onclick="viewJobFromSubmission(event, ${sub.job_id})" style="color: #2c6ecb; text-decoration: none; cursor: pointer;">${sub.job_title}</a>` : '-'}</td>
+            <td class="col-content review-content">${sub.content || 'No content'}</td>
+            <td class="col-media">
               ${sub.mediaUrl ? (
                 sub.type === 'video' 
                   ? `<video class="media-preview" onclick="openModal('${sub.mediaUrl}', 'video')" src="${sub.mediaUrl}"></video>`
                   : `<img class="media-preview" onclick="openModal('${sub.mediaUrl}', 'image')" src="${sub.mediaUrl}" alt="Submission media">`
               ) : '-'}
             </td>
-            <td>
+            <td class="col-actions">
               ${sub.status === 'pending' ? `
                 <button onclick="approveSubmission(${sub.id})" class="btn btn-primary btn-sm">Approve</button>
                 <button onclick="rejectSubmission(${sub.id})" class="btn btn-danger btn-sm">Reject</button>
@@ -704,13 +704,21 @@ async function approveSubmission(submissionId) {
     if (!response) return; // Redirecting to auth
     
     if (response.ok) {
+      alert('Submission approved successfully!');
       loadSubmissions();
     } else {
-      alert('Failed to approve submission');
+      const data = await response.json();
+      if (data.keepPending) {
+        alert(data.message || 'Failed to approve submission. The submission will remain pending for manual processing.');
+      } else {
+        alert(data.message || 'Failed to approve submission');
+      }
+      // Reload to show current status
+      loadSubmissions();
     }
   } catch (error) {
     console.error('Error approving submission:', error);
-    alert('Error approving submission');
+    alert('Error approving submission. Please try again.');
   }
 }
 

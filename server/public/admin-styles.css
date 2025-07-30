@@ -148,6 +148,13 @@ td {
   vertical-align: top;
   word-break: break-word;
 }
+.col-id { 
+  width: 60px; 
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .col-date { width: 100px; }
 .col-customer { width: 200px; }
 .col-type { width: 80px; }
@@ -263,7 +270,7 @@ td {
   color: #666;
   line-height: 1.4;
 }
-.col-content { width: 300px; }
+.col-content { width: 200px; }
 .col-media { width: 120px; }
 .col-actions { width: 120px; }
 
