@@ -849,6 +849,129 @@ app.post('/api/admin/rewards/:submissionId/send-giftcard', async (req, res) => {
   }
 });
 
+// Resend rejection email
+app.post('/api/admin/submissions/:id/resend-rejection', async (req, res) => {
+  try {
+    const submissionId = req.params.id;
+    const shop = req.shop;
+    
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Validate ownership
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to access this submission' });
+      }
+    }
+
+    // Check if submission is rejected
+    if (submission.status !== 'rejected') {
+      return res.status(400).json({ error: 'Can only resend rejection emails for rejected submissions' });
+    }
+    
+    const customizations = await CustomizationsModel.getByShop(shop) || {};
+    
+    await sendCustomerStatusEmail({
+      to: submission.customer_email,
+      status: 'rejected',
+      type: submission.type,
+      customSubject: customizations.email_subject_rejected,
+      customBody: customizations.email_body_rejected,
+      customizations
+    });
+    
+    res.json({ success: true, message: 'Rejection email resent successfully' });
+  } catch (error) {
+    console.error('Error resending rejection email:', error);
+    res.status(500).json({ error: 'Failed to resend rejection email' });
+  }
+});
+
+// Resend reward email
+app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
+  try {
+    const submissionId = req.params.id;
+    const shop = req.shop;
+    const session = req.shopifySession;
+    
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Validate ownership
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to access this submission' });
+      }
+    }
+
+    // Check if submission is approved
+    if (submission.status !== 'approved') {
+      return res.status(400).json({ error: 'Can only resend reward emails for approved submissions' });
+    }
+
+    // Get the job details for reward information
+    if (!submission.job_id) {
+      return res.status(400).json({ error: 'No job associated with this submission' });
+    }
+
+    const job = await JobsModel.getById(submission.job_id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const customizations = await CustomizationsModel.getByShop(shop) || {};
+
+    // Handle different reward types
+    if (job.reward_type === 'percentage' || job.reward_type === 'fixed') {
+      // Get existing reward record
+      const reward = await RewardsModel.getBySubmissionId(submission.id);
+      if (!reward || !reward.code) {
+        return res.status(400).json({ error: 'No discount code found for this submission. The reward may need to be created first.' });
+      }
+
+      await sendRewardCodeEmail({
+        to: submission.customer_email,
+        code: reward.code,
+        value: job.reward_value,
+        type: job.reward_type,
+        expiresIn: '30 days',
+        customSubject: customizations.email_subject_reward,
+        customBody: customizations.email_body_reward,
+        customizations
+      });
+    } else if (job.reward_type === 'product') {
+      // Get existing reward record
+      const reward = await RewardsModel.getBySubmissionId(submission.id);
+      if (!reward || !reward.code) {
+        return res.status(400).json({ error: 'No product discount code found for this submission. The reward may need to be created first.' });
+      }
+
+      await sendFreeProductEmail({
+        to: submission.customer_email,
+        code: reward.code,
+        productName: job.reward_product,
+        customSubject: customizations.email_subject_product,
+        customBody: customizations.email_body_product,
+        customizations
+      });
+    } else if (job.reward_type === 'giftcard') {
+      return res.status(400).json({ error: 'Please use the "Send Gift Card Email" button to resend gift card emails' });
+    }
+    
+    res.json({ success: true, message: 'Reward email resent successfully' });
+  } catch (error) {
+    console.error('Error resending reward email:', error);
+    res.status(500).json({ error: 'Failed to resend reward email' });
+  }
+});
+
 // Get customizations
 app.get('/api/admin/customizations', async (req, res) => {
   try {

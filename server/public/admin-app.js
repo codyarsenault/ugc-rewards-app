@@ -653,7 +653,18 @@ function displaySubmissions() {
                       <span style="font-size: 12px; color: #008060;">
                         ✓ Gift card email sent
                       </span>
+                      <button onclick="sendGiftCard(${sub.id})" class="btn btn-secondary btn-sm" style="margin-top: 4px;">Resend Gift Card Email</button>
                     `}
+                  </div>
+                ` : ''}
+                ${sub.status === 'approved' && sub.reward_type !== 'giftcard' && sub.reward_type ? `
+                  <div style="margin-top: 8px;">
+                    <button onclick="resendRewardEmail(${sub.id})" class="btn btn-secondary btn-sm">Resend Reward Email</button>
+                  </div>
+                ` : ''}
+                ${sub.status === 'rejected' ? `
+                  <div style="margin-top: 8px;">
+                    <button onclick="resendRejectionEmail(${sub.id})" class="btn btn-secondary btn-sm">Resend Rejection Email</button>
                   </div>
                 ` : ''}
               `}
@@ -762,6 +773,58 @@ async function sendGiftCard(submissionId) {
   } catch (error) {
     console.error('Error sending gift card:', error);
     alert('Error sending gift card email');
+  }
+}
+
+// Resend rejection email
+async function resendRejectionEmail(submissionId) {
+  if (!confirm('Are you sure you want to resend the rejection email to this customer?')) {
+    return;
+  }
+  
+  try {
+    const queryParams = window.location.search;
+    const response = await makeAuthenticatedRequest(`/api/admin/submissions/${submissionId}/resend-rejection${queryParams}`, {
+      method: 'POST'
+    });
+    
+    if (!response) return; // Redirecting to auth
+    
+    if (response.ok) {
+      alert('Rejection email resent successfully!');
+    } else {
+      const data = await response.json();
+      alert('Failed to resend rejection email: ' + (data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error resending rejection email:', error);
+    alert('Error resending rejection email');
+  }
+}
+
+// Resend reward email
+async function resendRewardEmail(submissionId) {
+  if (!confirm('Are you sure you want to resend the reward email to this customer?')) {
+    return;
+  }
+  
+  try {
+    const queryParams = window.location.search;
+    const response = await makeAuthenticatedRequest(`/api/admin/submissions/${submissionId}/resend-reward${queryParams}`, {
+      method: 'POST'
+    });
+    
+    if (!response) return; // Redirecting to auth
+    
+    if (response.ok) {
+      alert('Reward email resent successfully!');
+    } else {
+      const data = await response.json();
+      alert('Failed to resend reward email: ' + (data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error resending reward email:', error);
+    alert('Error resending reward email');
   }
 }
 
@@ -1121,4 +1184,4 @@ document.addEventListener('DOMContentLoaded', function() {
       alert('Error saving email settings');
     }
   });
-}); 
+});
