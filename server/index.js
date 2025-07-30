@@ -222,11 +222,73 @@ app.get(
   shopify.redirectToShopifyOrAppRoot()
 );
 
-// Webhook processing (empty for now - webhooks can be added later if needed)
+// GDPR webhook handlers
+const gdprWebhooks = {
+  CUSTOMERS_REDACT: '/api/webhooks/customers/redact',
+  CUSTOMERS_DATA_REQUEST: '/api/webhooks/customers/data_request',
+  SHOP_REDACT: '/api/webhooks/shop/redact',
+};
+
+// Webhook processing
 app.post(
   shopify.config.webhooks.path,
   shopify.processWebhooks({ webhookHandlers: {} })
 );
+
+// Register GDPR webhooks
+app.post('/api/webhooks/customers/redact', async (req, res) => {
+  try {
+    const { shop_domain, customer } = req.body;
+    console.log('Customer redact request for:', shop_domain, customer.email);
+    
+    // Delete customer data from your database
+    await SubmissionsModel.redactCustomerData(shop_domain, customer.email);
+    
+    console.log('Customer data redacted successfully');
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error processing customer redact:', error);
+    res.status(500).send('Error processing redact request');
+  }
+});
+
+app.post('/api/webhooks/customers/data_request', async (req, res) => {
+  try {
+    const { shop_domain, customer } = req.body;
+    console.log('Customer data request for:', shop_domain, customer.email);
+    
+    // Get customer data from your database
+    const customerData = await SubmissionsModel.getCustomerData(shop_domain, customer.email);
+    
+    // In a real implementation, you would send this data to the customer
+    // For now, we'll just log it and return success
+    console.log('Customer data retrieved:', customerData);
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error processing customer data request:', error);
+    res.status(500).send('Error processing data request');
+  }
+});
+
+app.post('/api/webhooks/shop/redact', async (req, res) => {
+  try {
+    const { shop_domain } = req.body;
+    console.log('Shop redact request for:', shop_domain);
+    
+    // Delete all shop data from your database
+    await SubmissionsModel.redactShopData(shop_domain);
+    await JobsModel.redactShopData(shop_domain);
+    await CustomizationsModel.redactShopData(shop_domain);
+    await RewardsModel.redactShopData(shop_domain);
+    
+    console.log('Shop data redacted successfully');
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error processing shop redact:', error);
+    res.status(500).send('Error processing shop redact request');
+  }
+});
 
 // Middleware
 app.use(express.json());

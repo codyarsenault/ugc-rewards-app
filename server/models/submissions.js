@@ -195,5 +195,36 @@ export const SubmissionsModel = {
     `;
     const result = await pool.query(query, [email, jobId]);
     return result.rows.length > 0;
+  },
+
+  // GDPR compliance methods
+  async redactCustomerData(shopDomain, customerEmail) {
+    const query = `
+      UPDATE submissions 
+      SET customer_email = 'REDACTED', content = 'REDACTED', media_url = NULL 
+      WHERE shop_domain = $1 AND customer_email = $2
+    `;
+    
+    await pool.query(query, [shopDomain, customerEmail]);
+  },
+
+  async getCustomerData(shopDomain, customerEmail) {
+    const query = `
+      SELECT * FROM submissions 
+      WHERE shop_domain = $1 AND customer_email = $2
+    `;
+    
+    const result = await pool.query(query, [shopDomain, customerEmail]);
+    return result.rows;
+  },
+
+  async redactShopData(shopDomain) {
+    const query = `
+      UPDATE submissions 
+      SET customer_email = 'REDACTED', content = 'REDACTED', media_url = NULL 
+      WHERE shop_domain = $1
+    `;
+    
+    await pool.query(query, [shopDomain]);
   }
 };

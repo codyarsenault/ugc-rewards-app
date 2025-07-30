@@ -184,5 +184,15 @@ async delete(id) {
     `;
     const result = await pool.query(query, [jobId]);
     return result.rows;
+  },
+
+  // GDPR compliance method
+  async redactShopData(shopDomain) {
+    const query = `
+      DELETE FROM jobs 
+      WHERE shop_domain = $1
+    `;
+    
+    await pool.query(query, [shopDomain]);
   }
 };

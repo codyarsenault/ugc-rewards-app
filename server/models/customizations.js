@@ -142,4 +142,14 @@ static async upsert(shop, customizations) {
     throw error;
   }
 }
+
+  // GDPR compliance method
+  static async redactShopData(shopDomain) {
+    const query = `
+      DELETE FROM customizations 
+      WHERE shop_domain = $1
+    `;
+    
+    await pool.query(query, [shopDomain]);
+  }
 }
