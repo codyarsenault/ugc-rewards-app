@@ -112,22 +112,22 @@ async function registerWebhooks(session) {
   const webhooks = [
     {
       topic: 'customers/redact',
-      address: `${process.env.HOST}/api/webhooks/customers/redact`,
+      address: `${process.env.HOST}${shopify.config.webhooks.path}`,
       format: 'json'
     },
     {
       topic: 'customers/data_request',
-      address: `${process.env.HOST}/api/webhooks/customers/data_request`,
+      address: `${process.env.HOST}${shopify.config.webhooks.path}`,
       format: 'json'
     },
     {
       topic: 'shop/redact',
-      address: `${process.env.HOST}/api/webhooks/shop/redact`,
+      address: `${process.env.HOST}${shopify.config.webhooks.path}`,
       format: 'json'
     },
     {
       topic: 'app/uninstalled',
-      address: `${process.env.HOST}/api/webhooks/app/uninstalled`,
+      address: `${process.env.HOST}${shopify.config.webhooks.path}`,
       format: 'json'
     }
   ];
