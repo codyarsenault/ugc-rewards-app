@@ -4,10 +4,141 @@
     <title>Honest UGC Admin</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+    <!-- Update your admin-dashboard.ejs head section to ensure the script is fully loaded: -->
+
+<script 
+src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
+onload="console.log('App Bridge script loaded'); window.appBridgeScriptLoaded = true;"
+onerror="console.error('Failed to load App Bridge script')">
+</script>
+
+<script>
+// Wait for both the script and the actual App Bridge to be available
+// Add this more thorough exploration to your waitForAppBridge function in admin-dashboard.ejs:
+
+function waitForAppBridge(callback) {
+  let attempts = 0;
+  const maxAttempts = 50; // 5 seconds
+  
+  function check() {
+    attempts++;
+    
+    console.log(`Checking for App Bridge (attempt ${attempts})...`);
+    
+    // Deep explore window.shopify
+    if (window.shopify) {
+      console.log('window.shopify available');
+      console.log('window.shopify structure:', window.shopify);
+      
+      // Check all properties of shopify object
+      for (let key in window.shopify) {
+        console.log(`window.shopify.${key}:`, typeof window.shopify[key], window.shopify[key]);
+        
+        // Check if any property might be the createApp function
+        if (typeof window.shopify[key] === 'function' && key.toLowerCase().includes('app')) {
+          console.log(`Found potential app function: window.shopify.${key}`);
+        }
+      }
+      
+      // Check shopify.app more thoroughly
+      if (window.shopify.app) {
+        console.log('window.shopify.app properties:', Object.keys(window.shopify.app));
+        for (let key in window.shopify.app) {
+          console.log(`window.shopify.app.${key}:`, typeof window.shopify.app[key]);
+        }
+      }
+    }
+    
+    // Check for other potential App Bridge locations
+    const potentialAppBridgeKeys = Object.keys(window).filter(key => 
+      key.toLowerCase().includes('app') || 
+      key.toLowerCase().includes('bridge') || 
+      key.toLowerCase().includes('shopify')
+    );
+    console.log('Potential App Bridge keys on window:', potentialAppBridgeKeys);
+    
+    // The Shopify CDN might use a different approach
+    // Let's check if there's an initialization needed
+    if (window.shopify && window.shopify.app && window.shopify.app.init) {
+      console.log('Found window.shopify.app.init - trying to initialize');
+      callback();
+      return;
+    }
+    
+    // Check if createApp exists anywhere
+    if (window.createApp && typeof window.createApp === 'function') {
+      console.log('App Bridge ready - createApp found');
+      callback();
+    } else if (window.shopify && typeof window.shopify.createApp === 'function') {
+      console.log('App Bridge ready - shopify.createApp found');
+      callback();
+    } else if (attempts < maxAttempts) {
+      setTimeout(check, 100);
+    } else {
+      console.error('App Bridge not available after 5 seconds');
+      console.log('Final window.shopify state:', window.shopify);
+      // Try to proceed anyway
+      callback();
+    }
+  }
+  
+  // Start checking after a small delay to ensure script execution
+  setTimeout(check, 100);
+}
+
+// Store this function globally so admin-app.js can use it
+window.waitForAppBridge = waitForAppBridge;
+</script>
     <script>
+      // Make makeAuthenticatedRequest globally available
+      window.makeAuthenticatedRequest = async function(url, options = {}) {
+        console.log('makeAuthenticatedRequest called with URL:', url);
+        
+        // Get the session token from URL if available
+        const urlParams = new URLSearchParams(window.location.search);
+        const idToken = urlParams.get('id_token');
+        
+        console.log('Session token available:', !!idToken);
+        
+        // Add session token to headers if available
+        const headers = {
+          ...options.headers,
+          'Content-Type': 'application/json',
+        };
+        
+        if (idToken) {
+          headers['Authorization'] = `Bearer ${idToken}`;
+        }
+        
+        console.log('Making request with headers:', headers);
+        
+        const response = await fetch(url, {
+          ...options,
+          headers,
+          credentials: 'include'
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.status === 401) {
+          const data = await response.json();
+          console.log('401 response data:', data);
+          
+          if (data.needsAuth && data.authUrl) {
+            // In embedded app context, don't redirect to auth URL
+            // Instead, let the parent frame handle authentication
+            console.error('Authentication required but cannot redirect in embedded context');
+            console.error('Auth URL:', data.authUrl);
+            // You might want to show a message to the user here
+            return null;
+          }
+        }
+        
+        return response;
+      };
+      
       // Session handling functions
-      async function checkSessionAndHandleAuth() {
+      window.checkSessionAndHandleAuth = async function() {
         const shop = new URLSearchParams(window.location.search).get('shop');
         
         if (!shop) {
@@ -16,12 +147,20 @@
         }
 
         try {
-          const response = await fetch(`/api/health/${shop}`);
+          // Use the session token if available
+          const response = await window.makeAuthenticatedRequest(`/api/health/${shop}`);
+          if (!response) {
+            console.log('No response from health check - likely authentication issue');
+            return false;
+          }
+          
           const data = await response.json();
           
           if (data.needsAuth) {
-            console.log('Session invalid, redirecting to auth...');
-            window.location.href = data.authUrl;
+            console.log('Session invalid, but cannot redirect in embedded context');
+            console.log('Auth URL would be:', data.authUrl);
+            // In embedded context, we can't redirect to auth
+            // The parent frame should handle this
             return false;
           }
           
@@ -30,29 +169,12 @@
           console.error('Session check failed:', error);
           return false;
         }
-      }
-
-      async function makeAuthenticatedRequest(url, options = {}) {
-        const response = await fetch(url, {
-          ...options,
-          credentials: 'include'
-        });
-        
-        if (response.status === 401) {
-          const data = await response.json();
-          if (data.needsAuth && data.authUrl) {
-            window.location.href = data.authUrl;
-            return null;
-          }
-        }
-        
-        return response;
-      }
+      };
 
       // Define global functions immediately in head section
       console.log('Setting up global functions in head...');
       
-      function saveEmailSettings() {
+      window.saveEmailSettings = function() {
         console.log('saveEmailSettings function called');
         
         const form = document.getElementById('emailSettingsForm');
@@ -62,11 +184,8 @@
         console.log('Saving email settings:', emailSettings);
         console.log('Current URL params:', window.location.search);
         
-        makeAuthenticatedRequest('/api/admin/email-settings' + window.location.search, {
+        window.makeAuthenticatedRequest('/api/admin/email-settings' + window.location.search, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify(emailSettings)
         })
         .then(response => {
@@ -102,9 +221,9 @@
           console.error('Error saving email settings:', error);
           alert('Error saving email settings');
         });
-      }
+      };
       
-      function resetEmailSettingsToDefaults() {
+      window.resetEmailSettingsToDefaults = function() {
         console.log('Resetting email settings to defaults');
         
         document.getElementById('emailSubjectConfirmation').value = '';
@@ -124,7 +243,18 @@
         document.getElementById('notificationEmail').value = '';
         
         console.log('Email settings reset to defaults');
-      }
+      };
+      
+      // These functions will be called by admin-app.js once it loads
+      window.openQuickEmailSetup = function() {
+        const modal = document.getElementById('quickEmailSetupModal');
+        if (modal) modal.classList.add('open');
+      };
+      
+      window.closeQuickEmailSetup = function() {
+        const modal = document.getElementById('quickEmailSetupModal');
+        if (modal) modal.classList.remove('open');
+      };
       
       console.log('Global functions defined successfully in head');
     </script>
@@ -808,6 +938,8 @@
       const HOST = '<%= env.HOST %>';
       const API_KEY = '<%= env.SHOPIFY_API_KEY %>';
     </script>
+    
+    <!-- Load admin-app.js after globals are set -->
     <script src="/public/admin-app.js"></script>
   </body>
-</html> 
+</html>

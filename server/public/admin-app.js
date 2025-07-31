@@ -1,171 +1,348 @@
-// Initialize Shopify App Bridge
-const AppBridge = window['app-bridge'];
-const createApp = AppBridge.default;
-const app = createApp({
-  apiKey: API_KEY,
-  host: new URLSearchParams(location.search).get("host"),
-});
+// This should be at the TOP of your admin-app.js file
 
-// Add lazy loading for images in admin-app.js
-const lazyImageObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      const img = entry.target;
-      img.src = img.dataset.src;
-      lazyImageObserver.unobserve(img);
-    }
-  });
-});
+console.log('Starting app initialization...');
 
-// Initialize Shopify App Bridge ResourcePicker
-const ResourcePicker = window['app-bridge'].actions.ResourcePicker;
+// Skip App Bridge initialization entirely and just set up your app
+window.app = {
+  isEmbedded: true,
+  apiKey: API_KEY
+};
 
-// Session handling functions
-async function checkSessionAndHandleAuth() {
-  const shop = new URLSearchParams(window.location.search).get('shop');
+// Initialize the rest of your app immediately
+initializeRestOfApp();
+
+function initializeRestOfApp() {
+  console.log('Initializing rest of app...');
   
-  if (!shop) {
-    console.error('No shop parameter found');
-    return false;
-  }
-
-  try {
-    const response = await fetch(`/api/health/${shop}`);
-    const data = await response.json();
-    
-    if (data.needsAuth) {
-      console.log('Session invalid, redirecting to auth...');
-      window.location.href = data.authUrl;
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Session check failed:', error);
-    return false;
-  }
-}
-
-async function makeAuthenticatedRequest(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    credentials: 'include'
-  });
-  
-  if (response.status === 401) {
-    const data = await response.json();
-    if (data.needsAuth && data.authUrl) {
-      window.location.href = data.authUrl;
-      return null;
-    }
-  }
-  
-  return response;
-}
-
-// Email settings functions
-function saveEmailSettings() {
-  const form = document.getElementById('emailSettingsForm');
-  const formData = new FormData(form);
-  const emailSettings = Object.fromEntries(formData);
-  
-  makeAuthenticatedRequest('/api/admin/email-settings' + window.location.search, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(emailSettings)
-  })
-  .then(response => {
-    if (!response) return; // Redirecting to auth
-    
-    if (response.ok) {
-      document.getElementById('emailSettingsSuccessMessage').style.display = 'block';
-      setTimeout(() => {
-        document.getElementById('emailSettingsSuccessMessage').style.display = 'none';
-      }, 3000);
-      
-      // Check if we now have the required email settings and hide the banner
-      const emailFromName = document.getElementById('emailFromName').value.trim();
-      const notificationEmail = document.getElementById('notificationEmail').value.trim();
-      
-      if (emailFromName && notificationEmail) {
-        const banner = document.getElementById('emailSetupBanner');
-        if (banner) {
-          banner.style.display = 'none';
-        }
+  // Add lazy loading for images
+  const lazyImageObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        img.src = img.dataset.src;
+        lazyImageObserver.unobserve(img);
       }
-    } else {
-      return response.json().then(errorData => {
-        alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
+    });
+  });
+
+  // Make lazyImageObserver globally available
+  window.lazyImageObserver = lazyImageObserver;
+
+  // Define all global variables
+  window.editingJobId = null;
+  window.currentJobs = [];
+  window.allSubmissions = [];
+  window.currentSubmissionFilter = 'pending';
+  window.customizationsLoaded = false;
+
+  // Define all your global functions
+  window.clearProductSelection = clearProductSelection;
+  window.switchTab = switchTab;
+  window.openJobModal = openJobModal;
+  window.closeJobModal = closeJobModal;
+  window.updateRewardFields = updateRewardFields;
+  window.loadJobs = loadJobs;
+  window.deleteJob = deleteJob;
+  window.viewJobDetails = viewJobDetails;
+  window.closeJobViewModal = closeJobViewModal;
+  window.viewJobFromSubmission = viewJobFromSubmission;
+  window.formatReward = formatReward;
+  window.loadSubmissions = loadSubmissions;
+  window.displaySubmissions = displaySubmissions;
+  window.filterSubmissions = filterSubmissions;
+  window.approveSubmission = approveSubmission;
+  window.rejectSubmission = rejectSubmission;
+  window.sendGiftCard = sendGiftCard;
+  window.resendRejectionEmail = resendRejectionEmail;
+  window.resendRewardEmail = resendRewardEmail;
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+  window.addRequirement = addRequirement;
+  window.removeRequirement = removeRequirement;
+  window.getRequirementsString = getRequirementsString;
+  window.setRequirementsFromString = setRequirementsFromString;
+  window.loadCustomizations = loadCustomizations;
+  window.showImagePreview = showImagePreview;
+  window.resetCustomizationsToDefaults = resetCustomizationsToDefaults;
+  window.loadEmailSettings = loadEmailSettings;
+  window.openQuickEmailSetup = openQuickEmailSetup;
+  window.closeQuickEmailSetup = closeQuickEmailSetup;
+  
+  // Keep all your existing function definitions here...
+  // [All your functions like clearProductSelection, switchTab, etc.]
+  
+  // Set up event listeners at the end
+  setupEventListeners();
+  
+  // Load initial data
+  loadSubmissions();
+  loadEmailSettings();
+}
+
+function setupEventListeners() {
+  // Job form submission
+  const jobForm = document.getElementById('jobForm');
+  if (jobForm) {
+    jobForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Your existing job form submission code
+      const requirementsString = getRequirementsString();
+      
+      const formData = new FormData(e.target);
+      const jobData = Object.fromEntries(formData);
+      jobData.requirements = requirementsString;
+      const jobId = jobData.jobId;
+      delete jobData.jobId;
+      
+      // Convert deadline to end of day ISO format if provided
+      if (jobData.deadline) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(jobData.deadline)) {
+          jobData.deadline = jobData.deadline + 'T23:59:59';
+        }
+        jobData.deadline = new Date(jobData.deadline).toISOString();
+      }
+      
+      try {
+        const queryParams = window.location.search;
+        const url = jobId 
+          ? '/api/admin/jobs/' + jobId + queryParams
+          : '/api/admin/jobs' + queryParams;
+        const method = jobId ? 'PUT' : 'POST';
+        
+        const response = await makeAuthenticatedRequest(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(jobData)
+        });
+        
+        if (!response) return; // Redirecting to auth
+        
+        if (response.ok) {
+          closeJobModal();
+          loadJobs();
+          alert(jobId ? 'Job updated successfully!' : 'Job created successfully!');
+        } else {
+          alert('Failed to ' + (jobId ? 'update' : 'create') + ' job');
+        }
+      } catch (error) {
+        console.error('Error saving job:', error);
+        alert('Error saving job');
+      }
+    });
+  }
+
+  // Color picker synchronization
+  document.querySelectorAll('input[type="color"]').forEach(picker => {
+    const textInput = picker.nextElementSibling;
+    if (textInput) {
+      picker.addEventListener('change', (e) => {
+        textInput.value = e.target.value;
       });
     }
-  })
-  .catch(error => {
-    console.error('Error saving email settings:', error);
-    alert('Error saving email settings');
   });
+
+  document.querySelectorAll('input[type="text"][pattern]').forEach(input => {
+    const picker = input.previousElementSibling;
+    if (picker && picker.type === 'color') {
+      input.addEventListener('input', (e) => {
+        if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+          picker.value = e.target.value;
+        }
+      });
+    }
+  });
+
+  const emailFromName = document.getElementById('emailFromName');
+  if (emailFromName) {
+    emailFromName.addEventListener('input', function(e) {
+      const preview = document.getElementById('fromNamePreview');
+      if (preview) {
+        preview.textContent = e.target.value || 'Honest UGC';
+      }
+    });
+  }
+
+  const emailReplyTo = document.getElementById('emailReplyTo');
+  if (emailReplyTo) {
+    emailReplyTo.addEventListener('input', function(e) {
+      const preview = document.getElementById('replyToPreview');
+      if (preview) {
+        preview.textContent = e.target.value || 'no replies (emails will be no-reply)';
+      }
+    });
+  }
+
+  // Image preview on URL change
+  const heroImageUrl = document.getElementById('heroImageUrl');
+  if (heroImageUrl) {
+    heroImageUrl.addEventListener('input', function() {
+      if (this.value) {
+        showImagePreview('heroImagePreview', this.value);
+      } else {
+        const preview = document.getElementById('heroImagePreview');
+        if (preview) preview.style.display = 'none';
+      }
+    });
+  }
+
+  const logoUrl = document.getElementById('logoUrl');
+  if (logoUrl) {
+    logoUrl.addEventListener('input', function() {
+      if (this.value) {
+        showImagePreview('logoPreview', this.value);
+      } else {
+        const preview = document.getElementById('logoPreview');
+        if (preview) preview.style.display = 'none';
+      }
+    });
+  }
+
+  // Customization form submission
+  const customizationForm = document.getElementById('customizationForm');
+  if (customizationForm) {
+    customizationForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const settings = Object.fromEntries(formData);
+      settings.showExampleVideos = formData.has('showExampleVideos');
+      
+      try {
+        const queryParams = window.location.search;
+        const response = await makeAuthenticatedRequest('/api/admin/customizations' + queryParams, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(settings),
+        });
+        
+        if (!response) return; // Redirecting to auth
+        
+        if (response.ok) {
+          const successMsg = document.getElementById('customizationSuccessMessage');
+          if (successMsg) {
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+              successMsg.style.display = 'none';
+            }, 3000);
+          }
+        } else {
+          alert('Failed to save settings');
+        }
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('Error saving settings');
+      }
+    });
+  }
+
+  // Quick Email Setup form submission
+  const quickEmailSetupForm = document.getElementById('quickEmailSetupForm');
+  if (quickEmailSetupForm) {
+    quickEmailSetupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const emailSettings = Object.fromEntries(formData);
+      
+      try {
+        const queryParams = window.location.search;
+        const response = await makeAuthenticatedRequest('/api/admin/email-settings' + queryParams, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(emailSettings)
+        });
+        
+        if (!response) return; // Redirecting to auth
+        
+        if (response.ok) {
+          // Close modal and reload page to hide the banner
+          closeQuickEmailSetup();
+          window.location.reload();
+        } else {
+          const errorData = await response.json();
+          alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error saving email settings:', error);
+        alert('Error saving email settings');
+      }
+    });
+  }
+  
+  // Close modals when clicking outside
+  window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+      if (event.target.id === 'jobModal') {
+        closeJobModal();
+      } else if (event.target.id === 'mediaModal') {
+        closeModal();
+      } else if (event.target.id === 'jobViewModal') {
+        closeJobViewModal();
+      } else if (event.target.id === 'quickEmailSetupModal') {
+        closeQuickEmailSetup();
+      }
+    }
+  };
 }
 
-function resetEmailSettingsToDefaults() {
-  document.getElementById('emailSubjectConfirmation').value = '';
-  document.getElementById('emailBodyConfirmation').value = '';
-  document.getElementById('emailSubjectRejected').value = '';
-  document.getElementById('emailBodyRejected').value = '';
-  document.getElementById('emailSubjectReward').value = '';
-  document.getElementById('emailBodyReward').value = '';
-  document.getElementById('emailSubjectGiftcard').value = '';
-  document.getElementById('emailBodyGiftcard').value = '';
-  document.getElementById('emailSubjectProduct').value = '';
-  document.getElementById('emailBodyProduct').value = '';
-  document.getElementById('emailFromName').value = '';
-  document.getElementById('emailReplyTo').value = '';
-  document.getElementById('fromNamePreview').textContent = 'Honest UGC';
-  document.getElementById('replyToPreview').textContent = 'no replies (emails will be no-reply)';
-  document.getElementById('notificationEmail').value = '';
-}
+// Remove any calls to initializeApp at the bottom of the file
+// The initialization happens automatically at the top now
 
-// Open product picker
-function openProductPicker() {
-  const productPicker = ResourcePicker.create(app, {
-    resourceType: ResourcePicker.ResourceType.Product,
-    options: {
+// Update openProductPicker to use shopify.resourcePicker directly
+window.openProductPicker = function() {
+  console.log('Opening product picker...');
+  
+  // In embedded context, use shopify.resourcePicker directly
+  if (window.shopify && window.shopify.resourcePicker) {
+    console.log('Using shopify.resourcePicker');
+    
+    window.shopify.resourcePicker.open({
+      resourceType: 'Product',
       selectMultiple: false,
       showVariants: false
-    }
-  });
-
-  productPicker.subscribe(ResourcePicker.Action.SELECT, (selectPayload) => {
-    const selection = selectPayload.selection;
-    if (selection && selection.length > 0) {
-      const product = selection[0];
+    }).then((result) => {
+      console.log('Resource picker result:', result);
       
-      document.getElementById('rewardProduct').value = product.title;
-      document.getElementById('rewardProductId').value = product.id;
-      document.getElementById('rewardProductHandle').value = product.handle;
-      
-      const productInfo = document.getElementById('selectedProductInfo');
-      productInfo.style.display = 'block';
-      
-      const productImage = document.getElementById('productImage');
-      if (product.images && product.images.length > 0) {
-        productImage.src = product.images[0].originalSrc;
-        productImage.alt = product.title;
-      } else {
-        productImage.src = '';
+      if (result && result.length > 0) {
+        const product = result[0];
+        
+        document.getElementById('rewardProduct').value = product.title;
+        document.getElementById('rewardProductId').value = product.id;
+        document.getElementById('rewardProductHandle').value = product.handle;
+        
+        const productInfo = document.getElementById('selectedProductInfo');
+        productInfo.style.display = 'block';
+        
+        const productImage = document.getElementById('productImage');
+        if (product.images && product.images.length > 0) {
+          productImage.src = product.images[0].originalSrc;
+          productImage.alt = product.title;
+        } else {
+          productImage.src = '';
+        }
+        
+        document.getElementById('productTitle').textContent = product.title;
+        
+        if (product.variants && product.variants.length > 0) {
+          const price = product.variants[0].price;
+          document.getElementById('productPrice').textContent = '$' + price;
+        }
       }
-      
-      document.getElementById('productTitle').textContent = product.title;
-      
-      if (product.variants && product.variants.length > 0) {
-        const price = product.variants[0].price;
-        document.getElementById('productPrice').textContent = '$' + price;
-      }
-    }
-  });
-
-  productPicker.dispatch(ResourcePicker.Action.OPEN);
-}
+    }).catch((error) => {
+      console.error('Resource picker error:', error);
+    });
+  } else {
+    console.error('shopify.resourcePicker not available');
+    alert('Product picker not available. Please refresh the page and try again.');
+  }
+};
 
 // Clear product selection
 function clearProductSelection() {
@@ -544,6 +721,10 @@ let customizationsLoaded = false;
 
 // Update the loadSubmissions function
 async function loadSubmissions() {
+  console.log('=== SUBMISSION LOADING DEBUG ===');
+  console.log('Current URL:', window.location.href);
+  console.log('Query params:', window.location.search);
+  console.log('Shop param:', new URLSearchParams(window.location.search).get('shop'));
   const sessionValid = await checkSessionAndHandleAuth();
   if (!sessionValid) return;
   
@@ -1089,120 +1270,3 @@ function closeQuickEmailSetup() {
   document.getElementById('quickEmailSetupModal').classList.remove('open');
 }
 
-// Initialize the app
-document.addEventListener('DOMContentLoaded', function() {
-  // Load initial data
-  loadSubmissions();
-  loadEmailSettings();
-
-  // Color picker synchronization
-  document.querySelectorAll('input[type="color"]').forEach(picker => {
-    const textInput = picker.nextElementSibling;
-    picker.addEventListener('change', (e) => {
-      textInput.value = e.target.value;
-    });
-  });
-
-  document.querySelectorAll('input[type="text"][pattern]').forEach(input => {
-    const picker = input.previousElementSibling;
-    input.addEventListener('input', (e) => {
-      if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
-        picker.value = e.target.value;
-      }
-    });
-  });
-
-  document.getElementById('emailFromName').addEventListener('input', function(e) {
-    const preview = document.getElementById('fromNamePreview');
-    preview.textContent = e.target.value || 'Honest UGC';
-  });
-
-  document.getElementById('emailReplyTo').addEventListener('input', function(e) {
-    const preview = document.getElementById('replyToPreview');
-    preview.textContent = e.target.value || 'no replies (emails will be no-reply)';
-  });
-
-  // Image preview on URL change
-  document.getElementById('heroImageUrl').addEventListener('input', function() {
-    if (this.value) {
-      showImagePreview('heroImagePreview', this.value);
-    } else {
-      document.getElementById('heroImagePreview').style.display = 'none';
-    }
-  });
-
-  document.getElementById('logoUrl').addEventListener('input', function() {
-    if (this.value) {
-      showImagePreview('logoPreview', this.value);
-    } else {
-      document.getElementById('logoPreview').style.display = 'none';
-    }
-  });
-
-  // Customization form submission
-  document.getElementById('customizationForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const settings = Object.fromEntries(formData);
-    settings.showExampleVideos = formData.has('showExampleVideos');
-    
-    try {
-      const queryParams = window.location.search;
-      const response = await makeAuthenticatedRequest('/api/admin/customizations' + queryParams, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-      });
-      
-      if (!response) return; // Redirecting to auth
-      
-      if (response.ok) {
-        document.getElementById('customizationSuccessMessage').style.display = 'block';
-        setTimeout(() => {
-          document.getElementById('customizationSuccessMessage').style.display = 'none';
-        }, 3000);
-      } else {
-        alert('Failed to save settings');
-      }
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('Error saving settings');
-    }
-  });
-
-  // Quick Email Setup form submission
-  document.getElementById('quickEmailSetupForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const emailSettings = Object.fromEntries(formData);
-    
-    try {
-      const queryParams = window.location.search;
-      const response = await makeAuthenticatedRequest('/api/admin/email-settings' + queryParams, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(emailSettings)
-      });
-      
-      if (!response) return; // Redirecting to auth
-      
-      if (response.ok) {
-        // Close modal and reload page to hide the banner
-        closeQuickEmailSetup();
-        window.location.reload();
-      } else {
-        const errorData = await response.json();
-        alert('Failed to save email settings: ' + (errorData.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error saving email settings:', error);
-      alert('Error saving email settings');
-    }
-  });
-});

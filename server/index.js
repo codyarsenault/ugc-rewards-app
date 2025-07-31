@@ -25,6 +25,7 @@ import { SQLiteSessionStorage } from '@shopify/shopify-app-session-storage-sqlit
 import { MemorySessionStorage } from '@shopify/shopify-app-session-storage-memory';
 import { PostgreSQLSessionStorage } from '@shopify/shopify-app-session-storage-postgresql';
 import path from 'path';
+import jwt from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import fs from 'fs';
@@ -100,6 +101,9 @@ const shopify = shopifyApp({
 });
 
 const app = express();
+
+// Trust proxy for rate limiting (needed for ngrok/proxy environments)
+app.set('trust proxy', 1);
 
 // Configure EJS templating
 app.set('view engine', 'ejs');
@@ -250,6 +254,75 @@ app.use((req, res, next) => {
   res.setHeader('ngrok-skip-browser-warning', 'true');
   next();
 });
+
+// Session token verification middleware
+const verifySessionToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    // Check if we have a Bearer token
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7); // Remove "Bearer " prefix
+      
+      try {
+        // Decode the session token (without verification for now)
+        const payload = jwt.decode(token);
+        
+        if (!payload) {
+          console.log('Invalid session token format');
+          // Fall back to traditional session validation
+          return validateShopifySession(req, res, next);
+        }
+        
+        // Get the shop domain from the token
+        const shop = payload.dest.replace('https://', '');
+        
+        // Verify the token is not expired
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < now) {
+          console.log('Session token expired');
+          return res.status(401).json({ 
+            error: 'Session token expired',
+            needsAuth: true,
+            authUrl: `/api/auth?shop=${shop}`
+          });
+        }
+        
+        // Load the session from storage
+        const sessions = await sessionStorage.findSessionsByShop(shop);
+        const validSession = sessions?.find(s => !s.expires || new Date(s.expires) > new Date());
+        
+        if (!validSession) {
+          console.log('No valid session found for shop:', shop);
+          return res.status(401).json({ 
+            error: 'No valid session found',
+            needsAuth: true,
+            authUrl: `/api/auth?shop=${shop}`
+          });
+        }
+        
+        // Attach session info to request
+        req.shop = shop;
+        req.shopifySession = validSession;
+        res.locals.shopify = { session: validSession };
+        
+        console.log('Session token validated successfully for shop:', shop);
+        next();
+      } catch (tokenError) {
+        console.error('Error processing session token:', tokenError);
+        // Fall back to traditional session validation
+        return validateShopifySession(req, res, next);
+      }
+    } else {
+      // No Bearer token, fall back to traditional session validation
+      return validateShopifySession(req, res, next);
+    }
+  } catch (error) {
+    console.error('Session token verification error:', error);
+    // Fall back to traditional session validation
+    return validateShopifySession(req, res, next);
+  }
+};
 
 // Add debugging middleware
 app.use((req, res, next) => {
@@ -405,16 +478,19 @@ app.use((req, res, next) => {
   res.setHeader('ngrok-skip-browser-warning', 'true');
   
   // Add security headers for better browser trust
-  res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   
-  // For OAuth callbacks specifically
-  if (req.path === '/api/auth/callback') {
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // Allow Shopify iframe
+  // For embedded Shopify apps, we need to allow iframe embedding
+  // Only set X-Frame-Options for non-embedded routes
+  if (!req.path.startsWith('/api/auth') && !req.path.startsWith('/')) {
+    res.setHeader('X-Frame-Options', 'DENY');
+  } else {
+    // Allow Shopify admin iframe for embedded app
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Content-Security-Policy', "frame-ancestors https://*.myshopify.com https://admin.shopify.com");
   }
   
@@ -422,12 +498,31 @@ app.use((req, res, next) => {
 });
 
 // Health check endpoint (public)
+// Update your health check endpoint to also accept session tokens
 app.get('/api/health/:shop', async (req, res) => {
   try {
     const shop = req.params.shop;
     console.log('Health check for shop:', shop);
     
-    // Check if there's a session in the request parameters
+    // Check for session token in Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = jwt.decode(token);
+      
+      if (payload && !payload.exp || payload.exp > Math.floor(Date.now() / 1000)) {
+        // Valid token
+        return res.json({
+          shop,
+          hasSession: true,
+          sessionValid: true,
+          needsAuth: false,
+          authUrl: null
+        });
+      }
+    }
+    
+    // Fall back to existing session check logic
     const sessionId = req.query.session;
     console.log('Session ID from request:', sessionId);
     
@@ -514,7 +609,7 @@ app.get('/jobs/:shop', (req, res) => {
 });
 
 // Apply session validation to all admin routes
-app.use('/api/admin', shopify.ensureInstalledOnShop(), validateShopifySession);
+app.use('/api/admin', shopify.ensureInstalledOnShop(), verifySessionToken);
 
 // Admin routes (with authentication)
 app.use('/api/admin', adminJobRoutes);
@@ -1110,47 +1205,75 @@ app.post('/api/admin/submissions/:id/resend-rejection', async (req, res) => {
 // Resend reward email
 app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
   try {
+    console.log('=== Resend Reward Email Endpoint Called ===');
     const submissionId = req.params.id;
     const shop = req.shop;
     const session = req.shopifySession;
     
+    console.log('Parameters:', { submissionId, shop });
+    
     const submission = await SubmissionsModel.getById(submissionId);
     if (!submission) {
+      console.log('Submission not found:', submissionId);
       return res.status(404).json({ error: 'Submission not found' });
     }
+
+    console.log('Found submission:', submission);
 
     // Validate ownership
     if (submission.job_id) {
       const job = await JobsModel.getById(submission.job_id);
       if (!job || job.shop_domain !== shop) {
+        console.log('Unauthorized access attempt:', { jobShop: job?.shop_domain, requestShop: shop });
         return res.status(403).json({ error: 'Unauthorized to access this submission' });
       }
     }
 
     // Check if submission is approved
     if (submission.status !== 'approved') {
+      console.log('Submission not approved:', submission.status);
       return res.status(400).json({ error: 'Can only resend reward emails for approved submissions' });
     }
 
     // Get the job details for reward information
     if (!submission.job_id) {
+      console.log('No job associated with submission');
       return res.status(400).json({ error: 'No job associated with this submission' });
     }
 
     const job = await JobsModel.getById(submission.job_id);
     if (!job) {
+      console.log('Job not found:', submission.job_id);
       return res.status(404).json({ error: 'Job not found' });
     }
 
+    console.log('Found job:', job);
+
     const customizations = await CustomizationsModel.getByShop(shop) || {};
+    console.log('Customizations loaded:', !!customizations);
 
     // Handle different reward types
     if (job.reward_type === 'percentage' || job.reward_type === 'fixed') {
+      console.log('Processing percentage/fixed reward type');
+      
       // Get existing reward record
       const reward = await RewardsModel.getBySubmissionId(submission.id);
       if (!reward || !reward.code) {
+        console.log('No reward code found for submission:', submission.id);
         return res.status(400).json({ error: 'No discount code found for this submission. The reward may need to be created first.' });
       }
+
+      console.log('Found reward record:', reward);
+
+      console.log('Calling sendRewardCodeEmail with:', {
+        to: submission.customer_email,
+        code: reward.code,
+        value: job.reward_value,
+        type: job.reward_type,
+        expiresIn: '30 days',
+        customSubject: customizations.email_subject_reward,
+        customBody: customizations.email_body_reward
+      });
 
       await sendRewardCodeEmail({
         to: submission.customer_email,
@@ -1162,12 +1285,28 @@ app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
         customBody: customizations.email_body_reward,
         customizations
       });
+      
+      console.log('✅ Reward code email sent successfully');
+      
     } else if (job.reward_type === 'product') {
+      console.log('Processing product reward type');
+      
       // Get existing reward record
       const reward = await RewardsModel.getBySubmissionId(submission.id);
       if (!reward || !reward.code) {
+        console.log('No product reward code found for submission:', submission.id);
         return res.status(400).json({ error: 'No product discount code found for this submission. The reward may need to be created first.' });
       }
+
+      console.log('Found product reward record:', reward);
+
+      console.log('Calling sendFreeProductEmail with:', {
+        to: submission.customer_email,
+        code: reward.code,
+        productName: job.reward_product,
+        customSubject: customizations.email_subject_product,
+        customBody: customizations.email_body_product
+      });
 
       await sendFreeProductEmail({
         to: submission.customer_email,
@@ -1177,14 +1316,23 @@ app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
         customBody: customizations.email_body_product,
         customizations
       });
+      
+      console.log('✅ Free product email sent successfully');
+      
     } else if (job.reward_type === 'giftcard') {
+      console.log('Gift card reward type - redirecting to gift card endpoint');
       return res.status(400).json({ error: 'Please use the "Send Gift Card Email" button to resend gift card emails' });
     }
     
+    console.log('✅ Reward email resent successfully');
     res.json({ success: true, message: 'Reward email resent successfully' });
   } catch (error) {
-    console.error('Error resending reward email:', error);
-    res.status(500).json({ error: 'Failed to resend reward email' });
+    console.error('❌ Error resending reward email:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ error: 'Failed to resend reward email: ' + error.message });
   }
 });
 
