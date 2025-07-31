@@ -94,11 +94,25 @@ window.waitForAppBridge = waitForAppBridge;
       window.makeAuthenticatedRequest = async function(url, options = {}) {
         console.log('makeAuthenticatedRequest called with URL:', url);
         
-        // Get the session token from URL if available
-        const urlParams = new URLSearchParams(window.location.search);
-        const idToken = urlParams.get('id_token');
+        // Try to get a fresh session token from Shopify App Bridge
+        let sessionToken = null;
         
-        console.log('Session token available:', !!idToken);
+        try {
+          if (window.shopify && window.shopify.getSessionToken) {
+            console.log('Getting fresh session token from Shopify...');
+            sessionToken = await window.shopify.getSessionToken();
+            console.log('Fresh session token obtained:', !!sessionToken);
+          }
+        } catch (error) {
+          console.log('Could not get fresh session token:', error.message);
+        }
+        
+        // Fall back to URL token if App Bridge token not available
+        if (!sessionToken) {
+          const urlParams = new URLSearchParams(window.location.search);
+          sessionToken = urlParams.get('id_token');
+          console.log('Using URL session token:', !!sessionToken);
+        }
         
         // Add session token to headers if available
         const headers = {
@@ -106,8 +120,8 @@ window.waitForAppBridge = waitForAppBridge;
           'Content-Type': 'application/json',
         };
         
-        if (idToken) {
-          headers['Authorization'] = `Bearer ${idToken}`;
+        if (sessionToken) {
+          headers['Authorization'] = `Bearer ${sessionToken}`;
         }
         
         console.log('Making request with headers:', headers);
@@ -129,7 +143,10 @@ window.waitForAppBridge = waitForAppBridge;
             // Instead, let the parent frame handle authentication
             console.error('Authentication required but cannot redirect in embedded context');
             console.error('Auth URL:', data.authUrl);
-            // You might want to show a message to the user here
+            
+            // Try to refresh the session by reloading the page
+            console.log('Attempting to refresh session by reloading page...');
+            window.location.reload();
             return null;
           }
         }
@@ -157,10 +174,13 @@ window.waitForAppBridge = waitForAppBridge;
           const data = await response.json();
           
           if (data.needsAuth) {
-            console.log('Session invalid, but cannot redirect in embedded context');
+            console.log('Session invalid, attempting to refresh...');
             console.log('Auth URL would be:', data.authUrl);
-            // In embedded context, we can't redirect to auth
-            // The parent frame should handle this
+            
+            // In embedded context, try to refresh the session
+            // This will trigger a page reload which should get a fresh token
+            console.log('Attempting to refresh session by reloading page...');
+            window.location.reload();
             return false;
           }
           

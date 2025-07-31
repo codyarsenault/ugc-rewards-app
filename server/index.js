@@ -281,10 +281,17 @@ const verifySessionToken = async (req, res, next) => {
         const now = Math.floor(Date.now() / 1000);
         if (payload.exp && payload.exp < now) {
           console.log('Session token expired');
+          console.log('Token expiration:', new Date(payload.exp * 1000));
+          console.log('Current time:', new Date(now * 1000));
+          console.log('Token expired', now - payload.exp, 'seconds ago');
+          
           return res.status(401).json({ 
             error: 'Session token expired',
             needsAuth: true,
-            authUrl: `/api/auth?shop=${shop}`
+            authUrl: `/api/auth?shop=${shop}`,
+            tokenExpired: true,
+            expiredAt: payload.exp,
+            currentTime: now
           });
         }
         
