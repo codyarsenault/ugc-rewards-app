@@ -532,20 +532,7 @@ app.get('/jobs/:shop', (req, res) => {
 // Apply session validation to all admin routes
 app.use('/api/admin', shopify.ensureInstalledOnShop());
 
-// Debug middleware to understand session issues
-app.use('/api/admin', (req, res, next) => {
-  console.log('=== ADMIN MIDDLEWARE DEBUG ===');
-  console.log('URL:', req.url);
-  console.log('res.locals:', res.locals);
-  console.log('res.locals.shopify:', res.locals?.shopify);
-  console.log('Query params:', req.query);
-  console.log('Headers:', {
-    'authorization': req.headers.authorization,
-    'x-shopify-shop-domain': req.headers['x-shopify-shop-domain'],
-    'x-shopify-session-id': req.headers['x-shopify-session-id']
-  });
-  next();
-});
+
 
 // Admin routes (with authentication)
 app.use('/api/admin', adminJobRoutes);
@@ -784,9 +771,7 @@ app.get('/api/admin/submissions', async (req, res) => {
     const session = res.locals.shopify.session;
     const shop = session.shop;
     
-    console.log('Fetching submissions for shop:', shop);
     const submissions = await SubmissionsModel.getByShop(shop);
-    console.log('Number of submissions found:', submissions.length);
     
     const transformedSubmissions = submissions.map(sub => ({
       id: sub.id,
