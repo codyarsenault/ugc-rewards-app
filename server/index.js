@@ -447,8 +447,14 @@ app.post(
             await JobsModel.redactShopData(shop);
             await RewardsModel.redactShopData(shop);
             
-            // Delete session
-            await sessionStorage.deleteSessionsByShop(shop);
+            // Delete sessions for this shop
+            const sessions = await sessionStorage.findSessionsByShop(shop);
+            if (sessions && sessions.length > 0) {
+              for (const session of sessions) {
+                await sessionStorage.deleteSession(session.id);
+              }
+              console.log(`Deleted ${sessions.length} sessions for shop:`, shop);
+            }
             
             console.log('Shop data cleaned up successfully for:', shop);
           } catch (error) {
