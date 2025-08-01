@@ -1379,6 +1379,11 @@ app.get('/api/admin/customizations', async (req, res) => {
     const shop = req.shop;
     console.log('GET customizations - Shop:', shop);
     
+    // Add cache control headers to prevent caching issues
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     const customizations = await CustomizationsModel.getByShop(shop);
     console.log('GET customizations - Found:', customizations ? 'Yes' : 'No');
     

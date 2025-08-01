@@ -245,6 +245,11 @@ function setupEventListeners() {
               successMsg.style.display = 'none';
             }, 3000);
           }
+          
+          // Force reload customizations to ensure consistency across tabs
+          setTimeout(() => {
+            loadCustomizations();
+          }, 500);
         } else {
           alert('Failed to save settings');
         }
@@ -1110,6 +1115,7 @@ async function loadCustomizations() {
   
   try {
     const queryParams = window.location.search;
+    // Add cache buster to prevent browser caching issues
     const cacheBuster = '&_t=' + Date.now();
     const response = await makeAuthenticatedRequest('/api/admin/customizations' + queryParams + cacheBuster);
     if (!response) return; // Redirecting to auth
@@ -1188,7 +1194,9 @@ async function loadEmailSettings() {
   
   try {
     const queryParams = window.location.search;
-    const response = await makeAuthenticatedRequest('/api/admin/customizations' + queryParams);
+    // Add cache buster to prevent browser caching issues
+    const cacheBuster = '&_t=' + Date.now();
+    const response = await makeAuthenticatedRequest('/api/admin/customizations' + queryParams + cacheBuster);
     if (!response) return; // Redirecting to auth
     
     const customizations = await response.json();
