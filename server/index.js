@@ -277,8 +277,16 @@ const verifySessionToken = async (req, res, next) => {
       const token = authHeader.substring(7); // Remove "Bearer " prefix
       
               try {
-          // Verify the session token using the app's API secret
-          const payload = jwt.verify(token, process.env.SHOPIFY_API_SECRET);
+          // Verify & decode the session token using the official Shopify helper
+          // This ensures correct validation of signature, issuer, and audience
+          const payload = Shopify?.utils?.decodeSessionToken
+            ? Shopify.utils.decodeSessionToken(token)
+            : (Shopify?.Utils?.decodeSessionToken
+                ? Shopify.Utils.decodeSessionToken(token)
+                // Fallback for some SDK versions: Shopify.Auth.JWT.decodeSessionToken
+                : (Shopify?.Auth?.JWT?.decodeSessionToken
+                    ? Shopify.Auth.JWT.decodeSessionToken(token)
+                    : jwt.verify(token, process.env.SHOPIFY_API_SECRET)));
           
           if (!payload) {
             console.log('Invalid session token format');
