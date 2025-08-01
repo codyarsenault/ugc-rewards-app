@@ -496,56 +496,7 @@ function updateRewardFields() {
   }
 }
 
-// Create/Update Job
-document.getElementById('jobForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  
-  // Get requirements as a newline-separated string
-  const requirementsString = getRequirementsString();
-  
-  const formData = new FormData(e.target);
-  const jobData = Object.fromEntries(formData);
-  jobData.requirements = requirementsString;
-  const jobId = jobData.jobId;
-  delete jobData.jobId;
-  
-  // Convert deadline to end of day ISO format if provided
-  if (jobData.deadline) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(jobData.deadline)) {
-      jobData.deadline = jobData.deadline + 'T23:59:59';
-    }
-    jobData.deadline = new Date(jobData.deadline).toISOString();
-  }
-  
-  try {
-    const queryParams = window.location.search;
-    const url = jobId 
-      ? '/api/admin/jobs/' + jobId + queryParams
-      : '/api/admin/jobs' + queryParams;
-    const method = jobId ? 'PUT' : 'POST';
-    
-    const response = await makeAuthenticatedRequest(url, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(jobData)
-    });
-    
-    if (!response) return; // Redirecting to auth
-    
-    if (response.ok) {
-      closeJobModal();
-      loadJobs();
-      alert(jobId ? 'Job updated successfully!' : 'Job created successfully!');
-    } else {
-      alert('Failed to ' + (jobId ? 'update' : 'create') + ' job');
-    }
-  } catch (error) {
-    console.error('Error saving job:', error);
-    alert('Error saving job');
-  }
-});
+// This duplicate event listener has been removed - the job form submission is now handled in setupEventListeners()
 
 let currentJobs = [];
 
