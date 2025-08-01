@@ -261,12 +261,6 @@ const validateShopifySession = async (req, res, next) => {
   }
 };
 
-// Add ngrok bypass header
-app.use((req, res, next) => {
-  res.setHeader('ngrok-skip-browser-warning', 'true');
-  next();
-});
-
 // Session token verification middleware
 const verifySessionToken = async (req, res, next) => {
   try {
@@ -1618,8 +1612,6 @@ Sitemap: ${process.env.HOST}/sitemap.xml`);
 });
 
 // Root route - Admin dashboard
-// Replace your current root route with this updated version that handles direct access
-
 // Replace your current root route with this updated version that handles direct access
 
 app.get('/', async (req, res) => {
