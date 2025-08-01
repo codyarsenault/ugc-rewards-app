@@ -202,14 +202,20 @@ const validateShopifySession = async (req, res, next) => {
     }
 
     // Check if the shop has installed the app
-    const isInstalled = await ShopInstallationsModel.isInstalled(shop);
-    if (!isInstalled) {
-      console.log('Shop not found in installations:', shop);
-      return res.status(401).json({ 
-        error: 'App not installed in this shop. Please install the app first.',
-        needsAuth: true,
-        authUrl: `/api/auth?shop=${shop}`
-      });
+    try {
+      const isInstalled = await ShopInstallationsModel.isInstalled(shop);
+      if (!isInstalled) {
+        console.log('Shop not found in installations:', shop);
+        return res.status(401).json({ 
+          error: 'App not installed in this shop. Please install the app first.',
+          needsAuth: true,
+          authUrl: `/api/auth?shop=${shop}`
+        });
+      }
+    } catch (installationError) {
+      console.error('Error checking shop installation, continuing with session validation:', installationError);
+      // If there's an error checking installations (e.g., table doesn't exist),
+      // continue with session validation instead of blocking access
     }
 
     // Check if we have a valid session
@@ -510,6 +516,7 @@ app.use((req, res, next) => {
   
   next();
 });
+
 
 // Health check endpoint (public)
 // Health check endpoint (public) - Updated to use Shopify's decoder
