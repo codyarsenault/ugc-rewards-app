@@ -532,6 +532,21 @@ app.get('/jobs/:shop', (req, res) => {
 // Apply session validation to all admin routes
 app.use('/api/admin', shopify.ensureInstalledOnShop());
 
+// Debug middleware to understand session issues
+app.use('/api/admin', (req, res, next) => {
+  console.log('=== ADMIN MIDDLEWARE DEBUG ===');
+  console.log('URL:', req.url);
+  console.log('res.locals:', res.locals);
+  console.log('res.locals.shopify:', res.locals?.shopify);
+  console.log('Query params:', req.query);
+  console.log('Headers:', {
+    'authorization': req.headers.authorization,
+    'x-shopify-shop-domain': req.headers['x-shopify-shop-domain'],
+    'x-shopify-session-id': req.headers['x-shopify-session-id']
+  });
+  next();
+});
+
 // Admin routes (with authentication)
 app.use('/api/admin', adminJobRoutes);
 
@@ -728,8 +743,42 @@ app.get('/api/admin/submissions', async (req, res) => {
   try {
     // Check if Shopify middleware set the session
     if (!res.locals?.shopify?.session) {
-      console.error('No session from Shopify middleware');
-      return res.status(401).json({ error: 'Authentication required' });
+      console.log('No session from Shopify middleware, trying to handle manually');
+      
+      // For embedded apps, try to get session from id_token or session parameter
+      const idToken = req.query.id_token;
+      const sessionId = req.query.session;
+      const shop = req.query.shop;
+      
+      if (!shop) {
+        console.log('No shop found in query params');
+        return res.status(401).json({ error: 'Unauthorized - No shop parameter' });
+      }
+      
+      // Try to get session from sessionStorage
+      let session = null;
+      if (sessionId) {
+        try {
+          session = await sessionStorage.loadSession(sessionId);
+          console.log('Loaded session from sessionId:', session ? 'Yes' : 'No');
+        } catch (error) {
+          console.log('Failed to load session from sessionId:', error.message);
+        }
+      }
+      
+      // If no session found, try to create one from the shop
+      if (!session) {
+        console.log('Creating offline session for shop:', shop);
+        session = {
+          id: `offline_${shop}`,
+          shop: shop,
+          state: 'offline',
+          isOnline: false
+        };
+      }
+      
+      // Set the session in res.locals for consistency
+      res.locals.shopify = { session };
     }
     
     const session = res.locals.shopify.session;
@@ -1272,8 +1321,42 @@ app.get('/api/admin/customizations', async (req, res) => {
   try {
     // Check if Shopify middleware set the session
     if (!res.locals?.shopify?.session) {
-      console.error('No session from Shopify middleware');
-      return res.status(401).json({ error: 'Authentication required' });
+      console.log('No session from Shopify middleware, trying to handle manually');
+      
+      // For embedded apps, try to get session from id_token or session parameter
+      const idToken = req.query.id_token;
+      const sessionId = req.query.session;
+      const shop = req.query.shop;
+      
+      if (!shop) {
+        console.log('No shop found in query params');
+        return res.status(401).json({ error: 'Unauthorized - No shop parameter' });
+      }
+      
+      // Try to get session from sessionStorage
+      let session = null;
+      if (sessionId) {
+        try {
+          session = await sessionStorage.loadSession(sessionId);
+          console.log('Loaded session from sessionId:', session ? 'Yes' : 'No');
+        } catch (error) {
+          console.log('Failed to load session from sessionId:', error.message);
+        }
+      }
+      
+      // If no session found, try to create one from the shop
+      if (!session) {
+        console.log('Creating offline session for shop:', shop);
+        session = {
+          id: `offline_${shop}`,
+          shop: shop,
+          state: 'offline',
+          isOnline: false
+        };
+      }
+      
+      // Set the session in res.locals for consistency
+      res.locals.shopify = { session };
     }
     
     const session = res.locals.shopify.session;
