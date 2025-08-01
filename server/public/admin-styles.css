@@ -492,3 +492,9 @@ td {
 .status-incomplete {
   color: #d72c0d;
 }
+
+/* Spinner animation */
+@keyframes spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

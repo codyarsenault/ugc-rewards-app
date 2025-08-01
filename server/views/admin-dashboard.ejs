@@ -16,6 +16,12 @@ window.appBridgeState = {
   app: null,
   callbacks: []
 };
+// === Debug logging flag ===
+const DEBUG = '<%= env.NODE_ENV || "development" %>' !== 'production';
+if (!DEBUG) {
+  console.log = () => {};
+  console.debug = () => {};
+}
 
 // Initialize App Bridge properly
 function initializeAppBridge() {
@@ -152,7 +158,6 @@ function waitForAppBridge(callback) {
 
 // Store functions globally
 window.waitForAppBridge = waitForAppBridge;
-window.appBridgeState = window.appBridgeState;
 
 // Start checking for App Bridge immediately
 checkAppBridgeReady();
@@ -467,12 +472,6 @@ setTimeout(() => {
       console.log('Global functions defined successfully in head');
     </script>
     <link rel="stylesheet" href="/public/admin-styles.css">
-    <style>
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    </style>
   </head>
   <body>
     <div class="container">
