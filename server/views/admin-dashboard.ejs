@@ -229,16 +229,27 @@ setTimeout(() => {
               console.error('Authentication required but cannot redirect in embedded context');
               console.error('Auth URL:', data.authUrl);
               
-              // Try to refresh the session by reloading the page
-              console.log('Attempting to refresh session by reloading page...');
-              window.location.reload();
+              // Try to refresh the session using App Bridge first
+              if (window.refreshSessionIfNeeded) {
+                console.log('Attempting to refresh session using App Bridge...');
+                await window.refreshSessionIfNeeded();
+              } else {
+                // Fallback to page reload
+                console.log('Attempting to refresh session by reloading page...');
+                window.location.reload();
+              }
               return null;
             }
           } catch (error) {
             console.error('Failed to parse 401 response as JSON:', error);
             // Handle non-JSON 401 response
-            console.log('Attempting to refresh session by reloading page...');
-            window.location.reload();
+            if (window.refreshSessionIfNeeded) {
+              console.log('Attempting to refresh session using App Bridge...');
+              await window.refreshSessionIfNeeded();
+            } else {
+              console.log('Attempting to refresh session by reloading page...');
+              window.location.reload();
+            }
             return null;
           }
         }
@@ -297,6 +308,75 @@ setTimeout(() => {
           console.error('Session check failed:', error);
           return false;
         }
+      };
+
+      // Enhanced session management with automatic refresh
+      window.refreshSessionIfNeeded = async function() {
+        console.log('Checking if session refresh is needed...');
+        
+        // Show refresh indicator
+        const refreshIndicator = document.createElement('div');
+        refreshIndicator.id = 'session-refresh-indicator';
+        refreshIndicator.innerHTML = `
+          <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+              <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #008060; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px;"></div>
+              <p style="margin: 0; color: #333;">Refreshing session...</p>
+              <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">This may take a few seconds</p>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(refreshIndicator);
+        
+        try {
+          // Try to get a fresh session token from App Bridge
+          if (window.shopifyApp && window.shopifyApp.getSessionToken) {
+            console.log('Getting fresh session token from App Bridge...');
+            const freshToken = await window.shopifyApp.getSessionToken();
+            console.log('Fresh token obtained:', !!freshToken);
+            
+            // Remove refresh indicator
+            const indicator = document.getElementById('session-refresh-indicator');
+            if (indicator) indicator.remove();
+            
+            return true;
+          }
+        } catch (error) {
+          console.log('Failed to get fresh token from App Bridge:', error.message);
+        }
+        
+        // If App Bridge refresh fails, try page reload
+        console.log('App Bridge refresh failed, attempting page reload...');
+        window.location.reload();
+        return false;
+      };
+
+      // Add periodic session health checks
+      window.startSessionHealthCheck = function() {
+        // Check session health every 5 minutes
+        setInterval(async () => {
+          console.log('Performing periodic session health check...');
+          const shop = new URLSearchParams(window.location.search).get('shop');
+          if (!shop) return;
+          
+          try {
+            const response = await window.makeAuthenticatedRequest(`/api/health/${shop}`);
+            if (!response) {
+              console.log('Session health check failed, refreshing...');
+              await window.refreshSessionIfNeeded();
+              return;
+            }
+            
+            const data = await response.json();
+            if (data.needsAuth) {
+              console.log('Session expired during health check, refreshing...');
+              await window.refreshSessionIfNeeded();
+            }
+          } catch (error) {
+            console.error('Session health check error:', error);
+            // Don't auto-refresh on network errors, only on auth errors
+          }
+        }, 5 * 60 * 1000); // 5 minutes
       };
 
       // Define global functions immediately in head section

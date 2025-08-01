@@ -86,6 +86,12 @@ function initializeRestOfApp() {
   loadSubmissions();
   console.log('About to load email settings...');
   loadEmailSettings();
+  
+  // Start session health monitoring
+  if (window.startSessionHealthCheck) {
+    console.log('Starting session health check...');
+    window.startSessionHealthCheck();
+  }
 }
 
 function setupEventListeners() {
