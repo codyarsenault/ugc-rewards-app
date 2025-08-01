@@ -6,88 +6,167 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Update your admin-dashboard.ejs head section to ensure the script is fully loaded: -->
 
-<script 
-src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
-onload="console.log('App Bridge script loaded'); window.appBridgeScriptLoaded = true;"
-onerror="console.error('Failed to load App Bridge script')">
-</script>
+<!-- Load App Bridge first, synchronously -->
+<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" onload="console.log('App Bridge script loaded successfully')" onerror="console.error('Failed to load App Bridge script')"></script>
 
 <script>
-// Wait for both the script and the actual App Bridge to be available
-// Add this more thorough exploration to your waitForAppBridge function in admin-dashboard.ejs:
+// Global App Bridge initialization state
+window.appBridgeState = {
+  loaded: false,
+  app: null,
+  callbacks: []
+};
 
-function waitForAppBridge(callback) {
-  let attempts = 0;
-  const maxAttempts = 50; // 5 seconds
-  
-  function check() {
-    attempts++;
+// Initialize App Bridge properly
+function initializeAppBridge() {
+  try {
+    // Check if App Bridge instance already exists (Shopify often provides it directly)
+    if (window.shopify && window.shopify.app) {
+      console.log('App Bridge instance (window.shopify.app) already exists, using it directly.');
+      return window.shopify.app;
+    }
+
+    // Get parameters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const shop = urlParams.get('shop');
+    const hostParam = urlParams.get('host');
     
-    console.log(`Checking for App Bridge (attempt ${attempts})...`);
+    if (!shop) {
+      console.error('No shop parameter found');
+      return null;
+    }
     
-    // Deep explore window.shopify
-    if (window.shopify) {
-      console.log('window.shopify available');
-      console.log('window.shopify structure:', window.shopify);
-      
-      // Check all properties of shopify object
-      for (let key in window.shopify) {
-        console.log(`window.shopify.${key}:`, typeof window.shopify[key], window.shopify[key]);
-        
-        // Check if any property might be the createApp function
-        if (typeof window.shopify[key] === 'function' && key.toLowerCase().includes('app')) {
-          console.log(`Found potential app function: window.shopify.${key}`);
-        }
-      }
-      
-      // Check shopify.app more thoroughly
-      if (window.shopify.app) {
-        console.log('window.shopify.app properties:', Object.keys(window.shopify.app));
-        for (let key in window.shopify.app) {
-          console.log(`window.shopify.app.${key}:`, typeof window.shopify.app[key]);
-        }
+    // Decode the host parameter (it's base64 encoded)
+    let host = shop; // fallback to shop
+    if (hostParam) {
+      try {
+        host = atob(hostParam);
+        console.log('Decoded host parameter:', host);
+      } catch (error) {
+        console.error('Failed to decode host parameter:', error);
+        host = shop; // fallback to shop
       }
     }
     
-    // Check for other potential App Bridge locations
-    const potentialAppBridgeKeys = Object.keys(window).filter(key => 
-      key.toLowerCase().includes('app') || 
-      key.toLowerCase().includes('bridge') || 
-      key.toLowerCase().includes('shopify')
-    );
-    console.log('Potential App Bridge keys on window:', potentialAppBridgeKeys);
-    
-    // The Shopify CDN might use a different approach
-    // Let's check if there's an initialization needed
-    if (window.shopify && window.shopify.app && window.shopify.app.init) {
-      console.log('Found window.shopify.app.init - trying to initialize');
-      callback();
-      return;
-    }
-    
-    // Check if createApp exists anywhere
-    if (window.createApp && typeof window.createApp === 'function') {
-      console.log('App Bridge ready - createApp found');
-      callback();
-    } else if (window.shopify && typeof window.shopify.createApp === 'function') {
-      console.log('App Bridge ready - shopify.createApp found');
-      callback();
-    } else if (attempts < maxAttempts) {
-      setTimeout(check, 100);
+    // Initialize App Bridge (only if not already available)
+    if (window.shopify && typeof window.shopify.createApp === 'function') {
+      const app = window.shopify.createApp({
+        apiKey: '<%= env.SHOPIFY_API_KEY %>',
+        host: host,
+        forceRedirect: false
+      });
+      
+      console.log('App Bridge initialized successfully with host:', host);
+      return app;
     } else {
-      console.error('App Bridge not available after 5 seconds');
-      console.log('Final window.shopify state:', window.shopify);
-      // Try to proceed anyway
-      callback();
+      console.error('window.shopify.createApp is not a function or not available. Cannot initialize App Bridge.');
+      return null;
+    }
+  } catch (error) {
+    console.error('Failed to initialize App Bridge:', error);
+    return null;
+  }
+}
+
+// Check if App Bridge is ready
+let checkAttempts = 0;
+const maxCheckAttempts = 50; // Reduced from 100 to 2.5 seconds max
+
+function checkAppBridgeReady() {
+  checkAttempts++;
+  console.log(`Checking App Bridge readiness (attempt ${checkAttempts}/${maxCheckAttempts})...`);
+  console.log('window.shopify exists:', !!window.shopify);
+  
+  if (window.shopify) {
+    console.log('window.shopify keys:', Object.keys(window.shopify));
+    console.log('window.shopify.createApp exists:', !!(window.shopify && window.shopify.createApp));
+    console.log('window.shopify.createApp type:', typeof window.shopify.createApp);
+    
+    // Check for alternative App Bridge access patterns
+    if (window.shopify.config) {
+      console.log('window.shopify.config exists:', !!window.shopify.config);
+    }
+    if (window.shopify.app) {
+      console.log('window.shopify.app exists:', !!window.shopify.app);
     }
   }
   
-  // Start checking after a small delay to ensure script execution
-  setTimeout(check, 100);
+  // App Bridge is considered "ready" if window.shopify.app exists OR window.shopify.createApp is a function
+  if ((window.shopify && window.shopify.app) || (window.shopify && typeof window.shopify.createApp === 'function')) {
+    console.log('App Bridge ready, initializing...');
+    const app = initializeAppBridge(); // This will now prioritize window.shopify.app
+    window.appBridgeState.loaded = true;
+    window.appBridgeState.app = app;
+    window.shopifyApp = app; // Set our global reference
+    console.log('App Bridge initialized, executing callbacks...');
+    executeCallbacks();
+  } else if (checkAttempts >= maxCheckAttempts) {
+    console.log('App Bridge failed to load after maximum attempts, continuing without it...');
+    window.appBridgeState.loaded = true;
+    window.appBridgeState.app = null;
+    window.shopifyApp = null;
+    executeCallbacks();
+  } else {
+    console.log('App Bridge not ready yet, waiting...');
+    setTimeout(checkAppBridgeReady, 50);
+  }
 }
 
-// Store this function globally so admin-app.js can use it
+// Execute all pending callbacks
+function executeCallbacks() {
+  console.log('Executing callbacks, count:', window.appBridgeState.callbacks.length);
+  while (window.appBridgeState.callbacks.length > 0) {
+    const callback = window.appBridgeState.callbacks.shift();
+    try {
+      console.log('Executing callback...');
+      callback();
+      console.log('Callback executed successfully');
+    } catch (error) {
+      console.error('Error executing App Bridge callback:', error);
+    }
+  }
+}
+
+// Enhanced wait function
+function waitForAppBridge(callback) {
+  console.log('waitForAppBridge called');
+  console.log('App Bridge loaded:', window.appBridgeState.loaded);
+  console.log('Current callbacks:', window.appBridgeState.callbacks.length);
+  
+  if (window.appBridgeState.loaded) {
+    // App Bridge is already loaded
+    console.log('App Bridge already loaded, executing callback immediately');
+    callback();
+  } else {
+    // Add callback to queue
+    console.log('Adding callback to queue');
+    window.appBridgeState.callbacks.push(callback);
+    
+    // If this is the first callback, start checking for App Bridge
+    if (window.appBridgeState.callbacks.length === 1) {
+      console.log('First callback, starting App Bridge check');
+      checkAppBridgeReady();
+    }
+  }
+}
+
+// Store functions globally
 window.waitForAppBridge = waitForAppBridge;
+window.appBridgeState = window.appBridgeState;
+
+// Start checking for App Bridge immediately
+checkAppBridgeReady();
+
+// Also set a fallback timeout to ensure the app initializes even if App Bridge fails
+setTimeout(() => {
+  if (!window.appBridgeState.loaded) {
+    console.log('App Bridge timeout reached, forcing initialization...');
+    window.appBridgeState.loaded = true;
+    window.appBridgeState.app = null;
+    window.shopifyApp = null;
+    executeCallbacks();
+  }
+}, 1500); // Reduced to 1.5 second timeout
 </script>
     <script>
       // Make makeAuthenticatedRequest globally available
@@ -98,8 +177,13 @@ window.waitForAppBridge = waitForAppBridge;
         let sessionToken = null;
         
         try {
-          if (window.shopify && window.shopify.getSessionToken) {
+          if (window.shopifyApp && window.shopifyApp.getSessionToken) {
             console.log('Getting fresh session token from Shopify...');
+            sessionToken = await window.shopifyApp.getSessionToken();
+            console.log('Fresh session token obtained:', !!sessionToken);
+          } else if (window.shopify && window.shopify.getSessionToken) {
+            // Fallback to old method
+            console.log('Getting fresh session token from Shopify (fallback)...');
             sessionToken = await window.shopify.getSessionToken();
             console.log('Fresh session token obtained:', !!sessionToken);
           }
@@ -303,6 +387,12 @@ window.waitForAppBridge = waitForAppBridge;
       console.log('Global functions defined successfully in head');
     </script>
     <link rel="stylesheet" href="/public/admin-styles.css">
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -428,7 +518,11 @@ window.waitForAppBridge = waitForAppBridge;
           </div>
           <div id="submissionsTable">
             <div class="empty-state">
-              <p>Loading submissions...</p>
+              <div style="text-align: center; padding: 40px 20px;">
+                <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #008060; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                <p style="margin: 0; color: #666;">Loading submissions...</p>
+                <p style="margin: 10px 0 0 0; font-size: 13px; color: #999;">This may take a few seconds</p>
+              </div>
             </div>
           </div>
         </div>

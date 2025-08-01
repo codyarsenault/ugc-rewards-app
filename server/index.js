@@ -264,15 +264,15 @@ const verifySessionToken = async (req, res, next) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7); // Remove "Bearer " prefix
       
-      try {
-        // Decode the session token (without verification for now)
-        const payload = jwt.decode(token);
-        
-        if (!payload) {
-          console.log('Invalid session token format');
-          // Fall back to traditional session validation
-          return validateShopifySession(req, res, next);
-        }
+              try {
+          // Verify the session token using the app's API secret
+          const payload = jwt.verify(token, process.env.SHOPIFY_API_SECRET);
+          
+          if (!payload) {
+            console.log('Invalid session token format');
+            // Fall back to traditional session validation
+            return validateShopifySession(req, res, next);
+          }
         
         // Get the shop domain from the token
         const shop = payload.dest.replace('https://', '');
@@ -823,8 +823,20 @@ app.get('/api/admin/submissions', async (req, res) => {
   try {
     const shop = req.shop; // Set by validateShopifySession
     
+    console.log('=== SUBMISSIONS API DEBUG ===');
+    console.log('Shop from request:', shop);
+    console.log('Request headers:', req.headers);
+    console.log('Request query:', req.query);
+    
+    if (!shop) {
+      console.error('No shop found in request');
+      return res.status(400).json({ error: 'Shop parameter required' });
+    }
+    
     console.log('Fetching submissions for shop:', shop);
     const submissions = await SubmissionsModel.getByShop(shop);
+    console.log('Raw submissions from database:', submissions);
+    console.log('Number of submissions found:', submissions.length);
     
     // Transform the data to match the frontend expectations
     const transformedSubmissions = submissions.map(sub => ({
@@ -840,6 +852,9 @@ app.get('/api/admin/submissions', async (req, res) => {
       reward_type: sub.reward_type || null,
       reward_fulfilled: sub.reward_fulfilled || false
     }));
+    
+    console.log('Transformed submissions:', transformedSubmissions);
+    console.log('=== END SUBMISSIONS API DEBUG ===');
     
     res.json({ submissions: transformedSubmissions });
   } catch (error) {

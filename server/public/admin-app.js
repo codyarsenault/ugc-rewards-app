@@ -2,16 +2,23 @@
 
 console.log('Starting app initialization...');
 
-// Skip App Bridge initialization entirely and just set up your app
-window.app = {
-  isEmbedded: true,
-  apiKey: API_KEY
-};
+// Enhanced App Bridge initialization
+console.log('Checking for waitForAppBridge function...');
+console.log('waitForAppBridge exists:', !!window.waitForAppBridge);
 
-// Initialize the rest of your app immediately
-initializeRestOfApp();
+if (window.waitForAppBridge) {
+  console.log('Calling waitForAppBridge...');
+  window.waitForAppBridge(() => {
+    console.log('App Bridge ready, initializing app...');
+    initializeRestOfApp();
+  });
+} else {
+  console.log('App Bridge not available, initializing without it...');
+  initializeRestOfApp();
+}
 
 function initializeRestOfApp() {
+  console.log('=== INITIALIZING REST OF APP ===');
   console.log('Initializing rest of app...');
   
   // Add lazy loading for images
@@ -75,7 +82,9 @@ function initializeRestOfApp() {
   setupEventListeners();
   
   // Load initial data
+  console.log('About to load submissions...');
   loadSubmissions();
+  console.log('About to load email settings...');
   loadEmailSettings();
 }
 
@@ -730,12 +739,23 @@ async function loadSubmissions() {
   
   try {
     const queryParams = window.location.search;
+    console.log('Making API request to:', '/api/admin/submissions' + queryParams);
     const response = await makeAuthenticatedRequest('/api/admin/submissions' + queryParams);
-    if (!response) return; // Redirecting to auth
+    console.log('API response:', response);
+    
+    if (!response) {
+      console.log('No response received - likely redirecting to auth');
+      return; // Redirecting to auth
+    }
+    
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
     
     const data = await response.json();
+    console.log('Response data:', data);
 
     allSubmissions = data.submissions || [];
+    console.log('All submissions array:', allSubmissions);
 
     // Update stats
     document.getElementById('totalCount').textContent = allSubmissions.length;
@@ -755,6 +775,8 @@ async function loadSubmissions() {
     
     document.getElementById('pendingCount').textContent = pendingCount;
     document.getElementById('approvedCount').textContent = approvedCount;
+
+    console.log('Stats updated - Total:', allSubmissions.length, 'Pending:', pendingCount, 'Approved:', approvedCount);
 
     // Display filtered submissions
     displaySubmissions();
