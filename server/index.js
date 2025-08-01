@@ -189,113 +189,9 @@ function getShopDomain(req, res) {
   return shop;
 }
 
-// Session validation middleware for admin routes
-const validateShopifySession = async (req, res, next) => {
-  try {
-    const shop = getShopDomain(req, res);
-    
-    if (!shop) {
-      return res.status(400).json({ 
-        error: 'Shop parameter required',
-        needsAuth: true 
-      });
-    }
 
-    // Check if the shop has installed the app
-    try {
-      const isInstalled = await ShopInstallationsModel.isInstalled(shop);
-      if (!isInstalled) {
-        console.log('Shop not found in installations:', shop);
-        return res.status(401).json({ 
-          error: 'App not installed in this shop. Please install the app first.',
-          needsAuth: true,
-          authUrl: `/api/auth?shop=${shop}`
-        });
-      }
-    } catch (installationError) {
-      console.error('Error checking shop installation, continuing with session validation:', installationError);
-      // If there's an error checking installations (e.g., table doesn't exist),
-      // continue with session validation instead of blocking access
-    }
 
-    // Check if we have a valid session
-    let session = res.locals?.shopify?.session;
-    
-    if (!session || !session.accessToken) {
-      // Try to load from database
-      const sessions = await sessionStorage.findSessionsByShop(shop);
-      
-      if (!sessions || sessions.length === 0) {
-        return res.status(401).json({ 
-          error: 'No valid session found. Please reinstall the app.',
-          needsAuth: true,
-          authUrl: `/api/auth?shop=${shop}`
-        });
-      }
 
-      // Check if any session is valid (not expired)
-      const validSession = sessions.find(s => {
-        // If expires is null, the session is valid (no expiration)
-        if (!s.expires) {
-          return true;
-        }
-        return new Date(s.expires) > new Date();
-      });
-      
-      if (!validSession) {
-        return res.status(401).json({ 
-          error: 'Session expired. Please reinstall the app.',
-          needsAuth: true,
-          authUrl: `/api/auth?shop=${shop}`
-        });
-      }
-
-      // Attach the valid session to the request
-      res.locals.shopify = { session: validSession };
-      session = validSession;
-    }
-
-    // Store shop in request for easy access
-    req.shop = shop;
-    req.shopifySession = session;
-
-    next();
-  } catch (error) {
-    console.error('Session validation error:', error);
-    res.status(500).json({ error: 'Session validation failed' });
-  }
-};
-
-// Simplified session token verification middleware for Shopify v11
-const verifySessionToken = async (req, res, next) => {
-  try {
-    // For embedded apps, Shopify provides the id_token in query params
-    const idToken = req.query.id_token;
-    
-    if (idToken) {
-      console.log('Found id_token in query params, using session validation');
-      // The id_token is already validated by Shopify
-      // We just need to ensure the session exists
-      return validateShopifySession(req, res, next);
-    }
-    
-    // Check if shopify-app-express has already validated the session
-    if (res.locals?.shopify?.session) {
-      console.log('Session already validated by shopify-app-express middleware');
-      req.shop = res.locals.shopify.session.shop;
-      req.shopifySession = res.locals.shopify.session;
-      return next();
-    }
-    
-    // For all other cases, use traditional session validation
-    console.log('No id_token or pre-validated session, using traditional validation');
-    return validateShopifySession(req, res, next);
-    
-  } catch (error) {
-    console.error('Session token verification error:', error);
-    return validateShopifySession(req, res, next);
-  }
-};
 
 // Add debugging middleware
 app.use((req, res, next) => {
@@ -644,7 +540,7 @@ app.get('/jobs/:shop', (req, res) => {
 });
 
 // Apply session validation to all admin routes
-app.use('/api/admin', shopify.ensureInstalledOnShop(), verifySessionToken);
+app.use('/api/admin', shopify.ensureInstalledOnShop());
 
 // Admin routes (with authentication)
 app.use('/api/admin', adminJobRoutes);
@@ -840,15 +736,16 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
 // Get submissions
 app.get('/api/admin/submissions', async (req, res) => {
   try {
-    const shop = req.shop; // Set by validateShopifySession
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     
     console.log('=== SUBMISSIONS API DEBUG ===');
-    console.log('Shop from request:', shop);
+    console.log('Shop from session:', shop);
     console.log('Request headers:', req.headers);
     console.log('Request query:', req.query);
     
     if (!shop) {
-      console.error('No shop found in request');
+      console.error('No shop found in session');
       return res.status(400).json({ error: 'Shop parameter required' });
     }
     
@@ -886,8 +783,8 @@ app.get('/api/admin/submissions', async (req, res) => {
 app.post('/api/admin/submissions/:id/approve', async (req, res) => {
   try {
     const submissionId = req.params.id;
-    const shop = req.shop;
-    const session = req.shopifySession;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     
     // Fetch submission
     const submission = await SubmissionsModel.getById(submissionId);
@@ -1112,7 +1009,8 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
 app.post('/api/admin/submissions/:id/reject', async (req, res) => {
   try {
     const submissionId = req.params.id;
-    const shop = req.shop;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     
     const submission = await SubmissionsModel.getById(submissionId);
     if (!submission) {
@@ -1163,7 +1061,8 @@ app.post('/api/admin/rewards/:submissionId/send-giftcard', async (req, res) => {
   try {
     const { submissionId } = req.params;
     const { giftCardCode, amount } = req.body;
-    const shop = req.shop;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     
     const submission = await SubmissionsModel.getById(submissionId);
     if (!submission) {
@@ -1214,7 +1113,8 @@ app.post('/api/admin/rewards/:submissionId/send-giftcard', async (req, res) => {
 app.post('/api/admin/submissions/:id/resend-rejection', async (req, res) => {
   try {
     const submissionId = req.params.id;
-    const shop = req.shop;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     
     const submission = await SubmissionsModel.getById(submissionId);
     if (!submission) {
@@ -1257,8 +1157,8 @@ app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
   try {
     console.log('=== Resend Reward Email Endpoint Called ===');
     const submissionId = req.params.id;
-    const shop = req.shop;
-    const session = req.shopifySession;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     
     console.log('Parameters:', { submissionId, shop });
     
@@ -1389,7 +1289,8 @@ app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
 // Get customizations
 app.get('/api/admin/customizations', async (req, res) => {
   try {
-    const shop = req.shop;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     console.log('GET customizations - Shop:', shop);
     
     // Add cache control headers to prevent caching issues
@@ -1410,7 +1311,8 @@ app.get('/api/admin/customizations', async (req, res) => {
 // Save customizations
 app.post('/api/admin/customizations', async (req, res) => {
   try {
-    const shop = req.shop;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     console.log('POST customizations - Shop:', shop);
     console.log('POST customizations - Body:', req.body);
     
@@ -1427,7 +1329,8 @@ app.post('/api/admin/customizations', async (req, res) => {
 // Save email settings
 app.post('/api/admin/email-settings', async (req, res) => {
   try {
-    const shop = req.shop;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     console.log('Saving email settings - Shop:', shop);
     console.log('Email settings body:', req.body);
     
