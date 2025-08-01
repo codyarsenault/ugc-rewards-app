@@ -25,7 +25,6 @@ import { SQLiteSessionStorage } from '@shopify/shopify-app-session-storage-sqlit
 import { MemorySessionStorage } from '@shopify/shopify-app-session-storage-memory';
 import { PostgreSQLSessionStorage } from '@shopify/shopify-app-session-storage-postgresql';
 import path from 'path';
-import jwt from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import fs from 'fs';
@@ -261,86 +260,33 @@ const validateShopifySession = async (req, res, next) => {
   }
 };
 
-// Session token verification middleware
+// Simplified session token verification middleware for Shopify v11
 const verifySessionToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    // For embedded apps, Shopify provides the id_token in query params
+    const idToken = req.query.id_token;
     
-    // Check if we have a Bearer token
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7); // Remove "Bearer " prefix
-      
-              try {
-          // Verify & decode the session token using the official Shopify helper
-          // This ensures correct validation of signature, issuer, and audience
-          const payload = Shopify?.utils?.decodeSessionToken
-            ? Shopify.utils.decodeSessionToken(token)
-            : (Shopify?.Utils?.decodeSessionToken
-                ? Shopify.Utils.decodeSessionToken(token)
-                // Fallback for some SDK versions: Shopify.Auth.JWT.decodeSessionToken
-                : (Shopify?.Auth?.JWT?.decodeSessionToken
-                    ? Shopify.Auth.JWT.decodeSessionToken(token)
-                    : jwt.verify(token, process.env.SHOPIFY_API_SECRET)));
-          
-          if (!payload) {
-            console.log('Invalid session token format');
-            // Fall back to traditional session validation
-            return validateShopifySession(req, res, next);
-          }
-        
-        // Get the shop domain from the token
-        const shop = payload.dest.replace('https://', '');
-        
-        // Verify the token is not expired
-        const now = Math.floor(Date.now() / 1000);
-        if (payload.exp && payload.exp < now) {
-          console.log('Session token expired');
-          console.log('Token expiration:', new Date(payload.exp * 1000));
-          console.log('Current time:', new Date(now * 1000));
-          console.log('Token expired', now - payload.exp, 'seconds ago');
-          
-          return res.status(401).json({ 
-            error: 'Session token expired',
-            needsAuth: true,
-            authUrl: `/api/auth?shop=${shop}`,
-            tokenExpired: true,
-            expiredAt: payload.exp,
-            currentTime: now
-          });
-        }
-        
-        // Load the session from storage
-        const sessions = await sessionStorage.findSessionsByShop(shop);
-        const validSession = sessions?.find(s => !s.expires || new Date(s.expires) > new Date());
-        
-        if (!validSession) {
-          console.log('No valid session found for shop:', shop);
-          return res.status(401).json({ 
-            error: 'No valid session found',
-            needsAuth: true,
-            authUrl: `/api/auth?shop=${shop}`
-          });
-        }
-        
-        // Attach session info to request
-        req.shop = shop;
-        req.shopifySession = validSession;
-        res.locals.shopify = { session: validSession };
-        
-        console.log('Session token validated successfully for shop:', shop);
-        next();
-      } catch (tokenError) {
-        console.error('Error processing session token:', tokenError);
-        // Fall back to traditional session validation
-        return validateShopifySession(req, res, next);
-      }
-    } else {
-      // No Bearer token, fall back to traditional session validation
+    if (idToken) {
+      console.log('Found id_token in query params, using session validation');
+      // The id_token is already validated by Shopify
+      // We just need to ensure the session exists
       return validateShopifySession(req, res, next);
     }
+    
+    // Check if shopify-app-express has already validated the session
+    if (res.locals?.shopify?.session) {
+      console.log('Session already validated by shopify-app-express middleware');
+      req.shop = res.locals.shopify.session.shop;
+      req.shopifySession = res.locals.shopify.session;
+      return next();
+    }
+    
+    // For all other cases, use traditional session validation
+    console.log('No id_token or pre-validated session, using traditional validation');
+    return validateShopifySession(req, res, next);
+    
   } catch (error) {
     console.error('Session token verification error:', error);
-    // Fall back to traditional session validation
     return validateShopifySession(req, res, next);
   }
 };
@@ -566,7 +512,7 @@ app.use((req, res, next) => {
 });
 
 // Health check endpoint (public)
-// Update your health check endpoint to also accept session tokens
+// Health check endpoint (public) - Updated to use Shopify's decoder
 app.get('/api/health/:shop', async (req, res) => {
   try {
     const shop = req.params.shop;
@@ -576,9 +522,23 @@ app.get('/api/health/:shop', async (req, res) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const payload = jwt.decode(token);
       
-      if (payload && !payload.exp || payload.exp > Math.floor(Date.now() / 1000)) {
+      let payload = null;
+      
+      // Try to decode using Shopify's official helpers
+      try {
+        if (Shopify?.utils?.decodeSessionToken) {
+          payload = Shopify.utils.decodeSessionToken(token);
+        } else if (Shopify?.Utils?.decodeSessionToken) {
+          payload = Shopify.Utils.decodeSessionToken(token);
+        } else if (Shopify?.Auth?.JWT?.decodeSessionToken) {
+          payload = Shopify.Auth.JWT.decodeSessionToken(token);
+        }
+      } catch (decodeError) {
+        console.log('Failed to decode session token:', decodeError.message);
+      }
+      
+      if (payload && (!payload.exp || payload.exp > Math.floor(Date.now() / 1000))) {
         // Valid token
         return res.json({
           shop,
