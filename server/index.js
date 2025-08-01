@@ -529,16 +529,6 @@ app.get('/jobs/:shop', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'jobs.html'));
 });
 
-// Debug middleware to see what's happening with sessions
-app.use('/api/admin', (req, res, next) => {
-  console.log('=== ADMIN MIDDLEWARE DEBUG ===');
-  console.log('URL:', req.url);
-  console.log('res.locals:', res.locals);
-  console.log('res.locals.shopify:', res.locals?.shopify);
-  console.log('Query params:', req.query);
-  next();
-});
-
 // Apply session validation to all admin routes
 app.use('/api/admin', shopify.ensureInstalledOnShop());
 
@@ -736,6 +726,12 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
 // Get submissions
 app.get('/api/admin/submissions', async (req, res) => {
   try {
+    // Check if Shopify middleware set the session
+    if (!res.locals?.shopify?.session) {
+      console.error('No session from Shopify middleware');
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const session = res.locals.shopify.session;
     const shop = session.shop;
     
@@ -1274,6 +1270,12 @@ app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
 // Get customizations
 app.get('/api/admin/customizations', async (req, res) => {
   try {
+    // Check if Shopify middleware set the session
+    if (!res.locals?.shopify?.session) {
+      console.error('No session from Shopify middleware');
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const session = res.locals.shopify.session;
     const shop = session.shop;
     
