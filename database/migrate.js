@@ -229,6 +229,27 @@ async function migrate() {
       );
     `);
 
+    console.log('Creating shop_installations table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shop_installations (
+        id SERIAL PRIMARY KEY,
+        shop_domain VARCHAR(255) NOT NULL UNIQUE,
+        access_token TEXT NOT NULL,
+        scope TEXT,
+        email VARCHAR(255),
+        country VARCHAR(10),
+        currency VARCHAR(10),
+        timezone VARCHAR(50),
+        plan_name VARCHAR(100),
+        plan_display_name VARCHAR(100),
+        is_plus BOOLEAN DEFAULT FALSE,
+        is_partner_development_store BOOLEAN DEFAULT FALSE,
+        is_shopify_plus BOOLEAN DEFAULT FALSE,
+        installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Create indexes
     console.log('Creating indexes...');
     const indexes = [
@@ -242,7 +263,9 @@ async function migrate() {
       'CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status)',
       'CREATE INDEX IF NOT EXISTS idx_submissions_reward_fulfilled ON submissions(reward_fulfilled)',
       'CREATE INDEX IF NOT EXISTS idx_customizations_shop_domain ON customizations(shop_domain)',
-      'CREATE INDEX IF NOT EXISTS idx_rewards_submission ON rewards(submission_id)'
+      'CREATE INDEX IF NOT EXISTS idx_rewards_submission ON rewards(submission_id)',
+      'CREATE INDEX IF NOT EXISTS idx_shop_installations_domain ON shop_installations(shop_domain)',
+      'CREATE INDEX IF NOT EXISTS idx_shop_installations_installed_at ON shop_installations(installed_at)'
     ];
 
     for (const index of indexes) {
@@ -258,6 +281,20 @@ async function migrate() {
       { table: 'customizations', column: 'notification_email' },
       { table: 'customizations', column: 'email_from_name' }
     ];
+
+    // Verify shop_installations table exists
+    console.log('Verifying shop_installations table...');
+    const installationsResult = await client.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'shop_installations'
+    `);
+    
+    if (installationsResult.rows.length > 0) {
+      console.log('✅ shop_installations table exists');
+    } else {
+      console.log('❌ shop_installations table is missing!');
+    }
 
     // Verify sessions table exists
     console.log('Verifying sessions table...');

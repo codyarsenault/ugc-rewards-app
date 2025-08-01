@@ -45,6 +45,7 @@ import { ShopifyDiscountService } from './services/shopifyDiscount.js';
 import { RewardsModel } from './models/rewards.js';
 import { publicJobRoutes, adminJobRoutes } from './routes/jobs.js';
 import { CustomizationsModel } from './models/customizations.js';
+import { ShopInstallationsModel } from './models/shopInstallations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -201,6 +202,17 @@ const validateShopifySession = async (req, res, next) => {
       });
     }
 
+    // Check if the shop has installed the app
+    const isInstalled = await ShopInstallationsModel.isInstalled(shop);
+    if (!isInstalled) {
+      console.log('Shop not found in installations:', shop);
+      return res.status(401).json({ 
+        error: 'App not installed in this shop. Please install the app first.',
+        needsAuth: true,
+        authUrl: `/api/auth?shop=${shop}`
+      });
+    }
+
     // Check if we have a valid session
     let session = res.locals?.shopify?.session;
     
@@ -346,10 +358,38 @@ app.get(
   shopify.auth.callback(),
   async (req, res, next) => {
     try {
-      // After successful auth, register webhooks
+      // After successful auth, register webhooks and create shop installation record
       const session = res.locals.shopify.session;
       if (session && session.accessToken) {
+        console.log('OAuth callback - Shop:', session.shop);
+        console.log('OAuth callback - Access token obtained');
+        
+        // Register webhooks
         await registerWebhooks(session);
+        
+        // Create shop installation record
+        try {
+          const shopData = {
+            shop_domain: session.shop,
+            access_token: session.accessToken,
+            scope: session.scope,
+            email: session.onlineAccessInfo?.associated_user?.email || null,
+            country: session.onlineAccessInfo?.associated_user?.country || null,
+            currency: session.onlineAccessInfo?.associated_user?.currency || null,
+            timezone: session.onlineAccessInfo?.associated_user?.timezone || null,
+            plan_name: session.onlineAccessInfo?.associated_user?.plan_name || null,
+            plan_display_name: session.onlineAccessInfo?.associated_user?.plan_display_name || null,
+            is_plus: session.onlineAccessInfo?.associated_user?.is_plus || false,
+            is_partner_development_store: session.onlineAccessInfo?.associated_user?.is_partner_development_store || false,
+            is_shopify_plus: session.onlineAccessInfo?.associated_user?.is_shopify_plus || false
+          };
+          
+          await ShopInstallationsModel.create(shopData);
+          console.log('Shop installation record created for:', session.shop);
+        } catch (installationError) {
+          console.error('Error creating shop installation record:', installationError);
+          // Don't fail the OAuth process if installation record creation fails
+        }
       }
       next();
     } catch (error) {
@@ -446,6 +486,10 @@ app.post(
             await CustomizationsModel.redactShopData(shop);
             await JobsModel.redactShopData(shop);
             await RewardsModel.redactShopData(shop);
+            
+            // Delete shop installation record
+            await ShopInstallationsModel.delete(shop);
+            console.log('Shop installation record deleted for:', shop);
             
             // Delete sessions for this shop
             const sessions = await sessionStorage.findSessionsByShop(shop);
