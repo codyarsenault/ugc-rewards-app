@@ -539,6 +539,16 @@ app.get('/jobs/:shop', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'jobs.html'));
 });
 
+// Debug middleware to see what's happening with sessions
+app.use('/api/admin', (req, res, next) => {
+  console.log('=== ADMIN MIDDLEWARE DEBUG ===');
+  console.log('URL:', req.url);
+  console.log('res.locals:', res.locals);
+  console.log('res.locals.shopify:', res.locals?.shopify);
+  console.log('Query params:', req.query);
+  next();
+});
+
 // Apply session validation to all admin routes
 app.use('/api/admin', shopify.ensureInstalledOnShop());
 
@@ -736,6 +746,42 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
 // Get submissions
 app.get('/api/admin/submissions', async (req, res) => {
   try {
+    console.log('=== SUBMISSIONS API DEBUG ===');
+    console.log('res.locals:', res.locals);
+    console.log('res.locals.shopify:', res.locals?.shopify);
+    
+    // Check if Shopify middleware set the session
+    if (!res.locals?.shopify?.session) {
+      console.log('No session from Shopify middleware, trying fallback');
+      // Fallback: get shop from query params
+      const shop = req.query.shop;
+      if (!shop) {
+        console.error('No shop found in session or query params');
+        return res.status(400).json({ error: 'Shop parameter required' });
+      }
+      console.log('Using shop from query params:', shop);
+      
+      // Fetch submissions using shop from query
+      const submissions = await SubmissionsModel.getByShop(shop);
+      console.log('Number of submissions found:', submissions.length);
+      
+      const transformedSubmissions = submissions.map(sub => ({
+        id: sub.id,
+        customerEmail: sub.customer_email,
+        type: sub.type,
+        content: sub.content,
+        status: sub.status,
+        mediaUrl: sub.media_url,
+        createdAt: sub.created_at,
+        job_title: sub.job_title,
+        job_id: sub.job_id,
+        reward_type: sub.reward_type || null,
+        reward_fulfilled: sub.reward_fulfilled || false
+      }));
+      
+      return res.json({ submissions: transformedSubmissions });
+    }
+    
     const session = res.locals.shopify.session;
     const shop = session.shop;
     
@@ -1289,6 +1335,32 @@ app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
 // Get customizations
 app.get('/api/admin/customizations', async (req, res) => {
   try {
+    console.log('=== CUSTOMIZATIONS API DEBUG ===');
+    console.log('res.locals:', res.locals);
+    console.log('res.locals.shopify:', res.locals?.shopify);
+    
+    // Check if Shopify middleware set the session
+    if (!res.locals?.shopify?.session) {
+      console.log('No session from Shopify middleware, trying fallback');
+      // Fallback: get shop from query params
+      const shop = req.query.shop;
+      if (!shop) {
+        console.error('No shop found in session or query params');
+        return res.status(400).json({ error: 'Shop parameter required' });
+      }
+      console.log('Using shop from query params:', shop);
+      
+      const customizations = await CustomizationsModel.getByShop(shop) || {};
+      console.log('GET customizations - Found:', customizations ? 'Yes' : 'No');
+      
+      // Add cache control headers to prevent caching issues
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      return res.json(customizations || {});
+    }
+    
     const session = res.locals.shopify.session;
     const shop = session.shop;
     console.log('GET customizations - Shop:', shop);
