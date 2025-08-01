@@ -6,17 +6,7 @@ dotenv.config();
 import '@shopify/shopify-api/adapters/node';
 
 // 2️⃣ Pull in the v11 initializer
-import { shopifyApi, LATEST_API_VERSION, DeliveryMethod } from '@shopify/shopify-api';
-
-// 3️⃣ Initialize your single Shopify client
-const Shopify = shopifyApi({
-  apiKey:       process.env.SHOPIFY_API_KEY,
-  apiSecretKey: process.env.SHOPIFY_API_SECRET,
-  scopes:       ['write_discounts', 'read_customers', 'write_price_rules'],
-  hostName:     process.env.HOST.replace(/^https?:\/\//, ''),
-  apiVersion:   LATEST_API_VERSION,
-  isEmbeddedApp:true,
-});
+import { LATEST_API_VERSION } from '@shopify/shopify-api';
 
 // 4️⃣ Everything else comes after
 import express from 'express';
@@ -111,7 +101,7 @@ app.set('views', path.join(__dirname, 'views'));
 
 // 3. Add the webhook registration function (from previous artifact)
 async function registerWebhooks(session) {
-  const client = new Shopify.clients.Rest({ session });
+      const client = new shopify.api.clients.Rest({ session });
   
   const webhooks = [
     {
@@ -430,12 +420,12 @@ app.get('/api/health/:shop', async (req, res) => {
       
       // Try to decode using Shopify's official helpers
       try {
-        if (Shopify?.utils?.decodeSessionToken) {
-          payload = Shopify.utils.decodeSessionToken(token);
-        } else if (Shopify?.Utils?.decodeSessionToken) {
-          payload = Shopify.Utils.decodeSessionToken(token);
-        } else if (Shopify?.Auth?.JWT?.decodeSessionToken) {
-          payload = Shopify.Auth.JWT.decodeSessionToken(token);
+        if (shopify.api?.utils?.decodeSessionToken) {
+          payload = shopify.api.utils.decodeSessionToken(token);
+        } else if (shopify.api?.Utils?.decodeSessionToken) {
+          payload = shopify.api.Utils.decodeSessionToken(token);
+        } else if (shopify.api?.Auth?.JWT?.decodeSessionToken) {
+          payload = shopify.api.Auth.JWT.decodeSessionToken(token);
         }
       } catch (decodeError) {
         console.log('Failed to decode session token:', decodeError.message);
@@ -785,22 +775,10 @@ app.get('/api/admin/submissions', async (req, res) => {
     const session = res.locals.shopify.session;
     const shop = session.shop;
     
-    console.log('=== SUBMISSIONS API DEBUG ===');
-    console.log('Shop from session:', shop);
-    console.log('Request headers:', req.headers);
-    console.log('Request query:', req.query);
-    
-    if (!shop) {
-      console.error('No shop found in session');
-      return res.status(400).json({ error: 'Shop parameter required' });
-    }
-    
     console.log('Fetching submissions for shop:', shop);
     const submissions = await SubmissionsModel.getByShop(shop);
-    console.log('Raw submissions from database:', submissions);
     console.log('Number of submissions found:', submissions.length);
     
-    // Transform the data to match the frontend expectations
     const transformedSubmissions = submissions.map(sub => ({
       id: sub.id,
       customerEmail: sub.customer_email,
@@ -814,9 +792,6 @@ app.get('/api/admin/submissions', async (req, res) => {
       reward_type: sub.reward_type || null,
       reward_fulfilled: sub.reward_fulfilled || false
     }));
-    
-    console.log('Transformed submissions:', transformedSubmissions);
-    console.log('=== END SUBMISSIONS API DEBUG ===');
     
     res.json({ submissions: transformedSubmissions });
   } catch (error) {
@@ -861,7 +836,7 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
         console.log('Creating discount code for job:', job.id);
 
         try {
-          const client = new Shopify.clients.Graphql({ session });
+          const client = new shopify.api.clients.Graphql({ session });
           const discountService = new ShopifyDiscountService(client);
 
           const { code } = await discountService.createDiscountCode(job, submission);
@@ -964,7 +939,7 @@ app.post('/api/admin/submissions/:id/approve', async (req, res) => {
         console.log('Processing free product reward for job:', job.id);
         
         try {
-          const client = new Shopify.clients.Graphql({ session });
+          const client = new shopify.api.clients.Graphql({ session });
           const discountService = new ShopifyDiscountService(client);
           
           const { code } = await discountService.createProductDiscountCode(job, submission);
@@ -1335,35 +1310,8 @@ app.post('/api/admin/submissions/:id/resend-reward', async (req, res) => {
 // Get customizations
 app.get('/api/admin/customizations', async (req, res) => {
   try {
-    console.log('=== CUSTOMIZATIONS API DEBUG ===');
-    console.log('res.locals:', res.locals);
-    console.log('res.locals.shopify:', res.locals?.shopify);
-    
-    // Check if Shopify middleware set the session
-    if (!res.locals?.shopify?.session) {
-      console.log('No session from Shopify middleware, trying fallback');
-      // Fallback: get shop from query params
-      const shop = req.query.shop;
-      if (!shop) {
-        console.error('No shop found in session or query params');
-        return res.status(400).json({ error: 'Shop parameter required' });
-      }
-      console.log('Using shop from query params:', shop);
-      
-      const customizations = await CustomizationsModel.getByShop(shop) || {};
-      console.log('GET customizations - Found:', customizations ? 'Yes' : 'No');
-      
-      // Add cache control headers to prevent caching issues
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      
-      return res.json(customizations || {});
-    }
-    
     const session = res.locals.shopify.session;
     const shop = session.shop;
-    console.log('GET customizations - Shop:', shop);
     
     // Add cache control headers to prevent caching issues
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
