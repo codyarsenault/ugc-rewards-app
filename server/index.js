@@ -6,7 +6,7 @@ dotenv.config();
 import '@shopify/shopify-api/adapters/node';
 
 // 2️⃣ Pull in the v11 initializer
-import { LATEST_API_VERSION } from '@shopify/shopify-api';
+import { LATEST_API_VERSION, DeliveryMethod } from '@shopify/shopify-api';
 
 // 4️⃣ Everything else comes after
 import express from 'express';
@@ -736,42 +736,6 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
 // Get submissions
 app.get('/api/admin/submissions', async (req, res) => {
   try {
-    console.log('=== SUBMISSIONS API DEBUG ===');
-    console.log('res.locals:', res.locals);
-    console.log('res.locals.shopify:', res.locals?.shopify);
-    
-    // Check if Shopify middleware set the session
-    if (!res.locals?.shopify?.session) {
-      console.log('No session from Shopify middleware, trying fallback');
-      // Fallback: get shop from query params
-      const shop = req.query.shop;
-      if (!shop) {
-        console.error('No shop found in session or query params');
-        return res.status(400).json({ error: 'Shop parameter required' });
-      }
-      console.log('Using shop from query params:', shop);
-      
-      // Fetch submissions using shop from query
-      const submissions = await SubmissionsModel.getByShop(shop);
-      console.log('Number of submissions found:', submissions.length);
-      
-      const transformedSubmissions = submissions.map(sub => ({
-        id: sub.id,
-        customerEmail: sub.customer_email,
-        type: sub.type,
-        content: sub.content,
-        status: sub.status,
-        mediaUrl: sub.media_url,
-        createdAt: sub.created_at,
-        job_title: sub.job_title,
-        job_id: sub.job_id,
-        reward_type: sub.reward_type || null,
-        reward_fulfilled: sub.reward_fulfilled || false
-      }));
-      
-      return res.json({ submissions: transformedSubmissions });
-    }
-    
     const session = res.locals.shopify.session;
     const shop = session.shop;
     
