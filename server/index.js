@@ -461,11 +461,20 @@ app.post(
   })
 );
 
-// Rate limiting
+// Rate limiting - more lenient for development
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP'
+  max: 1000, // limit each IP to 1000 requests per windowMs (increased from 100)
+  message: 'Too many requests from this IP',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many requests',
+      message: 'Please wait before making more requests',
+      retryAfter: Math.ceil(15 * 60 / 60) // 15 minutes in minutes
+    });
+  }
 });
 
 // Apply rate limiting to API routes

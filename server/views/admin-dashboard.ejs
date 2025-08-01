@@ -135,20 +135,35 @@ window.waitForAppBridge = waitForAppBridge;
         console.log('Response status:', response.status);
         
         if (response.status === 401) {
-          const data = await response.json();
-          console.log('401 response data:', data);
-          
-          if (data.needsAuth && data.authUrl) {
-            // In embedded app context, don't redirect to auth URL
-            // Instead, let the parent frame handle authentication
-            console.error('Authentication required but cannot redirect in embedded context');
-            console.error('Auth URL:', data.authUrl);
+          try {
+            const data = await response.json();
+            console.log('401 response data:', data);
             
-            // Try to refresh the session by reloading the page
+            if (data.needsAuth && data.authUrl) {
+              // In embedded app context, don't redirect to auth URL
+              // Instead, let the parent frame handle authentication
+              console.error('Authentication required but cannot redirect in embedded context');
+              console.error('Auth URL:', data.authUrl);
+              
+              // Try to refresh the session by reloading the page
+              console.log('Attempting to refresh session by reloading page...');
+              window.location.reload();
+              return null;
+            }
+          } catch (error) {
+            console.error('Failed to parse 401 response as JSON:', error);
+            // Handle non-JSON 401 response
             console.log('Attempting to refresh session by reloading page...');
             window.location.reload();
             return null;
           }
+        }
+        
+        // Handle rate limiting (429) gracefully
+        if (response.status === 429) {
+          console.error('Rate limit exceeded. Please wait before making more requests.');
+          // Don't try to parse as JSON - it's likely plain text
+          return null;
         }
         
         return response;
@@ -171,7 +186,16 @@ window.waitForAppBridge = waitForAppBridge;
             return false;
           }
           
-          const data = await response.json();
+          let data;
+          try {
+            data = await response.json();
+          } catch (error) {
+            console.error('Failed to parse health check response as JSON:', error);
+            // If we can't parse the response, assume authentication is needed
+            console.log('Attempting to refresh session by reloading page...');
+            window.location.reload();
+            return false;
+          }
           
           if (data.needsAuth) {
             console.log('Session invalid, attempting to refresh...');
