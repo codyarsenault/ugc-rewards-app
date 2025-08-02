@@ -413,8 +413,10 @@ app.get('/api/health/:shop', async (req, res) => {
     
     // Check for session token in Authorization header
     const authHeader = req.headers.authorization;
+    console.log('Authorization header present:', !!authHeader);
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
+      console.log('Extracted Bearer token (first 20 chars):', token.substring(0, 20) + '...');
       
       let payload = null;
       
@@ -422,10 +424,24 @@ app.get('/api/health/:shop', async (req, res) => {
       try {
         if (shopify.api?.utils?.decodeSessionToken) {
           payload = shopify.api.utils.decodeSessionToken(token);
+          console.log('Successfully decoded session token using shopify.api.utils.decodeSessionToken');
         } else if (shopify.api?.Utils?.decodeSessionToken) {
           payload = shopify.api.Utils.decodeSessionToken(token);
+          console.log('Successfully decoded session token using shopify.api.Utils.decodeSessionToken');
         } else if (shopify.api?.Auth?.JWT?.decodeSessionToken) {
           payload = shopify.api.Auth.JWT.decodeSessionToken(token);
+          console.log('Successfully decoded session token using shopify.api.Auth.JWT.decodeSessionToken');
+        }
+        
+        if (payload) {
+          console.log('Session token payload:', {
+            iss: payload.iss,
+            dest: payload.dest,
+            aud: payload.aud,
+            sub: payload.sub,
+            exp: payload.exp,
+            sid: payload.sid
+          });
         }
       } catch (decodeError) {
         console.log('Failed to decode session token:', decodeError.message);

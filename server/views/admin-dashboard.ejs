@@ -9,6 +9,45 @@
 <!-- Load App Bridge first, synchronously -->
 <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" onload="console.log('App Bridge script loaded successfully')" onerror="console.error('Failed to load App Bridge script')"></script>
 
+<!-- Import getSessionToken from App Bridge utilities -->
+<script>
+  // Import getSessionToken when App Bridge is ready
+  window.getSessionToken = null;
+  
+  // Dynamically import getSessionToken from App Bridge utilities
+  function loadSessionTokenHelper() {
+    try {
+      // Check if App Bridge utilities are available
+      if (window.shopify && window.shopify.getSessionToken) {
+        window.getSessionToken = window.shopify.getSessionToken;
+        console.log('getSessionToken loaded from shopify utilities');
+      } else if (window.AppBridge && window.AppBridge.getSessionToken) {
+        window.getSessionToken = window.AppBridge.getSessionToken;
+        console.log('getSessionToken loaded from AppBridge utilities');
+      } else {
+        // Fallback implementation
+        console.log('Using fallback getSessionToken implementation');
+        window.getSessionToken = async function(app) {
+          // This is a simplified fallback - in production you'd want the real implementation
+          if (app && app.getSessionToken) {
+            return await app.getSessionToken();
+          }
+          throw new Error('No getSessionToken method available');
+        };
+      }
+    } catch (error) {
+      console.error('Failed to load getSessionToken:', error);
+    }
+  }
+  
+  // Load when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadSessionTokenHelper);
+  } else {
+    loadSessionTokenHelper();
+  }
+</script>
+
 <script>
 // Global App Bridge initialization state
 window.appBridgeState = {
@@ -178,22 +217,26 @@ setTimeout(() => {
       window.makeAuthenticatedRequest = async function(url, options = {}) {
         console.log('makeAuthenticatedRequest called with URL:', url);
         
-        // Try to get a fresh session token from Shopify App Bridge
+        // Try to get a fresh session token using Shopify's official method
         let sessionToken = null;
         
         try {
-          if (window.shopifyApp && window.shopifyApp.getSessionToken) {
-            console.log('Getting fresh session token from Shopify...');
-            sessionToken = await window.shopifyApp.getSessionToken();
-            console.log('Fresh session token obtained:', !!sessionToken);
-          } else if (window.shopify && window.shopify.getSessionToken) {
-            // Fallback to old method
-            console.log('Getting fresh session token from Shopify (fallback)...');
-            sessionToken = await window.shopify.getSessionToken();
+          // Use Shopify's official getSessionToken method from App Bridge
+          if (window.shopifyApp) {
+            console.log('Getting fresh session token using official Shopify App Bridge...');
+            
+            // Import getSessionToken dynamically or use it if already available
+            if (typeof getSessionToken === 'function') {
+              sessionToken = await getSessionToken(window.shopifyApp);
+            } else if (window.shopifyApp.getSessionToken) {
+              // Some versions might have it as a method
+              sessionToken = await window.shopifyApp.getSessionToken();
+            }
+            
             console.log('Fresh session token obtained:', !!sessionToken);
           }
         } catch (error) {
-          console.log('Could not get fresh session token:', error.message);
+          console.log('Could not get fresh session token using official method:', error.message);
         }
         
         // Fall back to URL token if App Bridge token not available
