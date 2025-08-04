@@ -376,7 +376,7 @@ app.use(shopify.cspHeaders());
 // #4 Webhook processing - simplified since handlers are in config
 app.post(
   shopify.config.webhooks.path,
-  shopify.processWebhooks({ webhookHandlers: {} })
+  shopify.processWebhooks()
 );
 
 // 5. NOW add body parsing for other routes
