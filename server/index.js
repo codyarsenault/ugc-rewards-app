@@ -697,7 +697,16 @@ app.post('/api/admin/customizations', async (req, res) => {
     const session = res.locals.shopify.session;
     const shop = session.shop;
     
-    const customizations = await CustomizationsModel.upsert(shop, req.body);
+    // Get existing customizations to preserve email settings
+    const existingCustomizations = await CustomizationsModel.getByShop(shop) || {};
+    
+    // Merge existing data with new customization data (preserves email settings)
+    const updatedCustomizations = {
+      ...existingCustomizations,
+      ...req.body
+    };
+    
+    const customizations = await CustomizationsModel.upsert(shop, updatedCustomizations);
     res.json({ success: true, customizations });
   } catch (error) {
     console.error('Error saving customizations:', error);
