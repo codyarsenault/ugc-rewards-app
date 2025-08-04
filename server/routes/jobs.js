@@ -51,15 +51,14 @@ publicJobRoutes.get('/jobs/:id', async (req, res) => {
   }
 });
 
-// ADMIN ROUTES (auth required via middleware in index.js)
+// ADMIN ROUTES (auth required via validateSessionToken middleware in index.js)
+// These routes now get the shop from res.locals.shopify.session
+
 adminJobRoutes.get('/jobs', async (req, res) => {
   try {
-    // Get shop from query params (Shopify always includes this)
-    const shop = req.query.shop;
-    
-    if (!shop) {
-      return res.status(400).json({ error: 'Shop parameter required' });
-    }
+    // Get shop from session (set by validateSessionToken middleware)
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
     
     console.log('Fetching jobs for shop:', shop);
     const jobs = await JobsModel.getByShop(shop);
@@ -72,12 +71,9 @@ adminJobRoutes.get('/jobs', async (req, res) => {
 
 adminJobRoutes.post('/jobs', async (req, res) => {
   try {
-    // Get shop from query params instead of session
-    const shopDomain = req.query.shop;
-    
-    if (!shopDomain) {
-      return res.status(400).json({ error: 'Shop parameter required' });
-    }
+    // Get shop from session
+    const session = res.locals.shopify.session;
+    const shopDomain = session.shop;
     
     const job = await JobsModel.create({
       shopDomain,
@@ -93,11 +89,8 @@ adminJobRoutes.post('/jobs', async (req, res) => {
 adminJobRoutes.put('/jobs/:id', async (req, res) => {
   try {
     const jobId = req.params.id;
-    const shopDomain = req.query.shop;
-    
-    if (!shopDomain) {
-      return res.status(400).json({ error: 'Shop parameter required' });
-    }
+    const session = res.locals.shopify.session;
+    const shopDomain = session.shop;
 
     // Check if job exists and belongs to this shop
     const existingJob = await JobsModel.getById(jobId);
@@ -121,11 +114,8 @@ adminJobRoutes.put('/jobs/:id', async (req, res) => {
 adminJobRoutes.delete('/jobs/:id', async (req, res) => {
   try {
     const jobId = req.params.id;
-    const shopDomain = req.query.shop;
-    
-    if (!shopDomain) {
-      return res.status(400).json({ error: 'Shop parameter required' });
-    }
+    const session = res.locals.shopify.session;
+    const shopDomain = session.shop;
 
     // Check if job exists
     const job = await JobsModel.getById(jobId);
@@ -148,6 +138,3 @@ adminJobRoutes.delete('/jobs/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete job' });
   }
 });
-
-// Remove the default export
-// export default router;
