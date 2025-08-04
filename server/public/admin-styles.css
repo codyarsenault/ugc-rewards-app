@@ -498,3 +498,73 @@ td {
   0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Required field styling */
+.form-group label span[style*="color: #d72c0d"] {
+    font-weight: bold;
+    margin-left: 2px;
+  }
+  
+  /* Add visual indicator for required fields */
+  #emailFromName:invalid,
+  #notificationEmail:invalid,
+  #quickEmailFromName:invalid,
+  #quickNotificationEmail:invalid {
+    border-color: #dc3545;
+  }
+  
+  #emailFromName:valid,
+  #notificationEmail:valid,
+  #quickEmailFromName:valid,
+  #quickNotificationEmail:valid {
+    border-color: #28a745;
+  }
+  
+  /* Focus state for required fields - Update existing email section focus styles */
+  #emailFromName:focus,
+  #notificationEmail:focus,
+  #quickEmailFromName:focus,
+  #quickNotificationEmail:focus {
+    border-color: #008060;
+    box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.1);
+  }
+  
+  /* Optional field indicator styling */
+  .form-group label span[style*="color: #666"] {
+    font-size: 0.9em;
+    font-style: italic;
+  }
+  
+  /* Additional email section styles if not already present */
+  .email-section {
+    background: #f9fafb;
+    border: 1px solid #e3e3e3;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .email-section h3 {
+    margin: 0 0 15px 0;
+    color: #202223;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  .email-section textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+  }
+  
+  .email-section small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+  }
