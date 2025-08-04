@@ -84,8 +84,82 @@ const shopify = shopifyApp({
   },
   webhooks: {
     path: '/api/webhooks',
+    // Built-in webhook configurations
+    APP_UNINSTALLED: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: '/api/webhooks',
+      callback: async (topic, shop, body, webhookId) => {
+        console.log('App uninstalled for shop:', shop);
+        
+        try {
+          // Clean up all shop data
+          await CustomizationsModel.redactShopData(shop);
+          await JobsModel.redactShopData(shop);
+          await RewardsModel.redactShopData(shop);
+          await ShopInstallationsModel.delete(shop);
+          
+          // Delete all sessions for this shop
+          const sessions = await sessionStorage.findSessionsByShop(shop);
+          if (sessions && sessions.length > 0) {
+            for (const session of sessions) {
+              await sessionStorage.deleteSession(session.id);
+            }
+          }
+          
+          console.log('Shop data cleaned up successfully for:', shop);
+        } catch (error) {
+          console.error('Error cleaning up shop data for uninstall:', error);
+        }
+      },
+    },
+    CUSTOMERS_REDACT: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: '/api/webhooks',
+      callback: async (topic, shop, body, webhookId) => {
+        try {
+          const payload = JSON.parse(body);
+          console.log('Customer redact request for:', shop, payload.customer.email);
+          await SubmissionsModel.redactCustomerData(shop, payload.customer.email);
+          console.log('Customer data redacted successfully');
+        } catch (error) {
+          console.error('Error processing customer redact:', error);
+        }
+      },
+    },
+    CUSTOMERS_DATA_REQUEST: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: '/api/webhooks',
+      callback: async (topic, shop, body, webhookId) => {
+        try {
+          const payload = JSON.parse(body);
+          console.log('Customer data request for:', shop, payload.customer.email);
+          const customerData = await SubmissionsModel.getCustomerData(shop, payload.customer.email);
+          console.log('Customer data retrieved:', customerData);
+        } catch (error) {
+          console.error('Error processing customer data request:', error);
+        }
+      },
+    },
+    SHOP_REDACT: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: '/api/webhooks',
+      callback: async (topic, shop, body, webhookId) => {
+        try {
+          console.log('Shop redact request for:', shop);
+          await SubmissionsModel.redactShopData(shop);
+          await JobsModel.redactShopData(shop);
+          await CustomizationsModel.redactShopData(shop);
+          await RewardsModel.redactShopData(shop);
+          console.log('Shop data redacted successfully');
+        } catch (error) {
+          console.error('Error processing shop redact:', error);
+        }
+      },
+    },
   },
   sessionStorage,
+  useOnlineTokens: false,
+  isEmbeddedApp: true,
 });
 
 console.log('Shopify API configuration:', {
@@ -105,50 +179,6 @@ app.set('trust proxy', 1);
 // Configure EJS templating
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-
-// Webhook registration function
-async function registerWebhooks(session) {
-  const client = new shopify.api.clients.Rest({ session });
-  
-  const webhooks = [
-    {
-      topic: 'customers/redact',
-      address: `${process.env.HOST}${shopify.config.webhooks.path}`,
-      format: 'json'
-    },
-    {
-      topic: 'customers/data_request',
-      address: `${process.env.HOST}${shopify.config.webhooks.path}`,
-      format: 'json'
-    },
-    {
-      topic: 'shop/redact',
-      address: `${process.env.HOST}${shopify.config.webhooks.path}`,
-      format: 'json'
-    },
-    {
-      topic: 'app/uninstalled',
-      address: `${process.env.HOST}${shopify.config.webhooks.path}`,
-      format: 'json'
-    }
-  ];
-
-  for (const webhook of webhooks) {
-    try {
-      await client.post({
-        path: 'webhooks',
-        data: webhook
-      });
-      console.log(`Registered webhook: ${webhook.topic}`);
-    } catch (error) {
-      if (error.response?.code === 422) {
-        console.log(`Webhook ${webhook.topic} already exists`);
-      } else {
-        console.error(`Failed to register webhook ${webhook.topic}:`, error);
-      }
-    }
-  }
-}
 
 // Helper function to check if email setup is complete
 function isEmailSetupComplete(customizations) {
@@ -343,88 +373,10 @@ app.use((req, res, next) => {
 // 3. CSP Headers from Shopify
 app.use(shopify.cspHeaders());
 
-// #4 Webhook processing
+// #4 Webhook processing - simplified since handlers are in config
 app.post(
   shopify.config.webhooks.path,
-  shopify.processWebhooks({
-    webhookHandlers: {
-      CUSTOMERS_REDACT: {
-        deliveryMethod: DeliveryMethod.Http,
-        callbackUrl: shopify.config.webhooks.path,
-        callback: async (topic, shop, body, webhookId) => {
-          try {
-            const payload = JSON.parse(body);
-            console.log('Customer redact request for:', shop, payload.customer.email);
-            await SubmissionsModel.redactCustomerData(shop, payload.customer.email);
-            console.log('Customer data redacted successfully');
-          } catch (error) {
-            console.error('Error processing customer redact:', error);
-            throw error;
-          }
-        }
-      },
-      
-      CUSTOMERS_DATA_REQUEST: {
-        deliveryMethod: DeliveryMethod.Http,
-        callbackUrl: shopify.config.webhooks.path,
-        callback: async (topic, shop, body, webhookId) => {
-          try {
-            const payload = JSON.parse(body);
-            console.log('Customer data request for:', shop, payload.customer.email);
-            const customerData = await SubmissionsModel.getCustomerData(shop, payload.customer.email);
-            console.log('Customer data retrieved:', customerData);
-          } catch (error) {
-            console.error('Error processing customer data request:', error);
-            throw error;
-          }
-        }
-      },
-      
-      SHOP_REDACT: {
-        deliveryMethod: DeliveryMethod.Http,
-        callbackUrl: shopify.config.webhooks.path,
-        callback: async (topic, shop, body, webhookId) => {
-          try {
-            console.log('Shop redact request for:', shop);
-            await SubmissionsModel.redactShopData(shop);
-            await JobsModel.redactShopData(shop);
-            await CustomizationsModel.redactShopData(shop);
-            await RewardsModel.redactShopData(shop);
-            console.log('Shop data redacted successfully');
-          } catch (error) {
-            console.error('Error processing shop redact:', error);
-            throw error;
-          }
-        }
-      },
-      
-      APP_UNINSTALLED: {
-        deliveryMethod: DeliveryMethod.Http,
-        callbackUrl: shopify.config.webhooks.path,
-        callback: async (topic, shop, body, webhookId) => {
-          try {
-            console.log('App uninstalled for shop:', shop);
-            await CustomizationsModel.redactShopData(shop);
-            await JobsModel.redactShopData(shop);
-            await RewardsModel.redactShopData(shop);
-            await ShopInstallationsModel.delete(shop);
-            
-            const sessions = await sessionStorage.findSessionsByShop(shop);
-            if (sessions && sessions.length > 0) {
-              for (const session of sessions) {
-                await sessionStorage.deleteSession(session.id);
-              }
-            }
-            
-            console.log('Shop data cleaned up successfully for:', shop);
-          } catch (error) {
-            console.error('Error cleaning up shop data for uninstall:', error);
-            throw error;
-          }
-        }
-      }
-    }
-  })
+  shopify.processWebhooks({ webhookHandlers: {} })
 );
 
 // 5. NOW add body parsing for other routes
@@ -464,8 +416,8 @@ app.get(
       if (session && session.accessToken) {
         console.log('OAuth callback - Shop:', session.shop);
         
-        // Register webhooks
-        await registerWebhooks(session);
+        // Shopify App Express automatically registers webhooks defined in config
+        // No need to manually register them
         
         // Create shop installation record
         try {
