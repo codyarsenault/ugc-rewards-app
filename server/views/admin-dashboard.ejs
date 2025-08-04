@@ -565,13 +565,13 @@
             <div class="email-section" style="background: #fff; border: 2px solid #008060;">
               <h3>⚙️ Email Sender Settings</h3>
               <div class="form-group">
-                <label for="emailFromName">From Name</label>
+                <label for="emailFromName">From Name <span style="color: #d72c0d;">*</span></label>
                 <input type="text" id="emailFromName" name="emailFromName" 
-                      placeholder="Your Brand Name" maxlength="100">
+                      placeholder="Your Brand Name" maxlength="100" required>
                 <small style="color: #666;">The name that will appear as the sender (e.g., "Your Brand Name")</small>
               </div>
               <div class="form-group">
-                <label for="emailReplyTo">Reply-To Email Address</label>
+                <label for="emailReplyTo">Reply-To Email Address <span style="color: #666; font-weight: normal;">(Optional)</span></label>
                 <input type="email" id="emailReplyTo" name="emailReplyTo" 
                       placeholder="support@yourbrand.com" maxlength="255">
                 <small style="color: #666;">Where customer replies will be sent. Leave empty to disable replies.</small>
@@ -580,7 +580,7 @@
                 <p style="margin: 0; color: #333; font-size: 13px;">
                   <strong>📧 How it works:</strong><br>
                   • Emails will be sent from: <strong><span id="fromNamePreview">Honest UGC</span> &lt;no-reply@honestugc.com&gt;</strong><br>
-                  • Customer replies will go to: <strong><span id="replyToPreview">your reply-to address</span></strong><br>
+                  • Customer replies will go to: <strong><span id="replyToPreview">no replies (emails will be no-reply)</span></strong><br>
                   • This ensures reliable email delivery while showing your brand name
                 </p>
               </div>
@@ -590,9 +590,9 @@
             <div class="email-section" style="background: #fff; border: 2px solid #d72c0d;">
               <h3>🔔 Admin Notification Settings</h3>
               <div class="form-group">
-                <label for="notificationEmail">Notification Email Address</label>
+                <label for="notificationEmail">Notification Email Address <span style="color: #d72c0d;">*</span></label>
                 <input type="email" id="notificationEmail" name="notificationEmail" 
-                      placeholder="admin@yourbrand.com" maxlength="255">
+                      placeholder="admin@yourbrand.com" maxlength="255" required>
                 <small style="color: #666;">Where admin notifications will be sent when new submissions are received.</small>
               </div>
             </div>

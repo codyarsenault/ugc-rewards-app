@@ -1175,9 +1175,43 @@ function populateEmailSettings(customizations) {
   }
 }
 
-// Save email settings
+// Save email settings with validation
 window.saveEmailSettings = async function() {
   const form = document.getElementById('emailSettingsForm');
+  
+  // Get required fields
+  const emailFromName = document.getElementById('emailFromName');
+  const notificationEmail = document.getElementById('notificationEmail');
+  
+  // Validate required fields
+  if (!emailFromName.value.trim()) {
+    alert('Please enter a From Name. This field is required.');
+    emailFromName.focus();
+    return;
+  }
+  
+  if (!notificationEmail.value.trim()) {
+    alert('Please enter a Notification Email Address. This field is required.');
+    notificationEmail.focus();
+    return;
+  }
+  
+  // Validate email format for notification email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(notificationEmail.value.trim())) {
+    alert('Please enter a valid email address for notifications.');
+    notificationEmail.focus();
+    return;
+  }
+  
+  // Validate reply-to email if provided
+  const replyToEmail = document.getElementById('emailReplyTo');
+  if (replyToEmail.value.trim() && !emailRegex.test(replyToEmail.value.trim())) {
+    alert('Please enter a valid Reply-To email address or leave it empty.');
+    replyToEmail.focus();
+    return;
+  }
+  
   const formData = new FormData(form);
   const emailSettings = Object.fromEntries(formData);
   
@@ -1194,10 +1228,10 @@ window.saveEmailSettings = async function() {
       }, 3000);
       
       // Check if email setup is now complete
-      const emailFromName = document.getElementById('emailFromName').value.trim();
-      const notificationEmail = document.getElementById('notificationEmail').value.trim();
+      const emailFromNameValue = document.getElementById('emailFromName').value.trim();
+      const notificationEmailValue = document.getElementById('notificationEmail').value.trim();
       
-      if (emailFromName && notificationEmail) {
+      if (emailFromNameValue && notificationEmailValue) {
         const banner = document.getElementById('emailSetupBanner');
         if (banner) {
           banner.style.display = 'none';
