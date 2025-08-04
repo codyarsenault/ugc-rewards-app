@@ -8,213 +8,260 @@
     <!-- Load App Bridge -->
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" data-api-key="<%= env.SHOPIFY_API_KEY %>"></script>
     
-    <!-- Replace the entire <script> section (lines 11-272) with this: -->
-    <script>
-      // Global configuration
-      const HOST = '<%= env.HOST %>';
-      const API_KEY = '<%= env.SHOPIFY_API_KEY %>';
-      
-      console.log('App configuration:', { HOST, API_KEY });
-      console.log('URL params:', window.location.search);
-      
-      // Initialize App Bridge immediately when available
-      let app;
-      let sessionToken;
-      
-      function initializeAppBridge() {
-        console.log('Attempting to initialize App Bridge...');
-        console.log('Window shopify object:', window.shopify);
-        
-        try {
-          // Check if Shopify App Bridge is available
-          if (!window.shopify || !window.shopify.app) {
-            console.error('Shopify App Bridge not found');
-            console.log('Available window properties:', Object.keys(window).filter(k => k.includes('shopify') || k.includes('app')));
-            return;
-          }
-          
-          console.log('Found App Bridge via window.shopify.app');
-          
-          // Get host from URL params
-          const urlParams = new URLSearchParams(window.location.search);
-          const host = urlParams.get('host');
-          
-          if (!host) {
-            console.error('No host parameter found in URL');
-            console.log('All URL params:', Object.fromEntries(urlParams));
-            return;
-          }
-          
-          console.log('Creating app with config:', { apiKey: API_KEY, host: host });
-          
-          // In newer App Bridge, the app is already initialized
-          // We just need to use the existing instance
-          app = window.shopify.app;
-
-          // ADD THE NEW LOGGING HERE
-    console.log('App instance:', app);
-    console.log('App methods:', Object.keys(app));
-    console.log('App prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(app)));
+    <!-- Replace the entire <script> section in admin-dashboard.ejs with this: -->
+<script>
+  // Global configuration
+  const HOST = '<%= env.HOST %>';
+  const API_KEY = '<%= env.SHOPIFY_API_KEY %>';
+  
+  console.log('App configuration:', { HOST, API_KEY });
+  console.log('URL params:', window.location.search);
+  
+  // Initialize App Bridge immediately when available
+  let app;
+  let sessionToken;
+  
+  function initializeAppBridge() {
+    console.log('Attempting to initialize App Bridge...');
+    console.log('Window shopify object:', window.shopify);
     
-    // Check for token methods
-    if (app.idToken) {
-      console.log('app.idToken is available');
-    } else if (app.getIdToken) {
-      console.log('app.getIdToken is available');
-    } else if (app.getSessionToken) {
-      console.log('app.getSessionToken is available');
-    } else if (window.shopify && window.shopify.idToken) {
-      console.log('window.shopify.idToken is available');
-    } else {
-      console.log('No token method found on app instance');
-      console.log('Checking window.shopify:', window.shopify);
-    }
-        
+    try {
+      // Check if Shopify App Bridge is available
+      if (!window.shopify || !window.shopify.app) {
+        console.error('Shopify App Bridge not found');
+        console.log('Available window properties:', Object.keys(window).filter(k => k.includes('shopify') || k.includes('app')));
+        return;
+      }
+      
+      console.log('Found App Bridge via window.shopify.app');
+      
+      // Get host from URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const host = urlParams.get('host');
+      
+      if (!host) {
+        console.error('No host parameter found in URL');
+        console.log('All URL params:', Object.fromEntries(urlParams));
+        return;
+      }
+      
+      console.log('Creating app with config:', { apiKey: API_KEY, host: host });
+      
+      // In newer App Bridge, the app is already initialized
+      // We just need to use the existing instance
+      app = window.shopify;
+      
+      console.log('App instance:', app);
+      console.log('App methods:', Object.keys(app));
+      
+      // Store app instance globally
+      window.shopifyApp = app;
+      
+      // Create authenticated fetch function
+      window.makeAuthenticatedRequest = async function(url, options = {}) {
+        try {
+          // Get fresh session token from Shopify
+          let token;
           
-          // Store app instance globally
-          window.shopifyApp = app;
+          if (window.shopify && window.shopify.idToken) {
+            console.log('Getting fresh token from window.shopify.idToken()...');
+            token = await window.shopify.idToken();
+            console.log('Got fresh token');
+          } else {
+            // Fallback to URL token (likely expired)
+            const urlParams = new URLSearchParams(window.location.search);
+            token = urlParams.get('id_token');
+            console.log('Warning: Using potentially expired token from URL');
+          }
           
-          // Create authenticated fetch function
-          window.makeAuthenticatedRequest = async function(url, options = {}) {
-            try {
-              // Get fresh session token from Shopify
-              let token;
-              
-              if (window.shopify && window.shopify.idToken) {
-                console.log('Getting fresh token from window.shopify.idToken()...');
-                token = await window.shopify.idToken();
-                console.log('Got fresh token');
-              } else {
-                // Fallback to URL token (likely expired)
-                const urlParams = new URLSearchParams(window.location.search);
-                token = urlParams.get('id_token');
-                console.log('Warning: Using potentially expired token from URL');
-              }
-              
-              if (!token) {
-                throw new Error('No token available');
-              }
-              
-              const headers = {
-                'Content-Type': 'application/json',
-                ...options.headers,
-                'Authorization': `Bearer ${token}`,
-                // Add ngrok skip header
-                'ngrok-skip-browser-warning': 'true'
-              };
-              
-              console.log('Making authenticated request to:', url);
-              
-              const response = await fetch(url, {
-                ...options,
-                headers,
-                credentials: 'same-origin'
-              });
-              
-              console.log('Response status:', response.status);
-              
-              if (response.status === 401) {
-                const errorBody = await response.text();
-                console.log('401 response body:', errorBody);
-                throw new Error('Authentication failed: ' + errorBody);
-              }
-              
-              return response;
-            } catch (error) {
-              console.error('Authenticated request failed:', error);
-              throw error;
-            }
+          if (!token) {
+            throw new Error('No token available');
+          }
+          
+          const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+            'Authorization': `Bearer ${token}`,
+            // Add ngrok skip header
+            'ngrok-skip-browser-warning': 'true'
           };
           
-          // Helper to check session health
-          window.checkSessionHealth = async function() {
-            try {
-              console.log('Checking session health...');
-              const response = await window.makeAuthenticatedRequest('/api/admin/health');
-              const data = await response.json();
-              console.log('Health check response:', data);
-              return response.ok;
-            } catch (error) {
-              console.error('Session health check failed:', error);
-              return false;
-            }
-          };
+          console.log('Making authenticated request to:', url);
           
-          // Resource picker helper
-          window.openProductPicker = async function() {
-            try {
-              // Use the resource picker from the app instance
-              const selection = await app.resourcePicker({
-                type: 'product',
-                multiple: false
-              });
-              
-              if (selection && selection.length > 0) {
-                const product = selection[0];
-                
-                document.getElementById('rewardProduct').value = product.title;
-                document.getElementById('rewardProductId').value = product.id;
-                document.getElementById('rewardProductHandle').value = product.handle;
-                
-                const productInfo = document.getElementById('selectedProductInfo');
-                productInfo.style.display = 'block';
-                
-                const productImage = document.getElementById('productImage');
-                if (product.images && product.images.length > 0) {
-                  productImage.src = product.images[0].originalSrc;
-                  productImage.alt = product.title;
-                }
-                
-                document.getElementById('productTitle').textContent = product.title;
-                
-                if (product.variants && product.variants.length > 0) {
-                  const price = product.variants[0].price;
-                  document.getElementById('productPrice').textContent = '$' + price;
-                }
-              }
-            } catch (error) {
-              console.error('Resource picker error:', error);
-            }
-          };
-          
-          console.log('App Bridge initialized successfully');
-          
-          // Test the session immediately
-          window.checkSessionHealth().then(healthy => {
-            console.log('Initial session health check:', healthy);
-          }).catch(error => {
-            console.error('Initial health check error:', error);
+          const response = await fetch(url, {
+            ...options,
+            headers,
+            credentials: 'same-origin'
           });
           
+          console.log('Response status:', response.status);
+          
+          if (response.status === 401) {
+            const errorBody = await response.text();
+            console.log('401 response body:', errorBody);
+            throw new Error('Authentication failed: ' + errorBody);
+          }
+          
+          return response;
         } catch (error) {
-          console.error('Error initializing App Bridge:', error);
-          alert('Failed to initialize app. Please refresh the page.');
+          console.error('Authenticated request failed:', error);
+          throw error;
         }
-      }
+      };
       
-      // Wait for App Bridge to be available
-      let initAttempts = 0;
-      function tryInitialize() {
-        initAttempts++;
-        console.log(`Initialize attempt ${initAttempts}...`);
+      // Helper to check session health
+      window.checkSessionHealth = async function() {
+        try {
+          console.log('Checking session health...');
+          const response = await window.makeAuthenticatedRequest('/api/admin/health');
+          const data = await response.json();
+          console.log('Health check response:', data);
+          return response.ok;
+        } catch (error) {
+          console.error('Session health check failed:', error);
+          return false;
+        }
+      };
+      
+      // Resource picker helper - FIXED VERSION
+      window.openProductPicker = async function() {
+        try {
+          console.log('Opening product picker...');
+          
+          // In the new App Bridge, the resource picker is accessed differently
+          if (window.shopify && window.shopify.resourcePicker) {
+            console.log('Using window.shopify.resourcePicker');
+            
+            const selection = await window.shopify.resourcePicker({
+              type: 'product',
+              multiple: false,
+              action: 'select'
+            });
+            
+            console.log('Product picker selection:', selection);
+            
+            if (selection && selection.length > 0) {
+              const product = selection[0];
+              populateProductSelection(product);
+            }
+          } else if (window.shopify && window.shopify.modal) {
+            // Alternative method using modal
+            console.log('Using modal method for product picker');
+            
+            // Create a modal to show products
+            const modal = window.shopify.modal.create('product-picker', {
+              title: 'Select a Product',
+              size: 'large'
+            });
+            
+            // For now, we'll use the admin API to fetch products
+            // This is a workaround until we find the correct resource picker method
+            fetchAndShowProducts();
+          } else {
+            console.error('Resource picker not available in current App Bridge version');
+            // Fallback: Use admin API to fetch products
+            fetchAndShowProducts();
+          }
+        } catch (error) {
+          console.error('Resource picker error:', error);
+          alert('Error opening product picker. Please try again or enter product details manually.');
+        }
+      };
+      
+      // Helper function to populate product selection
+      function populateProductSelection(product) {
+        console.log('Populating product selection:', product);
         
-        if (window.shopify || window.createApp || window['app-bridge']) {
-          initializeAppBridge();
-        } else if (initAttempts < 20) {
-          // Try for up to 2 seconds
-          setTimeout(tryInitialize, 100);
-        } else {
-          console.error('App Bridge failed to load after 2 seconds');
-          alert('Failed to load Shopify App Bridge. Please refresh the page.');
+        // Handle different product object structures
+        const title = product.title || product.name;
+        const id = product.id || product.gid;
+        const handle = product.handle;
+        
+        document.getElementById('rewardProduct').value = title;
+        document.getElementById('rewardProductId').value = id;
+        document.getElementById('rewardProductHandle').value = handle || '';
+        
+        const productInfo = document.getElementById('selectedProductInfo');
+        productInfo.style.display = 'block';
+        
+        const productImage = document.getElementById('productImage');
+        if (product.images && product.images.length > 0) {
+          const imageUrl = product.images[0].originalSrc || product.images[0].src || product.images[0].url;
+          productImage.src = imageUrl;
+          productImage.alt = title;
+        } else if (product.image) {
+          productImage.src = product.image.originalSrc || product.image.src || product.image.url;
+          productImage.alt = title;
+        }
+        
+        document.getElementById('productTitle').textContent = title;
+        
+        if (product.variants && product.variants.length > 0) {
+          const price = product.variants[0].price;
+          document.getElementById('productPrice').textContent = '$' + price;
+        } else if (product.price) {
+          document.getElementById('productPrice').textContent = '$' + product.price;
         }
       }
       
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', tryInitialize);
-      } else {
-        tryInitialize();
+      // Fallback function to fetch products via API
+      async function fetchAndShowProducts() {
+        try {
+          console.log('Fetching products via API...');
+          
+          // Show a simple product selector
+          const productName = prompt('Enter the product name you want to give as a reward:');
+          if (!productName) return;
+          
+          // For now, just populate the field with the entered name
+          document.getElementById('rewardProduct').value = productName;
+          document.getElementById('selectedProductInfo').style.display = 'none';
+          
+          alert('Product selected. Note: You\'ll need to ensure this product exists in your store.');
+        } catch (error) {
+          console.error('Error fetching products:', error);
+          alert('Error loading products. Please enter the product name manually.');
+        }
       }
-    </script>
+      
+      console.log('App Bridge initialized successfully');
+      
+      // Test the session immediately
+      window.checkSessionHealth().then(healthy => {
+        console.log('Initial session health check:', healthy);
+      }).catch(error => {
+        console.error('Initial health check error:', error);
+      });
+      
+    } catch (error) {
+      console.error('Error initializing App Bridge:', error);
+      alert('Failed to initialize app. Please refresh the page.');
+    }
+  }
+  
+  // Wait for App Bridge to be available
+  let initAttempts = 0;
+  function tryInitialize() {
+    initAttempts++;
+    console.log(`Initialize attempt ${initAttempts}...`);
+    
+    if (window.shopify || window.createApp || window['app-bridge']) {
+      initializeAppBridge();
+    } else if (initAttempts < 20) {
+      // Try for up to 2 seconds
+      setTimeout(tryInitialize, 100);
+    } else {
+      console.error('App Bridge failed to load after 2 seconds');
+      alert('Failed to load Shopify App Bridge. Please refresh the page.');
+    }
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tryInitialize);
+  } else {
+    tryInitialize();
+  }
+</script>
     
     <link rel="stylesheet" href="/public/admin-styles.css">
   </head>
