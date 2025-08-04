@@ -554,7 +554,7 @@ app.get('/api/public/customizations', async (req, res) => {
   }
 });
 
-// Public submission endpoint
+// Public submission endpoint with better error handling
 app.post('/api/public/submit', upload.single('media'), async (req, res) => {
   try {
     let shopDomain = getShopDomain(req, res);
@@ -578,6 +578,20 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields: customerEmail, type, content'
+      });
+    }
+
+    // Check email configuration BEFORE processing the submission
+    const customizations = await CustomizationsModel.getByShop(shopDomain) || {};
+    
+    if (!isEmailSetupComplete(customizations)) {
+      // Return 400 (Bad Request) instead of 503, with a user-friendly message
+      return res.status(400).json({
+        success: false,
+        error: 'EMAIL_NOT_CONFIGURED',
+        message: 'This store is not yet ready to accept submissions',
+        userMessage: 'We apologize, but this store hasn\'t finished setting up their submission system yet. Please contact the store directly or try again later.',
+        details: 'The store administrator needs to configure email settings before submissions can be accepted.'
       });
     }
 
@@ -643,40 +657,35 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       }
     }
 
-    const customizations = await CustomizationsModel.getByShop(shopDomain) || {};
-    
-    if (!isEmailSetupComplete(customizations)) {
-      return res.status(503).json({
-        success: false,
-        message: 'This store is not yet configured to accept submissions. The store administrator needs to configure email settings in the app dashboard before submissions can be accepted.'
-      });
-    }
-
     const notificationEmailTo = customizations.notification_email;
     if (!notificationEmailTo) {
-      return res.status(500).json({
-        success: false,
-        message: 'Email settings not configured. Please configure email settings in the admin dashboard.'
-      });
+      console.error('No notification email configured for shop:', shopDomain);
+      // Don't fail the submission, but log the error
     }
 
     const appUrl = shopDomain ? `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}` : null;
 
-    await sendNotificationEmail({
-      to: notificationEmailTo,
-      subject: 'New UGC Submission Received',
-      text: `A new submission was received from ${customerEmail}.\nJob: ${jobName}\nType: ${type}\n\nView in app: ${appUrl}`,
-      html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p><strong>Job:</strong> ${jobName}</p><p><strong>Type:</strong> ${type}</p><p><br><a href="${appUrl}" style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View in App</a></p>`
-    });
+    // Send emails in the background - don't fail the submission if email fails
+    try {
+      await sendNotificationEmail({
+        to: notificationEmailTo,
+        subject: 'New UGC Submission Received',
+        text: `A new submission was received from ${customerEmail}.\nJob: ${jobName}\nType: ${type}\n\nView in app: ${appUrl}`,
+        html: `<p>A new submission was received from <b>${customerEmail}</b>.</p><p><strong>Job:</strong> ${jobName}</p><p><strong>Type:</strong> ${type}</p><p><br><a href="${appUrl}" style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View in App</a></p>`
+      });
 
-    await sendCustomerConfirmationEmail({
-      to: customerEmail,
-      customerName: customerEmail,
-      type,
-      customSubject: customizations.email_subject_confirmation,
-      customBody: customizations.email_body_confirmation,
-      customizations
-    });
+      await sendCustomerConfirmationEmail({
+        to: customerEmail,
+        customerName: customerEmail,
+        type,
+        customSubject: customizations.email_subject_confirmation,
+        customBody: customizations.email_body_confirmation,
+        customizations
+      });
+    } catch (emailError) {
+      console.error('Error sending emails:', emailError);
+      // Don't fail the submission if emails fail
+    }
 
     res.json({
       success: true,

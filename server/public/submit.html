@@ -875,59 +875,108 @@
       }
     });
     
-    // Handle form submission
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      // Show loading state
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="loading"></span> Submitting...';
-      
-      // Create FormData object
-      const formData = new FormData();
-      formData.append('customerEmail', document.getElementById('email').value);
-      formData.append('type', document.getElementById('type').value);
-      formData.append('content', document.getElementById('content').value);
-      
-      // Add job ID if present
-      if (jobId) {
-        formData.append('jobId', jobId);
-      }
-      
-      // Add file if present
-      if (fileInput.files[0]) {
-        formData.append('media', fileInput.files[0]);
-      }
-      
-      try {
-        const response = await fetch('/api/public/submit', {
-          method: 'POST',
-          body: formData
-        });
+    // Handle form submission (replace the existing form submission handler in submit.html)
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        const result = await response.json();
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="loading"></span> Submitting...';
         
-        if (result.success) {
-          messageDiv.innerHTML = '<div class="success">Thank you! Your submission has been received. You\'ll receive your discount code via email within 24 hours.</div>';
-          form.reset();
-          fileLabel.textContent = 'Choose file or drag and drop here';
-          fileInfo.textContent = '';
-          mediaGroup.style.display = 'none';
-          
-          // Hide form container after successful submission for job
-          if (jobId) {
-            document.querySelector('.form-container').style.display = 'none';
-          }
-        } else {
-          messageDiv.innerHTML = '<div class="error">There was an error submitting your content. Please try again.</div>';
+        // Clear any previous messages
+        messageDiv.innerHTML = '';
+        
+        // Create FormData object
+        const formData = new FormData();
+        formData.append('customerEmail', document.getElementById('email').value);
+        formData.append('type', document.getElementById('type').value);
+        formData.append('content', document.getElementById('content').value);
+        
+        // Add shop parameter if available
+        const urlParams = new URLSearchParams(window.location.search);
+        const shop = urlParams.get('shop');
+        if (shop) {
+          formData.append('shop', shop);
         }
-      } catch (error) {
-        messageDiv.innerHTML = '<div class="error">There was an error submitting your content. Please try again.</div>';
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Submit & Get Reward';
-      }
-    });
+        
+        // Add job ID if present
+        if (jobId) {
+          formData.append('jobId', jobId);
+        }
+        
+        // Add file if present
+        if (fileInput.files[0]) {
+          formData.append('media', fileInput.files[0]);
+        }
+        
+        try {
+          const response = await fetch('/api/public/submit', {
+            method: 'POST',
+            body: formData
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            messageDiv.innerHTML = '<div class="success">Thank you! Your submission has been received. You\'ll receive your discount code via email within 24 hours.</div>';
+            form.reset();
+            fileLabel.textContent = 'Choose file or drag and drop here';
+            fileInfo.textContent = '';
+            mediaGroup.style.display = 'none';
+            
+            // Hide form container after successful submission for job
+            if (jobId) {
+              document.querySelector('.form-container').style.display = 'none';
+            }
+            
+            // Scroll to success message
+            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else {
+            // Handle different types of errors
+            if (result.error === 'EMAIL_NOT_CONFIGURED') {
+              // Show special message for email configuration error
+              messageDiv.innerHTML = `
+                <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                  <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 18px; display: flex; align-items: center;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                      <line x1="12" y1="9" x2="12" y2="13"></line>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    Store Setup Not Complete
+                  </h3>
+                  <p style="margin: 10px 0; font-size: 16px;">
+                    ${result.userMessage || 'We apologize, but this store hasn\'t finished setting up their submission system yet.'}
+                  </p>
+                  <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                    <p style="margin: 0 0 10px 0; font-size: 14px; color: #92400e; font-weight: 600;">
+                      What you can do:
+                    </p>
+                    <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px;">
+                      <li>Contact the store directly through their website</li>
+                      <li>Try again later - they may complete setup soon</li>
+                      <li>Check if there's another way to submit content on their main site</li>
+                    </ul>
+                  </div>
+                </div>
+              `;
+            } else {
+              // Show generic error message
+              messageDiv.innerHTML = `<div class="error">${result.message || 'There was an error submitting your content. Please try again.'}</div>`;
+            }
+            
+            // Scroll to error message
+            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        } catch (error) {
+          console.error('Submission error:', error);
+          messageDiv.innerHTML = '<div class="error">Network error. Please check your connection and try again.</div>';
+          messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Submit & Get Reward';
+        }
+      });
     
     // Drag and drop functionality
     const fileUploadLabel = document.querySelector('.file-upload-label');

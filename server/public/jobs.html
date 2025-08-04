@@ -869,11 +869,11 @@
     let currentDeadlineFilter = 'all';
     let currentRewardFilter = 'all';
 
-    // Load jobs on page load
+    // Load jobs on page load (replace the existing loadJobs function in jobs.html)
     async function loadJobs() {
       try {
         // Get shop from URL path or fallback to query params for backward compatibility
-        let shop = null; // no default fallback
+        let shop = null;
         
         // First try to get shop from URL path
         const pathParts = window.location.pathname.split('/');
@@ -885,9 +885,29 @@
           shop = urlParams.get('shop');
         }
         
+        // First, check if the store has email configured
+        const customizationsResponse = await fetch(`/api/public/customizations?shop=${encodeURIComponent(shop)}`);
+        const customizations = await customizationsResponse.json();
+        
+        // Check if email is configured
+        const emailConfigured = customizations.email_from_name && 
+                              customizations.notification_email && 
+                              customizations.email_from_name.trim() !== '' && 
+                              customizations.notification_email.trim() !== '';
+        
+        // Load jobs
         const response = await fetch(`/api/public/jobs?shop=${encodeURIComponent(shop)}`);
         const data = await response.json();
         allJobs = data.jobs || [];
+        
+        // Store email configuration status globally
+        window.emailConfigured = emailConfigured;
+        
+        // Display warning banner if email not configured
+        if (!emailConfigured) {
+          showEmailNotConfiguredWarning();
+        }
+        
         displayJobs();
       } catch (error) {
         console.error('Error loading jobs:', error);
@@ -900,7 +920,46 @@
       }
     }
 
-    // Display jobs based on filter
+    // Show email configuration warning
+    function showEmailNotConfiguredWarning() {
+      // Check if warning already exists
+      if (document.getElementById('emailWarningBanner')) {
+        return;
+      }
+      
+      const warningBanner = document.createElement('div');
+      warningBanner.id = 'emailWarningBanner';
+      warningBanner.innerHTML = `
+        <div style="background-color: #fff3cd; border: 2px solid #ffeaa7; border-radius: 16px; padding: 25px; margin: 0 auto 40px auto; max-width: 1200px;">
+          <div style="display: flex; align-items: start; gap: 15px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#856404" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <div style="flex: 1;">
+              <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 20px; font-weight: 600;">
+                Submissions Temporarily Unavailable
+              </h3>
+              <p style="margin: 0 0 10px 0; color: #856404; font-size: 16px; line-height: 1.6;">
+                This store is still setting up their UGC submission system. You can browse available jobs, but submissions cannot be accepted until setup is complete.
+              </p>
+              <p style="margin: 0; color: #856404; font-size: 14px; font-style: italic;">
+                Please check back later or contact the store directly for more information.
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Insert after header
+      const container = document.querySelector('.container');
+      if (container) {
+        container.insertBefore(warningBanner, container.firstChild);
+      }
+    }
+
+    // Update the displayJobs function to show disabled state
     function displayJobs() {
       let filteredJobs = allJobs;
       
@@ -941,9 +1000,10 @@
       jobsGrid.innerHTML = filteredJobs.map(job => {
         const spotsLeft = job.spots_available - job.spots_filled;
         const isLowSpots = spotsLeft <= 2;
+        const isDisabled = !window.emailConfigured;
         
         return `
-          <div class="job-card" onclick="openJobModal(${job.id})">
+          <div class="job-card ${isDisabled ? 'disabled' : ''}" onclick="${isDisabled ? 'showSubmissionDisabledMessage(event)' : `openJobModal(${job.id})`}">
             <span class="job-type ${job.type}">${job.type === 'video' ? '🎬 Video' : '📸 Photo'}</span>
             <h3 class="job-title">${job.title}</h3>
             <p class="job-description">${job.description.substring(0, 120)}${job.description.length > 120 ? '...' : ''}</p>
@@ -952,9 +1012,17 @@
               <span class="spots-left ${isLowSpots ? 'low' : ''}">${spotsLeft} ${spotsLeft === 1 ? 'spot' : 'spots'} left</span>
             </div>
             ${job.deadline ? `<p class="deadline">⏰ Deadline: ${new Date(job.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>` : ''}
+            ${isDisabled ? '<div style="text-align: center; margin-top: 15px; color: #856404; font-weight: 600; font-size: 14px;">⚠️ Setup Required</div>' : ''}
           </div>
         `;
       }).join('');
+    }
+
+    // Show message when clicking on disabled job
+    function showSubmissionDisabledMessage(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      alert('Submissions are temporarily unavailable while the store completes their setup. Please try again later or contact the store directly.');
     }
 
     // Filter jobs by content type
