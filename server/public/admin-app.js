@@ -137,12 +137,37 @@ async function handleCustomizationFormSubmit(e) {
   
   const formData = new FormData(e.target);
   const settings = Object.fromEntries(formData);
+  
+  // Convert checkbox value
   settings.showExampleVideos = formData.has('showExampleVideos');
+  
+  // Map form fields to database field names
+  const mappedSettings = {
+    primary_color: settings.primaryColor,
+    secondary_color: settings.secondaryColor,
+    text_color: settings.textColor,
+    accent_color: settings.accentColor,
+    hero_image_url: settings.heroImageUrl,
+    logo_url: settings.logoUrl,
+    logo_size: settings.logoSize,
+    heading_font: settings.headingFont,
+    body_font: settings.bodyFont,
+    jobs_heading: settings.jobsHeading,
+    jobs_subheading: settings.jobsSubheading,
+    submit_heading: settings.submitHeading,
+    submit_subheading: settings.submitSubheading,
+    show_example_videos: settings.showExampleVideos,
+    example_video_1: settings.exampleVideo1,
+    example_video_2: settings.exampleVideo2,
+    example_video_3: settings.exampleVideo3,
+    example_video_4: settings.exampleVideo4,
+    custom_css: settings.customCss
+  };
   
   try {
     const response = await window.makeAuthenticatedRequest('/api/admin/customizations', {
       method: 'POST',
-      body: JSON.stringify(settings)
+      body: JSON.stringify(mappedSettings)
     });
     
     if (response.ok) {
@@ -974,6 +999,7 @@ async function loadCustomizations() {
 
 // Populate customization form
 function populateCustomizationForm(customizations) {
+  // Colors
   if (customizations.primary_color) {
     document.getElementById('primaryColor').value = customizations.primary_color;
     document.getElementById('primaryColorPicker').value = customizations.primary_color;
@@ -990,6 +1016,8 @@ function populateCustomizationForm(customizations) {
     document.getElementById('accentColor').value = customizations.accent_color;
     document.getElementById('accentColorPicker').value = customizations.accent_color;
   }
+  
+  // Images
   if (customizations.hero_image_url) {
     document.getElementById('heroImageUrl').value = customizations.hero_image_url;
     showImagePreview('heroImagePreview', customizations.hero_image_url);
@@ -998,8 +1026,52 @@ function populateCustomizationForm(customizations) {
     document.getElementById('logoUrl').value = customizations.logo_url;
     showImagePreview('logoPreview', customizations.logo_url);
   }
+  if (customizations.logo_size) {
+    document.getElementById('logoSize').value = customizations.logo_size;
+  }
+  
+  // Typography
+  if (customizations.heading_font) {
+    document.getElementById('headingFont').value = customizations.heading_font;
+  }
+  if (customizations.body_font) {
+    document.getElementById('bodyFont').value = customizations.body_font;
+  }
+  
+  // Page Headings
+  if (customizations.jobs_heading) {
+    document.getElementById('jobsHeading').value = customizations.jobs_heading;
+  }
+  if (customizations.jobs_subheading) {
+    document.getElementById('jobsSubheading').value = customizations.jobs_subheading;
+  }
+  if (customizations.submit_heading) {
+    document.getElementById('submitHeading').value = customizations.submit_heading;
+  }
+  if (customizations.submit_subheading) {
+    document.getElementById('submitSubheading').value = customizations.submit_subheading;
+  }
+  
+  // Example Videos
   if (customizations.show_example_videos !== undefined) {
     document.getElementById('showExampleVideos').checked = customizations.show_example_videos;
+  }
+  if (customizations.example_video_1) {
+    document.getElementById('exampleVideo1').value = customizations.example_video_1;
+  }
+  if (customizations.example_video_2) {
+    document.getElementById('exampleVideo2').value = customizations.example_video_2;
+  }
+  if (customizations.example_video_3) {
+    document.getElementById('exampleVideo3').value = customizations.example_video_3;
+  }
+  if (customizations.example_video_4) {
+    document.getElementById('exampleVideo4').value = customizations.example_video_4;
+  }
+  
+  // Custom CSS
+  if (customizations.custom_css) {
+    document.getElementById('customCss').value = customizations.custom_css;
   }
 }
 
@@ -1015,6 +1087,7 @@ function showImagePreview(previewId, imageUrl) {
 }
 
 window.resetCustomizationsToDefaults = function() {
+  // Colors
   document.getElementById('primaryColor').value = '#d4b896';
   document.getElementById('primaryColorPicker').value = '#d4b896';
   document.getElementById('secondaryColor').value = '#f8f6f3';
@@ -1023,12 +1096,33 @@ window.resetCustomizationsToDefaults = function() {
   document.getElementById('textColorPicker').value = '#3a3a3a';
   document.getElementById('accentColor').value = '#c9a961';
   document.getElementById('accentColorPicker').value = '#c9a961';
+  
+  // Images
   document.getElementById('heroImageUrl').value = '';
   document.getElementById('logoUrl').value = '';
-  document.getElementById('showExampleVideos').checked = false;
-  
+  document.getElementById('logoSize').value = 'medium';
   document.getElementById('heroImagePreview').style.display = 'none';
   document.getElementById('logoPreview').style.display = 'none';
+  
+  // Typography
+  document.getElementById('headingFont').value = 'Montserrat';
+  document.getElementById('bodyFont').value = 'Inter';
+  
+  // Page Headings
+  document.getElementById('jobsHeading').value = '';
+  document.getElementById('jobsSubheading').value = '';
+  document.getElementById('submitHeading').value = '';
+  document.getElementById('submitSubheading').value = '';
+  
+  // Example Videos
+  document.getElementById('showExampleVideos').checked = true;
+  document.getElementById('exampleVideo1').value = '';
+  document.getElementById('exampleVideo2').value = '';
+  document.getElementById('exampleVideo3').value = '';
+  document.getElementById('exampleVideo4').value = '';
+  
+  // Custom CSS
+  document.getElementById('customCss').value = '';
 };
 
 // Load email settings
@@ -1049,28 +1143,28 @@ async function loadEmailSettings() {
 
 // Populate email settings form
 function populateEmailSettings(customizations) {
-  const fields = [
-    'email_subject_confirmation',
-    'email_body_confirmation',
-    'email_subject_rejected',
-    'email_body_rejected',
-    'email_subject_reward',
-    'email_body_reward',
-    'email_subject_giftcard',
-    'email_body_giftcard',
-    'email_subject_product',
-    'email_body_product',
-    'email_from_name',
-    'email_reply_to',
-    'notification_email'
-  ];
+  const fieldMappings = {
+    'email_subject_confirmation': 'emailSubjectConfirmation',
+    'email_body_confirmation': 'emailBodyConfirmation',
+    'email_subject_rejected': 'emailSubjectRejected',
+    'email_body_rejected': 'emailBodyRejected',
+    'email_subject_reward': 'emailSubjectReward',
+    'email_body_reward': 'emailBodyReward',
+    'email_subject_giftcard': 'emailSubjectGiftcard',
+    'email_body_giftcard': 'emailBodyGiftcard',
+    'email_subject_product': 'emailSubjectProduct',
+    'email_body_product': 'emailBodyProduct',
+    'email_from_name': 'emailFromName',
+    'email_reply_to': 'emailReplyTo',
+    'notification_email': 'notificationEmail'
+  };
   
-  fields.forEach(field => {
-    const element = document.getElementById(field.replace(/_/g, '').replace('email', 'email').replace(/([A-Z])/g, (match, p1, offset) => offset > 0 ? p1 : p1.toLowerCase()));
-    if (element && customizations[field]) {
-      element.value = customizations[field];
+  for (const [dbField, formField] of Object.entries(fieldMappings)) {
+    const element = document.getElementById(formField);
+    if (element && customizations[dbField]) {
+      element.value = customizations[dbField];
     }
-  });
+  }
   
   // Update previews
   if (customizations.email_from_name) {

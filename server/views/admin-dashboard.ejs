@@ -388,82 +388,171 @@
       </div>
 
       <!-- Customizations Tab -->
-      <div id="customizations-tab" class="tab-content">
-        <div class="card">
-          <h1>Customize Your UGC Pages</h1>
-          
-          <form id="customizationForm">
-            <h2>Colors</h2>
-            <div class="form-group">
-              <label for="primaryColor">Primary Color</label>
-              <div class="color-input-wrapper">
-                <input type="color" id="primaryColorPicker" value="#d4b896">
-                <input type="text" id="primaryColor" name="primaryColor" value="#d4b896" pattern="^#[0-9A-Fa-f]{6}$">
-              </div>
-              <p class="help-text">Used for buttons, links, and main accents</p>
-            </div>
-            
-            <div class="form-group">
-              <label for="secondaryColor">Background Color</label>
-              <div class="color-input-wrapper">
-                <input type="color" id="secondaryColorPicker" value="#f8f6f3">
-                <input type="text" id="secondaryColor" name="secondaryColor" value="#f8f6f3" pattern="^#[0-9A-Fa-f]{6}$">
-              </div>
-              <p class="help-text">Background color for sections</p>
-            </div>
-            
-            <div class="form-group">
-              <label for="textColor">Text Color</label>
-              <div class="color-input-wrapper">
-                <input type="color" id="textColorPicker" value="#3a3a3a">
-                <input type="text" id="textColor" name="textColor" value="#3a3a3a" pattern="^#[0-9A-Fa-f]{6}$">
-              </div>
-              <p class="help-text">Main text color</p>
-            </div>
-            
-            <div class="form-group">
-              <label for="accentColor">Accent Color</label>
-              <div class="color-input-wrapper">
-                <input type="color" id="accentColorPicker" value="#c9a961">
-                <input type="text" id="accentColor" name="accentColor" value="#c9a961" pattern="^#[0-9A-Fa-f]{6}$">
-              </div>
-              <p class="help-text">Secondary accent color</p>
-            </div>
-            
-            <h2>Images</h2>
-            <div class="form-group">
-              <label for="heroImageUrl">Hero Image URL</label>
-              <input type="url" id="heroImageUrl" name="heroImageUrl" placeholder="https://example.com/image.jpg">
-              <p class="help-text">Background image for the jobs page header (recommended: 1200x600px)</p>
-              <div id="heroImagePreview" class="image-preview" style="display: none;"></div>
-            </div>
-            
-            <div class="form-group">
-              <label for="logoUrl">Logo URL</label>
-              <input type="url" id="logoUrl" name="logoUrl" placeholder="https://example.com/logo.png">
-              <p class="help-text">Your brand logo (recommended: 200x60px)</p>
-              <div id="logoPreview" class="image-preview" style="display: none;"></div>
-            </div>
-            
-            <h2>Example Videos</h2>
-            <div class="form-group">
-              <div class="checkbox-group">
-                <input type="checkbox" id="showExampleVideos" name="showExampleVideos" checked>
-                <label for="showExampleVideos">Show example videos section on jobs page</label>
-              </div>
-            </div>
-            
-            <div style="margin-top: 30px;">
-              <button type="submit" class="btn btn-primary">Save Changes</button>
-              <button type="button" class="btn btn-secondary" onclick="resetCustomizationsToDefaults()">Reset to Defaults</button>
-            </div>
-            
-            <div id="customizationSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
-              Settings saved successfully!
-            </div>
-          </form>
+<div id="customizations-tab" class="tab-content">
+  <div class="card">
+    <h1>Customize Your UGC Pages</h1>
+    
+    <form id="customizationForm">
+      <h2>Colors</h2>
+      <div class="form-group">
+        <label for="primaryColor">Primary Color</label>
+        <div class="color-input-wrapper">
+          <input type="color" id="primaryColorPicker" value="#d4b896">
+          <input type="text" id="primaryColor" name="primaryColor" value="#d4b896" pattern="^#[0-9A-Fa-f]{6}$">
+        </div>
+        <p class="help-text">Used for buttons, links, and main accents</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="secondaryColor">Background Color</label>
+        <div class="color-input-wrapper">
+          <input type="color" id="secondaryColorPicker" value="#f8f6f3">
+          <input type="text" id="secondaryColor" name="secondaryColor" value="#f8f6f3" pattern="^#[0-9A-Fa-f]{6}$">
+        </div>
+        <p class="help-text">Background color for sections</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="textColor">Text Color</label>
+        <div class="color-input-wrapper">
+          <input type="color" id="textColorPicker" value="#3a3a3a">
+          <input type="text" id="textColor" name="textColor" value="#3a3a3a" pattern="^#[0-9A-Fa-f]{6}$">
+        </div>
+        <p class="help-text">Main text color</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="accentColor">Accent Color</label>
+        <div class="color-input-wrapper">
+          <input type="color" id="accentColorPicker" value="#c9a961">
+          <input type="text" id="accentColor" name="accentColor" value="#c9a961" pattern="^#[0-9A-Fa-f]{6}$">
+        </div>
+        <p class="help-text">Secondary accent color</p>
+      </div>
+      
+      <h2>Images</h2>
+      <div class="form-group">
+        <label for="heroImageUrl">Hero Image URL</label>
+        <input type="url" id="heroImageUrl" name="heroImageUrl" placeholder="https://example.com/image.jpg">
+        <p class="help-text">Background image for the jobs page header (recommended: 1200x600px)</p>
+        <img id="heroImagePreview" class="image-preview" style="display: none; max-width: 300px; margin-top: 10px;">
+      </div>
+      
+      <div class="form-group">
+        <label for="logoUrl">Logo URL</label>
+        <input type="url" id="logoUrl" name="logoUrl" placeholder="https://example.com/logo.png">
+        <p class="help-text">Your brand logo (recommended: 200x60px)</p>
+        <img id="logoPreview" class="image-preview" style="display: none; max-width: 200px; margin-top: 10px;">
+      </div>
+      
+      <div class="form-group">
+        <label for="logoSize">Logo Size</label>
+        <select id="logoSize" name="logoSize">
+          <option value="small">Small (120x40px)</option>
+          <option value="medium" selected>Medium (200x60px)</option>
+          <option value="large">Large (300x90px)</option>
+        </select>
+        <p class="help-text">Choose the size of your logo on the public pages</p>
+      </div>
+      
+      <h2>Typography</h2>
+      <div class="form-group">
+        <label for="headingFont">Heading Font</label>
+        <select id="headingFont" name="headingFont">
+          <option value="Montserrat" selected>Montserrat</option>
+          <option value="Inter">Inter</option>
+          <option value="Playfair Display">Playfair Display</option>
+          <option value="Roboto">Roboto</option>
+          <option value="Open Sans">Open Sans</option>
+          <option value="Lato">Lato</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="bodyFont">Body Font</label>
+        <select id="bodyFont" name="bodyFont">
+          <option value="Inter" selected>Inter</option>
+          <option value="Montserrat">Montserrat</option>
+          <option value="Roboto">Roboto</option>
+          <option value="Open Sans">Open Sans</option>
+          <option value="Lato">Lato</option>
+        </select>
+      </div>
+      
+      <h2>Page Headings</h2>
+      <div class="form-group">
+        <label for="jobsHeading">Jobs Page Heading</label>
+        <input type="text" id="jobsHeading" name="jobsHeading" placeholder="Create Content, Get Rewarded ✨" maxlength="100">
+        <p class="help-text">Main heading for the jobs listing page</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobsSubheading">Jobs Page Subheading</label>
+        <input type="text" id="jobsSubheading" name="jobsSubheading" placeholder="Share your authentic experiences with brands you love" maxlength="200">
+        <p class="help-text">Subheading for the jobs listing page</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="submitHeading">Submit Page Heading</label>
+        <input type="text" id="submitHeading" name="submitHeading" placeholder="Share Your Experience ✨" maxlength="100">
+        <p class="help-text">Main heading for the content submission page</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="submitSubheading">Submit Page Subheading</label>
+        <input type="text" id="submitSubheading" name="submitSubheading" placeholder="Get rewarded for your authentic content" maxlength="200">
+        <p class="help-text">Subheading for the content submission page</p>
+      </div>
+      
+      <h2>Example Videos</h2>
+      <div class="form-group">
+        <div class="checkbox-group">
+          <input type="checkbox" id="showExampleVideos" name="showExampleVideos" checked>
+          <label for="showExampleVideos">Show example videos section on jobs page</label>
         </div>
       </div>
+      
+      <div class="form-group">
+        <label for="exampleVideo1">Example Video 1 URL</label>
+        <input type="url" id="exampleVideo1" name="exampleVideo1" placeholder="https://example.com/video1.mp4">
+        <p class="help-text">First example video (MP4, MOV, or video hosting URL)</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="exampleVideo2">Example Video 2 URL</label>
+        <input type="url" id="exampleVideo2" name="exampleVideo2" placeholder="https://example.com/video2.mp4">
+        <p class="help-text">Second example video (optional)</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="exampleVideo3">Example Video 3 URL</label>
+        <input type="url" id="exampleVideo3" name="exampleVideo3" placeholder="https://example.com/video3.mp4">
+        <p class="help-text">Third example video (optional)</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="exampleVideo4">Example Video 4 URL</label>
+        <input type="url" id="exampleVideo4" name="exampleVideo4" placeholder="https://example.com/video4.mp4">
+        <p class="help-text">Fourth example video (optional)</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="customCss">Custom CSS (Advanced)</label>
+        <textarea id="customCss" name="customCss" placeholder="/* Add custom CSS here */" rows="6"></textarea>
+        <p class="help-text">Add custom CSS to further customize your pages. Be careful with this option.</p>
+      </div>
+      
+      <div style="margin-top: 30px;">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <button type="button" class="btn btn-secondary" onclick="resetCustomizationsToDefaults()">Reset to Defaults</button>
+      </div>
+      
+      <div id="customizationSuccessMessage" class="success-message" style="display: none; margin-top: 20px;">
+        Settings saved successfully!
+      </div>
+    </form>
+  </div>
+</div>
 
       <!-- Email Settings Tab -->
       <div id="email-settings-tab" class="tab-content">
@@ -478,13 +567,13 @@
               <div class="form-group">
                 <label for="emailFromName">From Name</label>
                 <input type="text" id="emailFromName" name="emailFromName" 
-                       placeholder="Your Brand Name" maxlength="100">
+                      placeholder="Your Brand Name" maxlength="100">
                 <small style="color: #666;">The name that will appear as the sender (e.g., "Your Brand Name")</small>
               </div>
               <div class="form-group">
                 <label for="emailReplyTo">Reply-To Email Address</label>
                 <input type="email" id="emailReplyTo" name="emailReplyTo" 
-                       placeholder="support@yourbrand.com" maxlength="255">
+                      placeholder="support@yourbrand.com" maxlength="255">
                 <small style="color: #666;">Where customer replies will be sent. Leave empty to disable replies.</small>
               </div>
               <div style="background: #f0f8ff; padding: 15px; border-radius: 4px; margin-top: 15px;">
@@ -504,11 +593,91 @@
                 <label for="notificationEmail">Notification Email Address</label>
                 <input type="email" id="notificationEmail" name="notificationEmail" 
                       placeholder="admin@yourbrand.com" maxlength="255">
-                <small style="color: #666;">Where admin notifications will be sent when new submissions are received. Leave empty to use the default.</small>
+                <small style="color: #666;">Where admin notifications will be sent when new submissions are received.</small>
               </div>
             </div>
 
-            <!-- Email Templates (simplified for brevity) -->
+            <!-- Email Templates -->
+            <div class="email-section">
+              <h3>📧 Submission Confirmation Email</h3>
+              <p style="color: #666; margin-bottom: 20px;">Sent immediately when a customer submits UGC</p>
+              <div class="form-group">
+                <label for="emailSubjectConfirmation">Subject Line</label>
+                <input type="text" id="emailSubjectConfirmation" name="emailSubjectConfirmation" 
+                      placeholder="Thanks for your submission!">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyConfirmation">Email Body</label>
+                <textarea id="emailBodyConfirmation" name="emailBodyConfirmation" rows="4"
+                          placeholder="Hi {customer_name}, we received your {type} submission..."></textarea>
+                <small style="color: #666;">Available variables: {customer_name}, {type}</small>
+              </div>
+            </div>
+
+            <div class="email-section">
+              <h3>✅ Approval Email with Reward</h3>
+              <p style="color: #666; margin-bottom: 20px;">Sent when submission is approved (for discount rewards)</p>
+              <div class="form-group">
+                <label for="emailSubjectReward">Subject Line</label>
+                <input type="text" id="emailSubjectReward" name="emailSubjectReward" 
+                      placeholder="Your submission was approved! Here's your reward">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyReward">Email Body</label>
+                <textarea id="emailBodyReward" name="emailBodyReward" rows="4"
+                          placeholder="Congratulations! Your {type} has been approved. Use code {discount_code} for {reward_value} off..."></textarea>
+                <small style="color: #666;">Available variables: {customer_name}, {type}, {discount_code}, {reward_value}</small>
+              </div>
+            </div>
+
+            <div class="email-section">
+              <h3>🎁 Gift Card Reward Email</h3>
+              <p style="color: #666; margin-bottom: 20px;">Sent when gift card reward is issued</p>
+              <div class="form-group">
+                <label for="emailSubjectGiftcard">Subject Line</label>
+                <input type="text" id="emailSubjectGiftcard" name="emailSubjectGiftcard" 
+                      placeholder="Your ${amount} gift card is here!">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyGiftcard">Email Body</label>
+                <textarea id="emailBodyGiftcard" name="emailBodyGiftcard" rows="4"
+                          placeholder="Hi {customer_name}, here's your ${amount} gift card! Code: {gift_card_code}..."></textarea>
+                <small style="color: #666;">Available variables: {customer_name}, {gift_card_code}, {amount}</small>
+              </div>
+            </div>
+
+            <div class="email-section">
+              <h3>📦 Free Product Reward Email</h3>
+              <p style="color: #666; margin-bottom: 20px;">Sent when free product reward is approved</p>
+              <div class="form-group">
+                <label for="emailSubjectProduct">Subject Line</label>
+                <input type="text" id="emailSubjectProduct" name="emailSubjectProduct" 
+                      placeholder="Your free product is waiting!">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyProduct">Email Body</label>
+                <textarea id="emailBodyProduct" name="emailBodyProduct" rows="4"
+                          placeholder="Congratulations! You've earned a free {product_title}. Use code {discount_code} at checkout..."></textarea>
+                <small style="color: #666;">Available variables: {customer_name}, {product_title}, {discount_code}</small>
+              </div>
+            </div>
+
+            <div class="email-section">
+              <h3>❌ Rejection Email</h3>
+              <p style="color: #666; margin-bottom: 20px;">Sent when submission doesn't meet requirements</p>
+              <div class="form-group">
+                <label for="emailSubjectRejected">Subject Line</label>
+                <input type="text" id="emailSubjectRejected" name="emailSubjectRejected" 
+                      placeholder="Update on your submission">
+              </div>
+              <div class="form-group">
+                <label for="emailBodyRejected">Email Body</label>
+                <textarea id="emailBodyRejected" name="emailBodyRejected" rows="4"
+                          placeholder="Hi {customer_name}, thank you for your {type} submission. Unfortunately, it doesn't meet our current requirements..."></textarea>
+                <small style="color: #666;">Available variables: {customer_name}, {type}</small>
+              </div>
+            </div>
+
             <div style="margin-top: 30px;">
               <button type="button" class="btn btn-primary" onclick="saveEmailSettings()">Save Email Settings</button>
               <button type="button" class="btn btn-secondary" onclick="resetEmailSettingsToDefaults()">Reset to Defaults</button>
@@ -520,7 +689,7 @@
           </form>
         </div>
       </div>
-    </div>
+
 
     <!-- Job Creation/Edit Modal -->
     <div id="jobModal" class="modal">
