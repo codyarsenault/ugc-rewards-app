@@ -319,15 +319,11 @@ async function ensureSession(req, res, next) {
   }
 }
 
-// Middleware
-app.use(express.json());
-app.use(shopify.cspHeaders());
-
-// Serve static files
+// #1  Serve static files
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadsDir));
 
-// Security headers middleware
+// #2 Security headers middleware
 app.use((req, res, next) => {
   res.setHeader('ngrok-skip-browser-warning', 'true');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -344,68 +340,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Debug endpoint to check available methods
-app.get('/api/debug/shopify-methods', (req, res) => {
-  const methods = {
-    shopifyKeys: Object.keys(shopify),
-    apiKeys: shopify.api ? Object.keys(shopify.api) : [],
-    configKeys: shopify.config ? Object.keys(shopify.config) : [],
-    utilsKeys: shopify.api?.utils ? Object.keys(shopify.api.utils) : []
-  };
-  
-  res.json(methods);
-});
+// 3. CSP Headers from Shopify
+app.use(shopify.cspHeaders());
 
-// Rate limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000,
-  message: 'Too many requests from this IP',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use('/api/', apiLimiter);
-
-// Set up Shopify authentication
-app.get(shopify.config.auth.path, shopify.auth.begin());
-app.get(
-  shopify.config.auth.callbackPath,
-  shopify.auth.callback(),
-  async (req, res, next) => {
-    try {
-      const session = res.locals.shopify.session;
-      if (session && session.accessToken) {
-        console.log('OAuth callback - Shop:', session.shop);
-        
-        // Register webhooks
-        await registerWebhooks(session);
-        
-        // Create shop installation record
-        try {
-          const shopData = {
-            shop_domain: session.shop,
-            access_token: session.accessToken,
-            scope: session.scope,
-            email: session.onlineAccessInfo?.associated_user?.email || null,
-          };
-          
-          await ShopInstallationsModel.create(shopData);
-          console.log('Shop installation record created for:', session.shop);
-        } catch (installationError) {
-          console.error('Error creating shop installation record:', installationError);
-        }
-      }
-      next();
-    } catch (error) {
-      console.error('Error in auth callback:', error);
-      next();
-    }
-  },
-  shopify.redirectToShopifyOrAppRoot()
-);
-
-// Webhook processing
+// #4 Webhook processing
 app.post(
   shopify.config.webhooks.path,
   shopify.processWebhooks({
@@ -487,6 +425,70 @@ app.post(
       }
     }
   })
+);
+
+// 5. NOW add body parsing for other routes
+app.use(express.json());
+
+// 6. Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000,
+  message: 'Too many requests from this IP',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', apiLimiter);
+
+// Debug endpoint to check available methods
+app.get('/api/debug/shopify-methods', (req, res) => {
+  const methods = {
+    shopifyKeys: Object.keys(shopify),
+    apiKeys: shopify.api ? Object.keys(shopify.api) : [],
+    configKeys: shopify.config ? Object.keys(shopify.config) : [],
+    utilsKeys: shopify.api?.utils ? Object.keys(shopify.api.utils) : []
+  };
+  
+  res.json(methods);
+});
+
+// Set up Shopify authentication
+app.get(shopify.config.auth.path, shopify.auth.begin());
+app.get(
+  shopify.config.auth.callbackPath,
+  shopify.auth.callback(),
+  async (req, res, next) => {
+    try {
+      const session = res.locals.shopify.session;
+      if (session && session.accessToken) {
+        console.log('OAuth callback - Shop:', session.shop);
+        
+        // Register webhooks
+        await registerWebhooks(session);
+        
+        // Create shop installation record
+        try {
+          const shopData = {
+            shop_domain: session.shop,
+            access_token: session.accessToken,
+            scope: session.scope,
+            email: session.onlineAccessInfo?.associated_user?.email || null,
+          };
+          
+          await ShopInstallationsModel.create(shopData);
+          console.log('Shop installation record created for:', session.shop);
+        } catch (installationError) {
+          console.error('Error creating shop installation record:', installationError);
+        }
+      }
+      next();
+    } catch (error) {
+      console.error('Error in auth callback:', error);
+      next();
+    }
+  },
+  shopify.redirectToShopifyOrAppRoot()
 );
 
 // Public routes (no auth required)
