@@ -49,11 +49,9 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type, cu
     console.log('🎨 Using custom confirmation email body:', customBody);
     console.log('🔧 Variables to substitute:');
     console.log('  - type:', type);
-    console.log('  - customerName:', customerName);
     
     const processedBody = customBody
-      .replace(/\$\{type\}/g, type)
-      .replace(/\$\{customerName\}/g, customerName || '');
+      .replace(/\{type\}/g, type);
     
     console.log('📝 Processed confirmation email body:', processedBody);
     
@@ -86,9 +84,22 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type, cu
   return sgMail.send(msg);
 }
 
-export async function sendCustomerStatusEmail({ to, status, type, additionalMessage = '', customSubject, customBody, discountCode = null, customizations }) {
+export async function sendCustomerStatusEmail({ 
+  to, 
+  status, 
+  type, 
+  additionalMessage = '', 
+  customSubject, 
+  customBody, 
+  discountCode = null, 
+  rewardValue = null,
+  productTitle = null,
+  giftCardCode = null,
+  amount = null,
+  customizations 
+}) {
   console.log('=== sendCustomerStatusEmail called ===');
-  console.log('Parameters:', { to, status, type, additionalMessage, customSubject, customBody, discountCode });
+  console.log('Parameters:', { to, status, type, additionalMessage, customSubject, customBody, discountCode, rewardValue, productTitle, giftCardCode, amount });
   
   const emailConfig = getEmailConfig(customizations);
   
@@ -100,14 +111,20 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
     console.log('🔧 Variables to substitute:');
     console.log('  - type:', type);
     console.log('  - status:', status);
-    console.log('  - additionalMessage:', additionalMessage);
-    console.log('  - discountCode:', discountCode);
+    console.log('  - discount_code:', discountCode);
+    console.log('  - reward_value:', rewardValue);
+    console.log('  - product_title:', productTitle);
+    console.log('  - gift_card_code:', giftCardCode);
+    console.log('  - amount:', amount);
     
     const processedBody = customBody
-      .replace(/\$\{type\}/g, type)
-      .replace(/\$\{status\}/g, status)
-      .replace(/\$\{additionalMessage\}/g, additionalMessage || '')
-      .replace(/\$\{discountCode\}/g, discountCode || '');
+      .replace(/\{type\}/g, type || '')
+      .replace(/\{status\}/g, status || '')
+      .replace(/\{discount_code\}/g, discountCode || '')
+      .replace(/\{reward_value\}/g, rewardValue || '')
+      .replace(/\{product_title\}/g, productTitle || '')
+      .replace(/\{gift_card_code\}/g, giftCardCode || '')
+      .replace(/\{amount\}/g, amount || '');
     
     console.log('📝 Processed email body:', processedBody);
     
@@ -211,14 +228,31 @@ export async function sendCustomerStatusEmail({ to, status, type, additionalMess
 export async function sendGiftCardEmail({ to, code, amount, customSubject, customBody, customizations }) {
   const emailConfig = getEmailConfig(customizations);
   
+  // Process custom body with variable substitution
+  let processedBody = customBody;
+  let processedSubject = customSubject;
+  
+  if (customBody) {
+    console.log('🎨 Processing gift card email variables');
+    processedBody = customBody
+      .replace(/\{gift_card_code\}/g, code || '')
+      .replace(/\{amount\}/g, amount || '');
+  }
+  
+  if (customSubject) {
+    processedSubject = customSubject
+      .replace(/\{gift_card_code\}/g, code || '')
+      .replace(/\{amount\}/g, amount || '');
+  }
+  
   const msg = {
     to: to,
     ...emailConfig,
-    subject: customSubject || '🎁 Your Gift Card is Here!',
-    text: customBody ? `${customBody}\n\nGift card code: ${code}\nValue: $${amount}` : `Congratulations! Your gift card for $${amount} is ready. Gift card code: ${code}`,
-    html: customBody ? `
+    subject: processedSubject || '🎁 Your Gift Card is Here!',
+    text: processedBody ? `${processedBody}\n\nGift card code: ${code}\nValue: $${amount}` : `Congratulations! Your gift card for $${amount} is ready. Gift card code: ${code}`,
+    html: processedBody ? `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
+        <p style="font-size: 16px; line-height: 1.6;">${processedBody}</p>
         
         <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
           <p style="color: #666; margin: 0 0 10px 0;">Gift Card Code:</p>
@@ -265,18 +299,37 @@ export async function sendGiftCardEmail({ to, code, amount, customSubject, custo
   return sgMail.send(msg);
 }
 
-export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, customSubject, customBody, customizations }) {
+export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, productTitle = null, customSubject, customBody, customizations }) {
   const emailConfig = getEmailConfig(customizations);
   const valueText = type === 'percentage' ? `${value}%` : `$${value}`;
+  
+  // Process custom body with variable substitution
+  let processedBody = customBody;
+  let processedSubject = customSubject;
+  
+  if (customBody) {
+    console.log('🎨 Processing reward email variables');
+    processedBody = customBody
+      .replace(/\{discount_code\}/g, code || '')
+      .replace(/\{reward_value\}/g, valueText || '')
+      .replace(/\{product_title\}/g, productTitle || '');
+  }
+  
+  if (customSubject) {
+    processedSubject = customSubject
+      .replace(/\{discount_code\}/g, code || '')
+      .replace(/\{reward_value\}/g, valueText || '')
+      .replace(/\{product_title\}/g, productTitle || '');
+  }
   
   const msg = {
     to: to,
     ...emailConfig,
-    subject: customSubject || '🎉 Your UGC Reward is Here!',
-    text: customBody ? `${customBody}\n\nCode: ${code}\nValue: ${valueText} off\nExpires: ${expiresIn}` : `Congratulations! Your content has been approved. Here's your reward code: ${code}. Get ${valueText} off your next purchase. This code expires in ${expiresIn}.`,
-    html: customBody ? `
+    subject: processedSubject || '🎉 Your UGC Reward is Here!',
+    text: processedBody ? `${processedBody}\n\nCode: ${code}\nValue: ${valueText} off\nExpires: ${expiresIn}` : `Congratulations! Your content has been approved. Here's your reward code: ${code}. Get ${valueText} off your next purchase. This code expires in ${expiresIn}.`,
+    html: processedBody ? `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
+        <p style="font-size: 16px; line-height: 1.6;">${processedBody}</p>
         
         <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
           <h1 style="color: #008060; margin: 0; font-size: 32px;">${code}</h1>

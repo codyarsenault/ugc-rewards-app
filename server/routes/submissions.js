@@ -91,6 +91,7 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
             value: job.reward_value,
             type: job.reward_type,
             expiresIn: '30 days',
+            productTitle: job.reward_product || null,
             customSubject: customizations.email_subject_reward,
             customBody: customizations.email_body_reward,
             customizations
