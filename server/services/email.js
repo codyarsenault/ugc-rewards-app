@@ -303,10 +303,12 @@ export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, pr
   
   if (customBody) {
     console.log('🎨 Processing reward email variables');
+    console.log('📝 Original custom body:', customBody);
     processedBody = customBody
       .replace(/\{discount_code\}/g, code || '')
       .replace(/\{reward_value\}/g, valueText || '')
       .replace(/\{product_title\}/g, productTitle || '');
+    console.log('📝 Processed custom body:', processedBody);
   }
   
   if (customSubject) {
@@ -367,6 +369,12 @@ export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, pr
   };
   
   console.log('📧 Sending reward email via SendGrid...');
+  console.log('📧 Email message preview:', { 
+    to: msg.to, 
+    subject: msg.subject, 
+    textPreview: msg.text?.substring(0, 100) + '...', 
+    htmlPreview: msg.html?.substring(0, 200) + '...' 
+  });
   const result = await sgMail.send(msg);
   console.log('✅ SendGrid reward email sent successfully:', result[0].statusCode);
   return result;
