@@ -206,14 +206,40 @@ function isEmailSetupComplete(customizations) {
          customizations.notification_email.trim() !== '';
 }
 
-// Helper function to get shop domain from various sources
+// IMPROVED: Helper function to get shop domain from various sources
 function getShopDomain(req, res) {
+  // Try multiple sources
   const shopFromQuery = req.query.shop;
   const shopFromParams = req.params.shop;
   const shopFromBody = req.body?.shop;
   const shopFromSession = res.locals?.shopify?.session?.shop;
   
-  return shopFromQuery || shopFromParams || shopFromBody || shopFromSession;
+  // Also try from hidden form field (if you add one)
+  const shopFromFormField = req.body?.shopDomain;
+  
+  // Also try from referrer header
+  let shopFromReferrer = null;
+  if (req.headers.referer) {
+    const match = req.headers.referer.match(/shop=([^&]+)/);
+    if (match) {
+      shopFromReferrer = decodeURIComponent(match[1]);
+    }
+  }
+  
+  const shop = shopFromQuery || shopFromParams || shopFromBody || shopFromFormField || shopFromReferrer || shopFromSession;
+  
+  // Log for debugging
+  if (!shop) {
+    console.log('Could not find shop domain from:', {
+      query: req.query,
+      params: req.params,
+      body: req.body,
+      referrer: req.headers.referer,
+      session: res.locals?.shopify?.session
+    });
+  }
+  
+  return shop;
 }
 
 // Session token validation middleware for API routes
@@ -525,24 +551,43 @@ app.get('/api/public/customizations', async (req, res) => {
   }
 });
 
-// Public submission endpoint with better error handling
+// FIXED: Public submission endpoint with better shop domain handling
 app.post('/api/public/submit', upload.single('media'), async (req, res) => {
   try {
     let shopDomain = getShopDomain(req, res);
     
+    // CRITICAL FIX: Ensure we get shop domain from the job if not in request
     if (!shopDomain && req.body.jobId) {
       const job = await JobsModel.getById(req.body.jobId);
       if (job && job.shop_domain) {
         shopDomain = job.shop_domain;
+        console.log('Got shop domain from job:', shopDomain);
+      }
+    }
+    
+    // Additional fallback: Try to extract from referrer or other headers
+    if (!shopDomain && req.headers.referer) {
+      const match = req.headers.referer.match(/shop=([^&]+)/);
+      if (match) {
+        shopDomain = decodeURIComponent(match[1]);
+        console.log('Got shop domain from referer:', shopDomain);
       }
     }
 
     if (!shopDomain) {
+      console.error('No shop domain found in submission request:', {
+        body: req.body,
+        query: req.query,
+        headers: req.headers
+      });
       return res.status(400).json({
         success: false,
         message: 'Shop domain is required'
       });
     }
+
+    // Log for debugging
+    console.log('Creating submission for shop:', shopDomain);
 
     const { customerEmail, type, content } = req.body;
     if (!customerEmail || !type || !content) {
@@ -609,6 +654,7 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       }
     }
 
+    // When creating the submission, ensure shopDomain is passed correctly
     const submission = await SubmissionsModel.create({
       customerEmail,
       type,
@@ -616,8 +662,10 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
       mediaUrl,
       status: 'pending',
       jobId: req.body.jobId || null,
-      shopDomain: shopDomain
+      shopDomain: shopDomain // <-- This is critical!
     });
+
+    console.log('Submission created with number:', submission.shop_submission_number, 'for shop:', shopDomain);
 
     let jobName = 'General Submission';
     let job = null;
@@ -661,7 +709,8 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     res.json({
       success: true,
       message: 'Submission received!',
-      submissionId: submission.id
+      submissionId: submission.id,
+      submissionNumber: submission.shop_submission_number // Include this in the response
     });
   } catch (error) {
     console.error('Error saving submission:', error);
