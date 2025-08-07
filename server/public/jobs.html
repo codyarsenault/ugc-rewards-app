@@ -175,8 +175,58 @@
       margin-left: 3px;
     }
     
-    /* Keep play/pause button always visible */
+    /* Hide main play button when playing */
     .video-container.playing .play-button {
+      display: none !important;
+    }
+    
+    /* Small pause button in top-right corner */
+    .pause-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 30px;
+      height: 30px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 4px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 3;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .pause-button:hover {
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.1);
+    }
+    
+    .pause-button::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: white;
+      display: flex;
+      gap: 2px;
+    }
+    
+    .pause-button::before,
+    .pause-button::after {
+      content: '';
+      width: 2px;
+      height: 12px;
+      background: white;
+      display: block;
+    }
+    
+    .pause-button::before {
+      margin-right: 2px;
+    }
+    
+    /* Show pause button when video is playing */
+    .video-container.playing .pause-button {
       display: flex !important;
     }
     
@@ -834,15 +884,16 @@
               const videoUrlWithTime = videoUrl + (videoUrl.includes('?') ? '&' : '#') + 't=0.1';
               
               // Try the simple approach - just use a video element
-              videoContainer.innerHTML = `
-                <video class="video-placeholder" 
-                       src="${videoUrlWithTime}"
-                       preload="metadata"
-                       playsinline
-                       webkit-playsinline>
-                </video>
-                <div class="play-button"></div>
-              `;
+                        videoContainer.innerHTML = `
+            <video class="video-placeholder" 
+                   src="${videoUrlWithTime}"
+                   preload="metadata"
+                   playsinline
+                   webkit-playsinline>
+            </video>
+            <div class="play-button"></div>
+            <div class="pause-button"></div>
+          `;
               
               // Add load event to ensure poster frame shows
               const video = videoContainer.querySelector('video');
@@ -855,18 +906,19 @@
               video.addEventListener('error', function() {
                 console.log('Video failed to load, using fallback:', videoUrl);
                 // Replace with a nice gradient placeholder
-                videoContainer.innerHTML = `
-                  <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-                    <div style="text-align: center; color: white;">
-                      <div style="font-size: 32px; margin-bottom: 8px;">🎬</div>
-                      <div style="font-size: 12px; font-weight: 500; opacity: 0.9;">Example ${index + 1}</div>
-                    </div>
-                  </div>
-                  <div class="play-button"></div>
-                  <video style="display: none;" preload="none" playsinline webkit-playsinline>
-                    <source src="${videoUrl}" type="video/mp4">
-                  </video>
-                `;
+                            videoContainer.innerHTML = `
+              <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                <div style="text-align: center; color: white;">
+                  <div style="font-size: 32px; margin-bottom: 8px;">🎬</div>
+                  <div style="font-size: 12px; font-weight: 500; opacity: 0.9;">Example ${index + 1}</div>
+                </div>
+              </div>
+              <div class="play-button"></div>
+              <div class="pause-button"></div>
+              <video style="display: none;" preload="none" playsinline webkit-playsinline>
+                <source src="${videoUrl}" type="video/mp4">
+              </video>
+            `;
               });
               
               videoRow.appendChild(videoContainer);
@@ -1243,7 +1295,6 @@
         // Custom video playback with no native controls
     function playVideo(container, event) {
       const video = container.querySelector('video');
-      const playButton = container.querySelector('.play-button');
       
       if (!video) return;
       
@@ -1262,20 +1313,12 @@
         // Play the video
         video.play().then(() => {
           container.classList.add('playing');
-          if (playButton) {
-            // Change play button to pause button
-            playButton.innerHTML = '<div style="width: 12px; height: 12px; background: var(--primary-color); display: flex; gap: 3px;"><div style="width: 3px; height: 100%; background: white;"></div><div style="width: 3px; height: 100%; background: white;"></div></div>';
-          }
         }).catch(e => {
           console.log('Video play failed:', e);
           // Browser might block autoplay with sound, try muted as fallback
           video.muted = true;
           video.play().then(() => {
             container.classList.add('playing');
-            if (playButton) {
-              // Change to pause button
-              playButton.innerHTML = '<div style="width: 12px; height: 12px; background: var(--primary-color); display: flex; gap: 3px;"><div style="width: 3px; height: 100%; background: white;"></div><div style="width: 3px; height: 100%; background: white;"></div></div>';
-            }
             // Try to unmute after playing
             setTimeout(() => {
               video.muted = false;
@@ -1290,10 +1333,6 @@
         // Pausing video
         video.pause();
         container.classList.remove('playing');
-        if (playButton) {
-          // Change back to play button
-          playButton.innerHTML = '';
-        }
       }
       
       // Handle fallback for gradient placeholders (error state)
@@ -1311,25 +1350,26 @@
       if (!video.hasPlayVideoListeners) {
         video.hasPlayVideoListeners = true;
         
+        // Add pause button click handler
+        const pauseButton = container.querySelector('.pause-button');
+        if (pauseButton) {
+          pauseButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            playVideo(container, e);
+          });
+        }
+        
         video.addEventListener('play', function() {
           container.classList.add('playing');
-          if (playButton) {
-            playButton.innerHTML = '<div style="width: 12px; height: 12px; background: var(--primary-color); display: flex; gap: 3px;"><div style="width: 3px; height: 100%; background: white;"></div><div style="width: 3px; height: 100%; background: white;"></div></div>';
-          }
         });
         
         video.addEventListener('pause', function() {
           container.classList.remove('playing');
-          if (playButton) {
-            playButton.innerHTML = '';
-          }
         });
         
         video.addEventListener('ended', function() {
           container.classList.remove('playing');
-          if (playButton) {
-            playButton.innerHTML = '';
-          }
         });
       }
       
