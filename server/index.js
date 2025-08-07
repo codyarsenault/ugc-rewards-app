@@ -590,10 +590,10 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     console.log('Creating submission for shop:', shopDomain);
 
     const { customerEmail, type, content } = req.body;
-    if (!customerEmail || !type || !content) {
+    if (!customerEmail || !type) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: customerEmail, type, content'
+        message: 'Missing required fields: customerEmail, type'
       });
     }
 
