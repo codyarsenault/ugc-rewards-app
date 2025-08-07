@@ -290,9 +290,9 @@ export async function sendGiftCardEmail({ to, code, amount, customSubject, custo
   return sgMail.send(msg);
 }
 
-export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, productTitle = null, customSubject, customBody, customizations }) {
+export async function sendRewardCodeEmail({ to, code, value, type, submissionType = null, expiresIn, productTitle = null, customSubject, customBody, customizations }) {
   console.log('=== sendRewardCodeEmail called ===');
-  console.log('Parameters:', { to, code, value, type, expiresIn, productTitle, customSubject: !!customSubject, customBody: !!customBody });
+  console.log('Parameters:', { to, code, value, type, submissionType, expiresIn, productTitle, customSubject: !!customSubject, customBody: !!customBody });
   
   const emailConfig = getEmailConfig(customizations);
   const valueText = type === 'percentage' ? `${value}%` : `$${value}`;
@@ -305,6 +305,7 @@ export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, pr
     console.log('🎨 Processing reward email variables');
     console.log('📝 Original custom body:', customBody);
     processedBody = customBody
+      .replace(/\{type\}/g, submissionType || '')
       .replace(/\{discount_code\}/g, code || '')
       .replace(/\{reward_value\}/g, valueText || '')
       .replace(/\{product_title\}/g, productTitle || '');
@@ -313,6 +314,7 @@ export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, pr
   
   if (customSubject) {
     processedSubject = customSubject
+      .replace(/\{type\}/g, submissionType || '')
       .replace(/\{discount_code\}/g, code || '')
       .replace(/\{reward_value\}/g, valueText || '')
       .replace(/\{product_title\}/g, productTitle || '');
