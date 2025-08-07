@@ -404,17 +404,29 @@ app.use((req, res, next) => {
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
-  if (!req.path.startsWith('/api/auth') && !req.path.startsWith('/')) {
+  // Only apply strict security headers to admin/API routes, not public pages
+  if (req.path.startsWith('/api/admin') || (req.path === '/' && req.query.embedded)) {
     res.setHeader('X-Frame-Options', 'DENY');
-  } else {
+    res.setHeader('Content-Security-Policy', "frame-ancestors https://*.myshopify.com https://admin.shopify.com");
+  } else if (req.path.startsWith('/jobs/') || req.path.startsWith('/submit')) {
+    // Public pages - use minimal CSP to allow screenshots
+    res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; img-src 'self' https: data: blob:;");
+  } else if (!req.path.startsWith('/api/auth')) {
+    res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Content-Security-Policy', "frame-ancestors https://*.myshopify.com https://admin.shopify.com");
   }
   
   next();
 });
 
-// 3. CSP Headers from Shopify
-app.use(shopify.cspHeaders());
+// 3. CSP Headers from Shopify - only for embedded admin pages
+app.use((req, res, next) => {
+  // Only apply Shopify's strict CSP to embedded admin pages
+  if (req.path === '/' && req.query.embedded) {
+    return shopify.cspHeaders()(req, res, next);
+  }
+  next();
+});
 
 // #4 Webhook processing - simplified since handlers are in config
 app.post(
