@@ -801,21 +801,43 @@
     
     // Check if content is a video URL
     function isVideoUrl(content) {
-      const videoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv'];
-      const lowerContent = content.toLowerCase();
+      const trimmedContent = content.trim();
+      const lowerContent = trimmedContent.toLowerCase();
+      
+      // Check if it looks like a URL (starts with http/https or www)
+      const isUrl = /^https?:\/\//.test(trimmedContent) || /^www\./.test(trimmedContent);
+      
+      if (!isUrl) {
+        return false;
+      }
       
       // Check for video file extensions
+      const videoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv'];
       if (videoExtensions.some(ext => lowerContent.includes(ext))) {
         return true;
       }
       
-      // Check for common video hosting URLs
-      if (lowerContent.includes('youtube.com') || 
-          lowerContent.includes('youtu.be') ||
-          lowerContent.includes('vimeo.com') ||
-          lowerContent.includes('dailymotion.com') ||
-          lowerContent.includes('s3.amazonaws.com') ||
-          lowerContent.includes('cloudfront.net')) {
+      // Check for video hosting platforms
+      const videoPlatforms = [
+        'youtube.com',
+        'youtu.be',
+        'vimeo.com',
+        'dailymotion.com',
+        'tiktok.com',
+        'instagram.com',
+        'facebook.com',
+        'twitter.com',
+        'x.com',
+        'twitch.tv',
+        'streamable.com',
+        'wistia.com',
+        'loom.com',
+        's3.amazonaws.com',
+        'cloudfront.net',
+        'drive.google.com'
+      ];
+      
+      if (videoPlatforms.some(platform => lowerContent.includes(platform))) {
         return true;
       }
       
