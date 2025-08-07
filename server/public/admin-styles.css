@@ -393,6 +393,17 @@ td {
   position: relative;
   box-sizing: border-box;
 }
+
+/* Special styling for media modal content */
+.modal-media-container .modal-content {
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+}
 .close {
   position: absolute;
   top: 15px;
@@ -446,39 +457,46 @@ video.modal-content {
   align-items: center;
   gap: 20px;
   max-width: 95vw;
-  max-height: 95vh;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-/* Media modal actions */
+/* Media modal actions - positioned in top right */
 .modal-media-actions {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
   display: flex;
   gap: 10px;
-  justify-content: center;
-  padding: 10px;
 }
 
 /* Download button specific styling */
 #downloadMediaBtn {
-  background: #008060;
+  background: rgba(0, 128, 96, 0.9);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: background-color 0.2s;
+  gap: 4px;
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
 }
 
 #downloadMediaBtn:hover {
-  background: #006b4f;
+  background: rgba(0, 107, 79, 0.95);
+  transform: scale(1.05);
 }
 
 #downloadMediaBtn:active {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 .job-card {
   border: 1px solid #e1e3e5;

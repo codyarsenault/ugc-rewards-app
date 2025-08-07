@@ -1314,7 +1314,7 @@ window.closeModal = function() {
 };
 
 // Download current media function
-window.downloadCurrentMedia = function() {
+window.downloadCurrentMedia = async function() {
   if (!currentMediaUrl) {
     alert('No media to download');
     return;
