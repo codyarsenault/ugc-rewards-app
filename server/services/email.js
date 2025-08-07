@@ -61,7 +61,7 @@ export async function sendCustomerConfirmationEmail({ to, customerName, type, cu
       subject: customSubject || 'Thank you for your submission!',
       text: processedBody.replace(/<[^>]*>/g, ''), // Strip HTML for text version
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; text-align: left;">
           ${processedBody}
         </div>
       `
@@ -134,7 +134,7 @@ export async function sendCustomerStatusEmail({
       subject: customSubject || 'Submission status update',
       text: processedBody.replace(/<[^>]*>/g, ''), // Strip HTML for text version
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; text-align: left;">
           ${processedBody}
         </div>
       `
@@ -251,7 +251,7 @@ export async function sendGiftCardEmail({ to, code, amount, customSubject, custo
     subject: processedSubject || '🎁 Your Gift Card is Here!',
     text: processedBody ? `${processedBody}\n\nGift card code: ${code}\nValue: $${amount}` : `Congratulations! Your gift card for $${amount} is ready. Gift card code: ${code}`,
     html: processedBody ? `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; text-align: left;">
         <p style="font-size: 16px; line-height: 1.6;">${processedBody}</p>
         
         <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
@@ -328,7 +328,7 @@ export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, pr
     subject: processedSubject || '🎉 Your UGC Reward is Here!',
     text: processedBody ? `${processedBody}\n\nCode: ${code}\nValue: ${valueText} off\nExpires: ${expiresIn}` : `Congratulations! Your content has been approved. Here's your reward code: ${code}. Get ${valueText} off your next purchase. This code expires in ${expiresIn}.`,
     html: processedBody ? `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; text-align: left;">
         <p style="font-size: 16px; line-height: 1.6;">${processedBody}</p>
         
         <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
