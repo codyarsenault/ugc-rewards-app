@@ -827,8 +827,8 @@
             // Create video containers with the simple fix
             videoUrls.forEach((videoUrl, index) => {
               const videoContainer = document.createElement('div');
-              videoContainer.className = 'video-container';
-              videoContainer.onclick = function() { playVideo(this); };
+                        videoContainer.className = 'video-container';
+          videoContainer.onclick = function(event) { playVideo(this, event); };
               
               // Add #t=0.1 to the video URL to force loading first frame
               const videoUrlWithTime = videoUrl + (videoUrl.includes('?') ? '&' : '#') + 't=0.1';
@@ -1240,12 +1240,18 @@
       }
     }
 
-    // SIMPLIFIED playVideo function with sound and optional fullscreen
-    function playVideo(container) {
+        // SIMPLIFIED playVideo function with sound and optional fullscreen
+    function playVideo(container, event) {
       const video = container.querySelector('video');
       const playButton = container.querySelector('.play-button');
       
       if (!video) return;
+      
+      // Prevent event bubbling to avoid double triggers on mobile
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       
       // Check if mobile
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1253,7 +1259,7 @@
       // If video is showing a frame (not in error state)
       if (video.classList.contains('video-placeholder')) {
         if (video.paused) {
-          // Hide our custom play button when starting playback
+          // Hide our custom play button when starting playbook
           if (playButton) {
             playButton.style.display = 'none';
           }
@@ -1337,25 +1343,28 @@
         }
       }
       
-      // Listen for video play/pause events to manage our custom button
-      video.addEventListener('play', function() {
-        container.classList.add('playing');
-        if (playButton) playButton.style.display = 'none';
-      });
+      // Add event listeners only once
+      if (!video.hasPlayVideoListeners) {
+        video.hasPlayVideoListeners = true;
+        
+        video.addEventListener('play', function() {
+          container.classList.add('playing');
+          if (playButton) playButton.style.display = 'none';
+        });
+        
+        video.addEventListener('pause', function() {
+          container.classList.remove('playing');
+          // Don't show custom play button again - let native controls handle it
+        });
+        
+        video.addEventListener('ended', function() {
+          container.classList.remove('playing');
+          // Optionally show custom play button again when video ends
+          // if (playButton) playButton.style.display = 'flex';
+        });
+      }
       
-      video.addEventListener('pause', function() {
-        container.classList.remove('playing');
-        // Don't show custom play button again - let native controls handle it
-      });
-      
-      video.addEventListener('ended', function() {
-        container.classList.remove('playing');
-        // Optionally show custom play button again when video ends
-        // if (playButton) playButton.style.display = 'flex';
-      });
-      
-
-    }
+      }
     
     // Add event listeners for video ended
     document.addEventListener('DOMContentLoaded', function() {
