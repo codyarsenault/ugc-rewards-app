@@ -412,6 +412,32 @@ td {
   border-radius: 4px;
   cursor: pointer;
 }
+
+/* Modal media display - preserve aspect ratio */
+.modal-content img,
+.modal-content video {
+  max-width: 90vw;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  border-radius: 8px;
+}
+
+/* Override modal-content styles for images/videos */
+img.modal-content,
+video.modal-content {
+  background: white;
+  padding: 0;
+  border-radius: 8px;
+  width: auto;
+  height: auto;
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+}
 .job-card {
   border: 1px solid #e1e3e5;
   border-radius: 6px;
