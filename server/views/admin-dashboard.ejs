@@ -931,8 +931,15 @@
     <!-- Media Preview Modal -->
     <div id="mediaModal" class="modal">
       <span class="close" onclick="closeModal()">&times;</span>
-      <img class="modal-content" id="modalImage">
-      <video class="modal-content" id="modalVideo" controls style="display:none;"></video>
+      <div class="modal-media-container">
+        <img class="modal-content" id="modalImage">
+        <video class="modal-content" id="modalVideo" controls style="display:none;"></video>
+        <div class="modal-media-actions">
+          <button id="downloadMediaBtn" class="btn btn-primary" onclick="downloadCurrentMedia()">
+            📥 Download Media
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Load admin-app.js after App Bridge is initialized -->

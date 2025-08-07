@@ -1276,10 +1276,17 @@ window.resetEmailSettingsToDefaults = function() {
 };
 
 // Modal functions
+let currentMediaUrl = '';
+let currentMediaType = '';
+
 window.openModal = function(src, type) {
   const modal = document.getElementById('mediaModal');
   const modalImg = document.getElementById('modalImage');
   const modalVideo = document.getElementById('modalVideo');
+  
+  // Store current media info for download
+  currentMediaUrl = src;
+  currentMediaType = type;
   
   modal.classList.add('open');
   
@@ -1300,6 +1307,33 @@ window.closeModal = function() {
   modal.classList.remove('open');
   modalVideo.pause();
   modalVideo.src = '';
+  
+  // Clear current media info
+  currentMediaUrl = '';
+  currentMediaType = '';
+};
+
+// Download current media function
+window.downloadCurrentMedia = function() {
+  if (!currentMediaUrl) {
+    alert('No media to download');
+    return;
+  }
+  
+  // Extract filename from URL or create a default one
+  const urlParts = currentMediaUrl.split('/');
+  const filename = urlParts[urlParts.length - 1] || `submission-media.${currentMediaType === 'video' ? 'mp4' : 'jpg'}`;
+  
+  // Create a temporary link and trigger download
+  const link = document.createElement('a');
+  link.href = currentMediaUrl;
+  link.download = filename;
+  link.target = '_blank';
+  
+  // Add to DOM temporarily, click, then remove
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 window.openQuickEmailSetup = function() {

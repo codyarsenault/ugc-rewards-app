@@ -438,6 +438,48 @@ video.modal-content {
   max-height: 90vh;
   object-fit: contain;
 }
+
+/* Media modal container */
+.modal-media-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 95vw;
+  max-height: 95vh;
+}
+
+/* Media modal actions */
+.modal-media-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 10px;
+}
+
+/* Download button specific styling */
+#downloadMediaBtn {
+  background: #008060;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+}
+
+#downloadMediaBtn:hover {
+  background: #006b4f;
+}
+
+#downloadMediaBtn:active {
+  transform: translateY(1px);
+}
 .job-card {
   border: 1px solid #e1e3e5;
   border-radius: 6px;
