@@ -122,6 +122,30 @@
       display: block;
     }
     
+    .mobile-video-placeholder {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .video-thumbnail {
+      text-align: center;
+      color: white;
+    }
+    
+    .video-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    .video-text {
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.9;
+    }
+    
     .play-button {
       position: absolute;
       top: 50%;
@@ -811,13 +835,40 @@
               videoContainer.className = 'video-container';
               videoContainer.onclick = function() { playVideo(this); };
               
-              videoContainer.innerHTML = `
-                <video class="video-placeholder" preload="metadata">
-                  <source src="${videoUrl}" type="video/mp4">
-                  Your browser does not support the video tag.
-                </video>
-                <div class="play-button"></div>
-              `;
+              // Check if it's iOS/mobile
+              const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+              
+              if (isIOS || isMobile) {
+                // For iOS/mobile: use a styled placeholder that looks like a video
+                videoContainer.innerHTML = `
+                  <div class="video-placeholder mobile-video-placeholder">
+                    <div class="video-thumbnail">
+                      <div class="video-icon">🎬</div>
+                      <div class="video-text">Tap to play video</div>
+                    </div>
+                  </div>
+                  <div class="play-button"></div>
+                  <video style="display: none;" data-src="${videoUrl}">
+                    <source src="${videoUrl}" type="video/mp4">
+                  </video>
+                `;
+              } else {
+                // For desktop: try to load video preview
+                videoContainer.innerHTML = `
+                  <video class="video-placeholder" preload="metadata" muted>
+                    <source src="${videoUrl}" type="video/mp4">
+                    Your browser does not support the video tag.
+                  </video>
+                  <div class="play-button"></div>
+                `;
+                
+                // Try to load the first frame on desktop
+                const video = videoContainer.querySelector('video');
+                video.addEventListener('loadeddata', function() {
+                  this.currentTime = 1; // Jump to 1 second to get a better frame
+                });
+              }
               
               videoRow.appendChild(videoContainer);
             });
@@ -1194,8 +1245,32 @@
     function playVideo(container) {
       const video = container.querySelector('video');
       const playButton = container.querySelector('.play-button');
+      const placeholder = container.querySelector('.mobile-video-placeholder');
       
-      if (video.paused) {
+      // Check if this is a mobile placeholder
+      if (placeholder && video.style.display === 'none') {
+        // Mobile: Load the video source and show it
+        const dataSrc = video.getAttribute('data-src');
+        if (dataSrc && !video.src) {
+          video.src = dataSrc;
+        }
+        
+        // Hide placeholder and show video
+        placeholder.style.display = 'none';
+        video.style.display = 'block';
+        video.controls = true;
+        video.play();
+        container.classList.add('playing');
+        
+        // When video ends, show placeholder again
+        video.addEventListener('ended', function() {
+          placeholder.style.display = 'flex';
+          video.style.display = 'none';
+          video.controls = false;
+          container.classList.remove('playing');
+        });
+      } else if (video.paused) {
+        // Desktop: normal video play/pause
         video.play();
         container.classList.add('playing');
         video.controls = true;
