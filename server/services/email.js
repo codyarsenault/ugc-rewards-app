@@ -291,6 +291,9 @@ export async function sendGiftCardEmail({ to, code, amount, customSubject, custo
 }
 
 export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, productTitle = null, customSubject, customBody, customizations }) {
+  console.log('=== sendRewardCodeEmail called ===');
+  console.log('Parameters:', { to, code, value, type, expiresIn, productTitle, customSubject: !!customSubject, customBody: !!customBody });
+  
   const emailConfig = getEmailConfig(customizations);
   const valueText = type === 'percentage' ? `${value}%` : `$${value}`;
   
@@ -363,7 +366,10 @@ export async function sendRewardCodeEmail({ to, code, value, type, expiresIn, pr
     `
   };
   
-  return sgMail.send(msg);
+  console.log('📧 Sending reward email via SendGrid...');
+  const result = await sgMail.send(msg);
+  console.log('✅ SendGrid reward email sent successfully:', result[0].statusCode);
+  return result;
 }
 
 export async function sendFreeProductEmail({ to, code, productName, customSubject, customBody, customizations }) {

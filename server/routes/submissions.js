@@ -85,6 +85,7 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
           
           const customizations = await CustomizationsModel.getByShop(shop) || {};
           
+          console.log('📧 Sending reward email to:', submission.customer_email);
           await sendRewardCodeEmail({
             to: submission.customer_email,
             code,
@@ -96,6 +97,7 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
             customBody: customizations.email_body_reward,
             customizations
           });
+          console.log('✅ Reward email sent successfully');
 
           const reward = await RewardsModel.getBySubmissionId(submission.id);
           if (reward) {
