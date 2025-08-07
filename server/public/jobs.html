@@ -837,7 +837,6 @@
                 <video class="video-placeholder" 
                        src="${videoUrlWithTime}"
                        preload="metadata"
-                       muted
                        playsinline
                        webkit-playsinline>
                 </video>
@@ -863,7 +862,7 @@
                     </div>
                   </div>
                   <div class="play-button"></div>
-                  <video style="display: none;" preload="none" playsinline webkit-playsinline muted>
+                  <video style="display: none;" preload="none" playsinline webkit-playsinline>
                     <source src="${videoUrl}" type="video/mp4">
                   </video>
                 `;
@@ -1240,19 +1239,62 @@
       }
     }
 
-    // SIMPLIFIED playVideo function
+    // SIMPLIFIED playVideo function with sound and fullscreen
     function playVideo(container) {
       const video = container.querySelector('video');
       const playButton = container.querySelector('.play-button');
       
       if (!video) return;
       
+      // Check if mobile
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
       // If video is showing a frame (not in error state)
       if (video.classList.contains('video-placeholder')) {
         if (video.paused) {
           video.controls = true;
-          video.play();
-          container.classList.add('playing');
+          video.muted = false; // Unmute the video
+          video.volume = 1.0; // Set volume to max
+          
+          // Play the video
+          video.play().then(() => {
+            container.classList.add('playing');
+            
+            // Request fullscreen on mobile after play starts
+            if (isMobile && video.requestFullscreen) {
+              video.requestFullscreen();
+            } else if (isMobile && video.webkitRequestFullscreen) {
+              // iOS Safari
+              video.webkitRequestFullscreen();
+            } else if (isMobile && video.webkitEnterFullscreen) {
+              // Older iOS
+              video.webkitEnterFullscreen();
+            }
+          }).catch(e => {
+            console.log('Video play failed:', e);
+            // Browser might block autoplay with sound, try muted as fallback
+            video.muted = true;
+            video.play().then(() => {
+              container.classList.add('playing');
+              // Try to unmute after playing
+              setTimeout(() => {
+                video.muted = false;
+                video.volume = 1.0;
+              }, 100);
+              
+              // Request fullscreen on mobile
+              if (isMobile && video.requestFullscreen) {
+                video.requestFullscreen();
+              } else if (isMobile && video.webkitRequestFullscreen) {
+                video.webkitRequestFullscreen();
+              } else if (isMobile && video.webkitEnterFullscreen) {
+                video.webkitEnterFullscreen();
+              }
+            }).catch(err => {
+              console.log('Even muted play failed:', err);
+              video.controls = true;
+            });
+          });
         } else {
           video.pause();
           container.classList.remove('playing');
@@ -1267,14 +1309,66 @@
           video.style.height = '100%';
           video.style.objectFit = 'cover';
           video.controls = true;
+          video.muted = false; // Unmute the video
+          video.volume = 1.0; // Set volume to max
           video.load();
-          video.play().catch(e => {
+          
+          video.play().then(() => {
+            container.classList.add('playing');
+            
+            // Request fullscreen on mobile
+            if (isMobile && video.requestFullscreen) {
+              video.requestFullscreen();
+            } else if (isMobile && video.webkitRequestFullscreen) {
+              video.webkitRequestFullscreen();
+            } else if (isMobile && video.webkitEnterFullscreen) {
+              video.webkitEnterFullscreen();
+            }
+          }).catch(e => {
             console.log('Video play failed:', e);
-            video.controls = true;
+            // Try muted as fallback
+            video.muted = true;
+            video.play().then(() => {
+              container.classList.add('playing');
+              setTimeout(() => {
+                video.muted = false;
+                video.volume = 1.0;
+              }, 100);
+              
+              // Request fullscreen on mobile
+              if (isMobile && video.requestFullscreen) {
+                video.requestFullscreen();
+              } else if (isMobile && video.webkitRequestFullscreen) {
+                video.webkitRequestFullscreen();
+              } else if (isMobile && video.webkitEnterFullscreen) {
+                video.webkitEnterFullscreen();
+              }
+            }).catch(err => {
+              console.log('Even muted play failed:', err);
+              video.controls = true;
+            });
           });
-          container.classList.add('playing');
         }
       }
+      
+      // Listen for fullscreen exit to update UI
+      video.addEventListener('fullscreenchange', function() {
+        if (!document.fullscreenElement) {
+          // User exited fullscreen
+          if (video.paused) {
+            container.classList.remove('playing');
+          }
+        }
+      });
+      
+      video.addEventListener('webkitfullscreenchange', function() {
+        if (!document.webkitFullscreenElement) {
+          // User exited fullscreen (Safari)
+          if (video.paused) {
+            container.classList.remove('playing');
+          }
+        }
+      });
     }
     
     // Add event listeners for video ended
