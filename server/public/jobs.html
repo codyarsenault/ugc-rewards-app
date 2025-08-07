@@ -1100,9 +1100,9 @@
       if (job.reward_type === 'percentage') {
         return job.reward_value + '% off';
       } else if (job.reward_type === 'fixed') {
-        return `${job.reward_value} off`;
+        return '$' + job.reward_value + ' off';
       } else if (job.reward_type === 'giftcard') {
-        return `${job.reward_giftcard_amount || ''} gift card`;
+        return '$' + (job.reward_giftcard_amount || '') + ' gift card';
       } else {
         return 'Free ' + (job.reward_product || 'product');
       }
@@ -1354,34 +1354,7 @@
         // if (playButton) playButton.style.display = 'flex';
       });
       
-      // Optional: Add double-tap to fullscreen for mobile
-      if (isMobile) {
-        let lastTap = 0;
-        video.addEventListener('touchend', function(e) {
-          const currentTime = new Date().getTime();
-          const tapLength = currentTime - lastTap;
-          if (tapLength < 500 && tapLength > 0) {
-            // Double tap detected - toggle fullscreen
-            e.preventDefault();
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-              if (video.requestFullscreen) {
-                video.requestFullscreen();
-              } else if (video.webkitRequestFullscreen) {
-                video.webkitRequestFullscreen();
-              } else if (video.webkitEnterFullscreen) {
-                video.webkitEnterFullscreen();
-              }
-            } else {
-              if (document.exitFullscreen) {
-                document.exitFullscreen();
-              } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-              }
-            }
-          }
-          lastTap = currentTime;
-        });
-      }
+
     }
     
     // Add event listeners for video ended
