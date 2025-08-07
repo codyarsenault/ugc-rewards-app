@@ -740,14 +740,14 @@
           
           // Add video content if any
           if (videoUrls.length > 0) {
-            const videoTitle = videoUrls.length === 1 ? '💡 Inspiration Video:' : '💡 Inspiration Videos:';
+            const videoTitle = videoUrls.length === 1 ? '💡 Inspiration:' : '💡 Inspiration Media:';
             inspirationHTML += `<h4 style="margin: 0 0 15px 0; color: #3a4152; font-size: 16px; font-weight: 600;">${videoTitle}</h4>`;
             
             videoUrls.forEach((videoUrl, index) => {
               inspirationHTML += `
                 <div style="text-align: center; margin-bottom: 15px;">
                   <a href="${videoUrl.trim()}" target="_blank" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%); color: white; text-decoration: none; border-radius: 20px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(184, 150, 133, 0.25);">
-                    🎬 Watch Video ${videoUrls.length > 1 ? index + 1 : ''}
+                    🔗 Inspiration Photo/Video ${videoUrls.length > 1 ? index + 1 : ''}
                   </a>
                   <div style="margin-top: 8px; font-size: 12px; color: #718096;">
                     Opens in new tab

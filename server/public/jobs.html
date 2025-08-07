@@ -1143,26 +1143,8 @@
           document.getElementById('modalDeadline').textContent = '';
         }
 
-        // Example content
-        if (selectedJob.example_content) {
-          const content = selectedJob.example_content.trim();
-          
-          // Split content by newlines and filter out empty lines
-          const contentLines = content.split('\n').filter(line => line.trim());
-          
-          // Only show text content, filter out video URLs
-          const textContent = contentLines.filter(line => !isVideoUrl(line.trim()));
-          
-          if (textContent.length > 0) {
-            document.getElementById('modalExample').innerHTML = `
-              <p style="color: #718096; line-height: 1.6;">${textContent.join('<br>')}</p>
-            `;
-          } else {
-            document.getElementById('modalExample').innerHTML = '';
-          }
-        } else {
-          document.getElementById('modalExample').innerHTML = '';
-        }
+        // Example content - removed to keep modal clean
+        document.getElementById('modalExample').innerHTML = '';
 
         // Show modal
         document.getElementById('jobModal').style.display = 'block';
