@@ -25,6 +25,7 @@ adminSubmissionRoutes.get('/submissions', async (req, res) => {
     
     const transformedSubmissions = submissions.map(sub => ({
       id: sub.id,
+      shop_submission_number: sub.shop_submission_number,
       customerEmail: sub.customer_email,
       type: sub.type,
       content: sub.content,
