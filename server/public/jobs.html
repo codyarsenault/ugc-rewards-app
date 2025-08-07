@@ -108,6 +108,7 @@
       transition: transform 0.3s ease;
       border: 1px solid #e8e5e3;
       overflow: hidden;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
     .video-container:hover {
@@ -115,35 +116,28 @@
       box-shadow: 0 6px 16px rgba(0,0,0,0.15);
     }
     
+    /* Style different gradients for each video */
+    .video-container:nth-child(1) {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .video-container:nth-child(2) {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .video-container:nth-child(3) {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .video-container:nth-child(4) {
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    
     .video-placeholder {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
-    }
-    
-    .mobile-video-placeholder {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-    
-    .video-thumbnail {
-      text-align: center;
-      color: white;
-    }
-    
-    .video-icon {
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-    
-    .video-text {
-      font-size: 12px;
-      font-weight: 500;
-      opacity: 0.9;
     }
     
     .play-button {
@@ -806,10 +800,10 @@
           }
         }
         
-        // Handle example videos
+        // SIMPLIFIED VIDEO HANDLING WITH #t=0.1 FIX
         const examplesSection = document.getElementById('examplesSection');
         const videoRow = document.getElementById('videoRow');
-        
+
         if (customizations.show_example_videos !== false && examplesSection && videoRow) {
           // Collect all valid video URLs
           const videoUrls = [
@@ -829,46 +823,51 @@
             // Add CSS class based on number of videos
             videoRow.className = `video-row ${videoUrls.length === 1 ? 'single' : videoUrls.length === 2 ? 'two' : videoUrls.length === 3 ? 'three' : 'four'}`;
             
-            // Create video containers
-            videoUrls.forEach(videoUrl => {
+            // Create video containers with the simple fix
+            videoUrls.forEach((videoUrl, index) => {
               const videoContainer = document.createElement('div');
               videoContainer.className = 'video-container';
               videoContainer.onclick = function() { playVideo(this); };
               
-              // Check if it's iOS/mobile
-              const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+              // Add #t=0.1 to the video URL to force loading first frame
+              const videoUrlWithTime = videoUrl + (videoUrl.includes('?') ? '&' : '#') + 't=0.1';
               
-              if (isIOS || isMobile) {
-                // For iOS/mobile: use a styled placeholder that looks like a video
+              // Try the simple approach - just use a video element
+              videoContainer.innerHTML = `
+                <video class="video-placeholder" 
+                       src="${videoUrlWithTime}"
+                       preload="metadata"
+                       muted
+                       playsinline
+                       webkit-playsinline>
+                </video>
+                <div class="play-button"></div>
+              `;
+              
+              // Add load event to ensure poster frame shows
+              const video = videoContainer.querySelector('video');
+              video.addEventListener('loadedmetadata', function() {
+                // This often triggers the first frame to show
+                this.currentTime = 0.1;
+              });
+              
+              // Handle error - fallback to gradient if video won't load
+              video.addEventListener('error', function() {
+                console.log('Video failed to load, using fallback:', videoUrl);
+                // Replace with a nice gradient placeholder
                 videoContainer.innerHTML = `
-                  <div class="video-placeholder mobile-video-placeholder">
-                    <div class="video-thumbnail">
-                      <div class="video-icon">🎬</div>
-                      <div class="video-text">Tap to play video</div>
+                  <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                    <div style="text-align: center; color: white;">
+                      <div style="font-size: 32px; margin-bottom: 8px;">🎬</div>
+                      <div style="font-size: 12px; font-weight: 500; opacity: 0.9;">Example ${index + 1}</div>
                     </div>
                   </div>
                   <div class="play-button"></div>
-                  <video style="display: none;" data-src="${videoUrl}">
+                  <video style="display: none;" preload="none" playsinline webkit-playsinline muted>
                     <source src="${videoUrl}" type="video/mp4">
                   </video>
                 `;
-              } else {
-                // For desktop: try to load video preview
-                videoContainer.innerHTML = `
-                  <video class="video-placeholder" preload="metadata" muted>
-                    <source src="${videoUrl}" type="video/mp4">
-                    Your browser does not support the video tag.
-                  </video>
-                  <div class="play-button"></div>
-                `;
-                
-                // Try to load the first frame on desktop
-                const video = videoContainer.querySelector('video');
-                video.addEventListener('loadeddata', function() {
-                  this.currentTime = 1; // Jump to 1 second to get a better frame
-                });
-              }
+              });
               
               videoRow.appendChild(videoContainer);
             });
@@ -920,7 +919,7 @@
     let currentDeadlineFilter = 'all';
     let currentRewardFilter = 'all';
 
-    // Load jobs on page load (replace the existing loadJobs function in jobs.html)
+    // Load jobs on page load
     async function loadJobs() {
       try {
         // Get shop from URL path or fallback to query params for backward compatibility
@@ -1241,56 +1240,46 @@
       }
     }
 
-    // Play video function
+    // SIMPLIFIED playVideo function
     function playVideo(container) {
       const video = container.querySelector('video');
       const playButton = container.querySelector('.play-button');
-      const placeholder = container.querySelector('.mobile-video-placeholder');
       
-      // Check if this is a mobile placeholder
-      if (placeholder && video.style.display === 'none') {
-        // Mobile: Load the video source and show it
-        const dataSrc = video.getAttribute('data-src');
-        if (dataSrc && !video.src) {
-          video.src = dataSrc;
-        }
-        
-        // Hide placeholder and show video
-        placeholder.style.display = 'none';
-        video.style.display = 'block';
-        video.controls = true;
-        video.play();
-        container.classList.add('playing');
-        
-        // When video ends, show placeholder again
-        video.addEventListener('ended', function() {
-          placeholder.style.display = 'flex';
-          video.style.display = 'none';
-          video.controls = false;
+      if (!video) return;
+      
+      // If video is showing a frame (not in error state)
+      if (video.classList.contains('video-placeholder')) {
+        if (video.paused) {
+          video.controls = true;
+          video.play();
+          container.classList.add('playing');
+        } else {
+          video.pause();
           container.classList.remove('playing');
-        });
-      } else if (video.paused) {
-        // Desktop: normal video play/pause
-        video.play();
-        container.classList.add('playing');
-        video.controls = true;
+        }
       } else {
-        video.pause();
-        container.classList.remove('playing');
-        video.controls = false;
+        // Fallback for gradient placeholders (error state)
+        const placeholder = container.querySelector('.video-placeholder');
+        if (placeholder && video.style.display === 'none') {
+          placeholder.style.display = 'none';
+          video.style.display = 'block';
+          video.style.width = '100%';
+          video.style.height = '100%';
+          video.style.objectFit = 'cover';
+          video.controls = true;
+          video.load();
+          video.play().catch(e => {
+            console.log('Video play failed:', e);
+            video.controls = true;
+          });
+          container.classList.add('playing');
+        }
       }
     }
     
     // Add event listeners for video ended
     document.addEventListener('DOMContentLoaded', function() {
-      const videos = document.querySelectorAll('.video-placeholder');
-      videos.forEach(video => {
-        video.addEventListener('ended', function() {
-          const container = this.closest('.video-container');
-          container.classList.remove('playing');
-          this.controls = false;
-        });
-      });
+      // Will be handled by individual video elements as they're created
     });
 
     // Load jobs on page load
