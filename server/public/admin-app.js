@@ -428,7 +428,7 @@ function createSubmissionsTable(submissions) {
 function createSubmissionRow(sub) {
   return `
     <tr>
-      <td>#${sub.id}</td>
+      <td>#${sub.shop_submission_number || sub.id}</td>
       <td>${new Date(sub.createdAt).toLocaleDateString()}</td>
       <td>${sub.customerEmail}</td>
       <td>${sub.type}</td>

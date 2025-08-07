@@ -146,7 +146,7 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
                   <li><strong>Customer:</strong> ${submission.customer_email}</li>
                   <li><strong>Amount:</strong> $${job.reward_giftcard_amount}</li>
                   <li><strong>Job:</strong> ${job.title}</li>
-                  <li><strong>Submission ID:</strong> ${submission.id}</li>
+                  <li><strong>Submission ID:</strong> #${submission.shop_submission_number || submission.id}</li>
                 </ul>
                 <p><strong>Action Required:</strong></p>
                 <ol>

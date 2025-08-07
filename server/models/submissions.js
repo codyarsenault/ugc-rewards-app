@@ -57,6 +57,9 @@ export const SubmissionsModel = {
 
   // Create new submission with shop domain
   async create(submission) {
+    // Get the next submission number for this shop
+    const shopSubmissionNumber = await this.getNextShopSubmissionNumber(submission.shopDomain);
+    
     const query = `
       INSERT INTO submissions (
         customer_email, 
@@ -66,9 +69,10 @@ export const SubmissionsModel = {
         status, 
         job_id, 
         shop_domain,
+        shop_submission_number,
         created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       RETURNING *
     `;
     const values = [
@@ -78,10 +82,26 @@ export const SubmissionsModel = {
       submission.mediaUrl,
       submission.status || 'pending',
       submission.jobId || null,
-      submission.shopDomain || null
+      submission.shopDomain || null,
+      shopSubmissionNumber
     ];
     const result = await pool.query(query, values);
     return result.rows[0];
+  },
+
+  // Get the next submission number for a specific shop
+  async getNextShopSubmissionNumber(shopDomain) {
+    if (!shopDomain) {
+      return 1; // Default to 1 if no shop domain
+    }
+    
+    const query = `
+      SELECT COALESCE(MAX(shop_submission_number), 0) + 1 as next_number
+      FROM submissions 
+      WHERE shop_domain = $1
+    `;
+    const result = await pool.query(query, [shopDomain]);
+    return result.rows[0].next_number;
   },
 
   // Create job submission link

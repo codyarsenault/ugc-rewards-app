@@ -161,6 +161,30 @@ async function migrate() {
       ALTER TABLE submissions ADD COLUMN IF NOT EXISTS shop_domain VARCHAR(255);
     `);
 
+    // Add shop_submission_number column to submissions if it doesn't exist
+    console.log('Adding shop_submission_number column to submissions table if needed...');
+    await client.query(`
+      ALTER TABLE submissions ADD COLUMN IF NOT EXISTS shop_submission_number INTEGER;
+    `);
+
+    // Populate shop_submission_number for existing submissions
+    console.log('Populating shop_submission_number for existing submissions...');
+    await client.query(`
+      WITH numbered_submissions AS (
+        SELECT 
+          id,
+          shop_domain,
+          ROW_NUMBER() OVER (PARTITION BY shop_domain ORDER BY created_at ASC, id ASC) as submission_number
+        FROM submissions 
+        WHERE shop_domain IS NOT NULL
+      )
+      UPDATE submissions 
+      SET shop_submission_number = numbered_submissions.submission_number
+      FROM numbered_submissions 
+      WHERE submissions.id = numbered_submissions.id
+        AND submissions.shop_submission_number IS NULL;
+    `);
+
     // Update existing submissions with shop domain from their jobs
     console.log('Migrating shop domains for existing submissions...');
     await client.query(`
