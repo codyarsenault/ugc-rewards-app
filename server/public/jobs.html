@@ -156,7 +156,7 @@
       transition: all 0.3s ease;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       z-index: 2;
-      pointer-events: auto; /* Ensure it can be clicked */
+      pointer-events: auto;
     }
     
     .play-button:hover {
@@ -175,11 +175,9 @@
       margin-left: 3px;
     }
     
-    /* Hide custom play button when video is playing OR has controls visible */
-    .video-container.playing .play-button,
-    .video-container video:not([paused]) ~ .play-button {
-      opacity: 0;
-      pointer-events: none;
+    /* Only hide play button when video is actually playing */
+    .video-container.playing .play-button {
+      display: none !important;
     }
     
     @keyframes float {
@@ -1109,6 +1107,7 @@
         return 'Free ' + (job.reward_product || 'product');
       }
     }
+
     
     // Check if content is a video URL
     function isVideoUrl(content) {
@@ -1252,14 +1251,14 @@
       // Check if mobile
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
-      // Hide our custom play button once clicked
-      if (playButton) {
-        playButton.style.display = 'none';
-      }
-      
       // If video is showing a frame (not in error state)
       if (video.classList.contains('video-placeholder')) {
         if (video.paused) {
+          // Hide our custom play button when starting playback
+          if (playButton) {
+            playButton.style.display = 'none';
+          }
+          
           video.controls = true;
           video.muted = false; // Unmute the video
           video.volume = 1.0; // Set volume to max
@@ -1270,7 +1269,6 @@
             
             // On mobile, DON'T automatically go fullscreen
             // Let the user use the fullscreen button in controls if they want
-            // This allows them to watch inline or fullscreen as they prefer
             
           }).catch(e => {
             console.log('Video play failed:', e);
@@ -1286,6 +1284,10 @@
             }).catch(err => {
               console.log('Even muted play failed:', err);
               video.controls = true;
+              // Show play button again if play failed
+              if (playButton) {
+                playButton.style.display = 'flex';
+              }
             });
           });
         } else {
@@ -1296,6 +1298,11 @@
         // Fallback for gradient placeholders (error state)
         const placeholder = container.querySelector('.video-placeholder');
         if (placeholder && video.style.display === 'none') {
+          // Hide custom play button
+          if (playButton) {
+            playButton.style.display = 'none';
+          }
+          
           placeholder.style.display = 'none';
           video.style.display = 'block';
           video.style.width = '100%';
@@ -1322,6 +1329,10 @@
             }).catch(err => {
               console.log('Even muted play failed:', err);
               video.controls = true;
+              // Show play button again if play failed
+              if (playButton) {
+                playButton.style.display = 'flex';
+              }
             });
           });
         }
@@ -1341,7 +1352,7 @@
       video.addEventListener('ended', function() {
         container.classList.remove('playing');
         // Optionally show custom play button again when video ends
-        if (playButton) playButton.style.display = 'flex';
+        // if (playButton) playButton.style.display = 'flex';
       });
       
       // Optional: Add double-tap to fullscreen for mobile
