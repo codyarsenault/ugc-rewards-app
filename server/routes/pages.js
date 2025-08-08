@@ -99,8 +99,8 @@ router.get('/', (req, res) => {
         #pricing { padding-top: 0px; padding-bottom: 100px; }
         .center { text-align: center; }
         .subtitle { color: var(--muted); margin: 6px 0 28px; }
-        .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-        .f-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 26px; transition: transform .2s ease; }
+        .f-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; width: 100%; }
+        .f-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 26px; transition: transform .2s ease; width: 100%; min-width: 0; }
         .f-card:hover { transform: translateY(-4px); }
         .icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 14px; background: linear-gradient(135deg, #7dd3fc33, #c084fc33); border: 1px solid var(--border); }
         .f-card h3 { margin: 6px 0 8px; }
@@ -133,7 +133,7 @@ router.get('/', (req, res) => {
           .cta-row { justify-content: center; }
           h1 { font-size: 44px; }
           .grid { grid-template-columns: repeat(5, 1fr); }
-          .f-grid { grid-template-columns: repeat(2, 1fr); }
+          .f-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
           .steps { grid-template-columns: repeat(2, 1fr); }
           section { padding: 96px 0; }
           .panel { margin-top: 10px; }
@@ -421,8 +421,8 @@ router.get('/home', (req, res) => {
         section { padding: 72px 0; }
         .center { text-align: center; }
         .subtitle { color: var(--muted); margin: 6px 0 28px; }
-        .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-        .f-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 26px; transition: transform .2s ease; }
+        .f-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; width: 100%; }
+        .f-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 26px; transition: transform .2s ease; width: 100%; min-width: 0; }
         .f-card:hover { transform: translateY(-4px); }
         .icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 14px; background: linear-gradient(135deg, #7dd3fc33, #c084fc33); border: 1px solid var(--border); }
         .f-card h3 { margin: 6px 0 8px; }
@@ -455,7 +455,7 @@ router.get('/home', (req, res) => {
           .cta-row { justify-content: center; }
           h1 { font-size: 44px; }
           .grid { grid-template-columns: repeat(5, 1fr); }
-          .f-grid { grid-template-columns: repeat(2, 1fr); }
+          .f-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
           .steps { grid-template-columns: repeat(2, 1fr); }
           section { padding: 96px 0; }
           .panel { margin-top: 10px; }
