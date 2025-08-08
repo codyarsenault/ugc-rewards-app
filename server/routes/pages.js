@@ -51,7 +51,7 @@ router.get('/', (req, res) => {
         .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 0.3px; }
         .brand .logo { width: 28px; height: 28px; border-radius: 6px; background: transparent url('/assets/logo.png') center/cover no-repeat; box-shadow: none; }
         .nav-links { display: flex; gap: 22px; align-items: center; }
-        .nav-links a { color: var(--muted); font-weight: 600; }
+        .nav-links a { font-weight: 600; }
         .nav-links a:hover { color: var(--text); }
         .install { background: linear-gradient(135deg, #7dd3fc, #c084fc); color: #0b0d12; padding: 10px 16px; border-radius: 10px; font-weight: 800; box-shadow: 0 6px 22px rgba(125,211,252,0.25); }
 
