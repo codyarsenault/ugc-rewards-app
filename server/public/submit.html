@@ -807,6 +807,8 @@
         return '$' + job.reward_value + ' off';
       } else if (job.reward_type === 'giftcard') {
         return '$' + (job.reward_giftcard_amount || '') + ' gift card';
+      } else if (job.reward_type === 'cash') {
+        return '$' + (job.reward_cash_amount || job.reward_value || 0) + ' cash';
       } else {
         return 'Free ' + (job.reward_product || 'product');
       }
