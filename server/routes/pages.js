@@ -43,7 +43,7 @@ router.get('/', (req, res) => {
         nav { position: sticky; top: 0; z-index: 50; background: rgba(11,13,18,0.6); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
         .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
         .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 0.3px; }
-        .brand .logo { width: 28px; height: 28px; border-radius: 8px; background: conic-gradient(from 180deg, #7dd3fc, #c084fc, #7dd3fc); box-shadow: 0 0 24px rgba(125,211,252,0.35); }
+        .brand .logo { width: 28px; height: 28px; border-radius: 6px; background: transparent url('/assets/logo.png') center/cover no-repeat; box-shadow: none; }
         .nav-links { display: flex; gap: 22px; align-items: center; }
         .nav-links a { color: var(--muted); font-weight: 600; }
         .nav-links a:hover { color: var(--text); }
@@ -60,14 +60,14 @@ router.get('/', (req, res) => {
         .cta-primary { background: linear-gradient(135deg, #7dd3fc, #c084fc); color: #0b0d12; padding: 14px 20px; border-radius: 12px; font-weight: 800; }
         .cta-secondary { border: 1px solid var(--border); padding: 14px 18px; border-radius: 12px; color: var(--text); font-weight: 700; }
         .badges { display: flex; gap: 12px; margin-top: 18px; color: var(--muted); font-size: 12px; }
-        .badge { padding: 6px 10px; border: 1px dashed var(--border); border-radius: 999px; }
+        .badge { padding: 6px 10px; border: 1px dashed var(--border); border-radius: 999px; white-space: nowrap; }
 
         /* Visual */
         .panel { position: relative; border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
         .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
         .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 11px; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 8px; border-radius: 999px; font-weight: 700; }
+        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 11px; line-height: 1; white-space: nowrap; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 10px; border-radius: 999px; font-weight: 700; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
@@ -75,7 +75,7 @@ router.get('/', (req, res) => {
         .kpi .big { font-size: 24px; font-weight: 800; color: var(--text); }
 
         /* Features */
-        section { padding: 72px 0; }
+        section { padding: 96px 0; }
         .center { text-align: center; }
         .subtitle { color: var(--muted); margin: 6px 0 28px; }
         .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
@@ -91,7 +91,7 @@ router.get('/', (req, res) => {
         .num { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg,#7dd3fc,#c084fc); color:#0b0d12; width: 30px; height:30px; display:grid; place-items:center; border-radius:999px; font-weight:800; }
 
         /* CTA */
-        .cta { background: radial-gradient(800px 400px at 50% 0%, rgba(125,211,252,0.15), transparent); text-align: center; border-top: 1px solid var(--border); }
+        .cta { background: radial-gradient(800px 400px at 50% 0%, rgba(125,211,252,0.15), transparent); text-align: center; border-top: 1px solid var(--border); padding: 120px 0; }
         .cta h2 { font-size: 40px; margin: 0 0 10px; }
         .cta p { color: var(--muted); margin: 0 0 24px; }
 
@@ -119,7 +119,7 @@ router.get('/', (req, res) => {
               <a href="#features">Features</a>
               <a href="#how">How it works</a>
               <a href="#pricing">Pricing</a>
-              <a class="install" href="/install">Install App</a>
+              <a class="install" href="https://apps.shopify.com/honest-ugc" target="_blank">Install App</a>
             </div>
           </div>
         </nav>
@@ -301,7 +301,7 @@ router.get('/home', (req, res) => {
         nav { position: sticky; top: 0; z-index: 50; background: rgba(11,13,18,0.6); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
         .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
         .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 0.3px; }
-        .brand .logo { width: 28px; height: 28px; border-radius: 8px; background: conic-gradient(from 180deg, #7dd3fc, #c084fc, #7dd3fc); box-shadow: 0 0 24px rgba(125,211,252,0.35); }
+        .brand .logo { width: 28px; height: 28px; border-radius: 6px; background: transparent url('/assets/logo.png') center/cover no-repeat; box-shadow: none; }
         .nav-links { display: flex; gap: 22px; align-items: center; }
         .nav-links a { color: var(--muted); font-weight: 600; }
         .nav-links a:hover { color: var(--text); }
@@ -325,7 +325,7 @@ router.get('/home', (req, res) => {
         .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
         .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 11px; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 8px; border-radius: 999px; font-weight: 700; }
+        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 11px; line-height: 1; white-space: nowrap; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 10px; border-radius: 999px; font-weight: 700; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
@@ -528,54 +528,49 @@ router.get('/home', (req, res) => {
 router.get('/privacy', (req, res) => {
   res.send(`
     <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Privacy Policy - Honest UGC</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-            line-height: 1.6;
-            color: #333;
-          }
-          h1, h2 { color: #202223; }
-          a { color: #008060; text-decoration: none; }
-          a:hover { text-decoration: underline; }
-        </style>
-      </head>
-      <body>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Privacy Policy - Honest UGC</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <style>
+        :root{--bg:#0b0d12;--panel:#0f1218;--muted:#98a2b3;--text:#e6e8ec;--border:rgba(255,255,255,0.08)}
+        body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+        .max{max-width:900px;margin:0 auto;padding:40px 20px}
+        a{color:#7dd3fc;text-decoration:none}
+        h1{margin:0 0 8px}
+        .card{background:linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);border:1px solid var(--border);border-radius:16px;padding:28px}
+        ul{line-height:1.8}
+      </style>
+    </head>
+    <body>
+      <div class="max">
         <h1>Privacy Policy</h1>
-        <p>Last updated: ${new Date().toLocaleDateString()}</p>
-        
-        <h2>Information We Collect</h2>
-        <p>Honest UGC collects information necessary to provide our services:</p>
-        <ul>
-          <li>Store information from Shopify (store name, email)</li>
-          <li>Customer submissions (email, content, media files)</li>
-          <li>Usage data to improve our services</li>
-        </ul>
-        
-        <h2>How We Use Information</h2>
-        <p>We use collected information to:</p>
-        <ul>
-          <li>Process and manage UGC submissions</li>
-          <li>Send reward emails to customers</li>
-          <li>Provide customer support</li>
-          <li>Improve our services</li>
-        </ul>
-        
-        <h2>Data Security</h2>
-        <p>We implement appropriate security measures to protect your data. All data is transmitted over secure HTTPS connections.</p>
-        
-        <h2>Contact Us</h2>
-        <p>If you have questions about this privacy policy, please contact us through your Shopify admin.</p>
-        
-        <p><a href="/">← Back to Home</a></p>
-      </body>
+        <div style="color:var(--muted);margin-bottom:20px;">Last updated: ${new Date().toLocaleDateString()}</div>
+        <div class="card">
+          <h2>Information We Collect</h2>
+          <ul>
+            <li>Store information from Shopify (store name, email, plan)</li>
+            <li>UGC submissions (customer email, type, content, media)</li>
+            <li>Operational data (timestamps, IP for abuse prevention)</li>
+          </ul>
+          <h2>How We Use Information</h2>
+          <ul>
+            <li>Process, review, and manage submissions</li>
+            <li>Send transactional and reward emails</li>
+            <li>Provide support and improve the product</li>
+          </ul>
+          <h2>Security</h2>
+          <p>All data is transmitted over HTTPS. Access to data is limited and audited. Media can be stored in secure object storage (e.g., AWS S3) with signed URLs.</p>
+          <h2>Data Retention & Deletion</h2>
+          <p>We retain data only as long as needed to operate the service. Merchants can request deletion via support; uninstalling the app initiates shop data cleanup.</p>
+          <h2>Contact</h2>
+          <p>Questions? Email <a href="mailto:support@honestugc.com">support@honestugc.com</a>.</p>
+        </div>
+        <p style="margin-top:20px;"><a href="/home">← Back to Home</a></p>
+      </div>
+    </body>
     </html>
   `);
 });
@@ -584,51 +579,47 @@ router.get('/privacy', (req, res) => {
 router.get('/terms', (req, res) => {
   res.send(`
     <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Terms of Service - Honest UGC</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-            line-height: 1.6;
-            color: #333;
-          }
-          h1, h2 { color: #202223; }
-          a { color: #008060; text-decoration: none; }
-          a:hover { text-decoration: underline; }
-        </style>
-      </head>
-      <body>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Terms of Service - Honest UGC</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <style>
+        :root{--bg:#0b0d12;--panel:#0f1218;--muted:#98a2b3;--text:#e6e8ec;--border:rgba(255,255,255,0.08)}
+        body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+        .max{max-width:900px;margin:0 auto;padding:40px 20px}
+        a{color:#7dd3fc;text-decoration:none}
+        h1{margin:0 0 8px}
+        .card{background:linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);border:1px solid var(--border);border-radius:16px;padding:28px}
+        ul{line-height:1.8}
+      </style>
+    </head>
+    <body>
+      <div class="max">
         <h1>Terms of Service</h1>
-        <p>Last updated: ${new Date().toLocaleDateString()}</p>
-        
-        <h2>Acceptance of Terms</h2>
-        <p>By using Honest UGC, you agree to these terms of service.</p>
-        
-        <h2>Description of Service</h2>
-        <p>Honest UGC is a Shopify app that helps stores collect and manage user-generated content with automated rewards.</p>
-        
-        <h2>User Responsibilities</h2>
-        <ul>
-          <li>Provide accurate information</li>
-          <li>Comply with all applicable laws</li>
-          <li>Respect intellectual property rights</li>
-          <li>Not use the service for deceptive or harmful purposes</li>
-        </ul>
-        
-        <h2>Limitation of Liability</h2>
-        <p>Honest UGC is provided "as is" without warranties. We are not liable for any damages arising from use of our service.</p>
-        
-        <h2>Contact</h2>
-        <p>For questions about these terms, contact us through your Shopify admin.</p>
-        
-        <p><a href="/">← Back to Home</a></p>
-      </body>
+        <div style="color:var(--muted);margin-bottom:20px;">Last updated: ${new Date().toLocaleDateString()}</div>
+        <div class="card">
+          <h2>Agreement</h2>
+          <p>By installing or using Honest UGC, you agree to these Terms and our Privacy Policy.</p>
+          <h2>Service</h2>
+          <p>Honest UGC enables merchants to collect, review, and manage user‑generated content with optional rewards.</p>
+          <h2>Merchant Responsibilities</h2>
+          <ul>
+            <li>Comply with all applicable laws and platform policies</li>
+            <li>Own or have rights to use/repost submitted content</li>
+            <li>Provide accurate information and maintain account security</li>
+          </ul>
+          <h2>Limitations</h2>
+          <p>Services are provided “as is.” We disclaim implied warranties to the fullest extent permitted by law. We are not liable for indirect or consequential damages.</p>
+          <h2>Termination</h2>
+          <p>You may uninstall at any time. We may suspend access for abuse, non‑payment, or security issues.</p>
+          <h2>Contact</h2>
+          <p>For questions about these terms, contact <a href="mailto:support@honestugc.com">support@honestugc.com</a>.</p>
+        </div>
+        <p style="margin-top:20px;"><a href="/home">← Back to Home</a></p>
+      </div>
+    </body>
     </html>
   `);
 });

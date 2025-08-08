@@ -948,6 +948,11 @@ app.use('/contact', pageRoutes);
 app.use('/privacy', pageRoutes);
 app.use('/terms', pageRoutes);
 
+// Serve logo asset from repo root
+app.get('/assets/logo.png', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'honestugc-logo.png'));
+});
+
 
 
 // Error handling
