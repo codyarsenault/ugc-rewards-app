@@ -183,7 +183,7 @@ router.get('/', (req, res) => {
               <h1>Turn customers into a <span class="hgrad">constant UGC engine</span></h1>
               <p class="lead">Run lightweight UGC campaigns, collect real photos/videos, and automatically reward your customers. More trust. More content. More sales.</p>
               <div class="cta-row">
-                <a class="cta-primary" href="/install">Start free on Shopify</a>
+                <a class="cta-primary" href="https://apps.shopify.com/honest-ugc" target="_blank">Start free on Shopify</a>
                 <a class="cta-secondary" href="#how">See how it works</a>
               </div>
               <div class="badges">
@@ -270,7 +270,7 @@ router.get('/', (req, res) => {
               <div style="font-weight:800;font-size:22px;">Starter</div>
               <div style="font-size:44px;font-weight:800;margin:8px 0;">$19<span style="font-size:14px;color:var(--muted);">/mo</span></div>
               <div style="color:var(--muted);margin:10px 0 18px;">Everything you need to begin collecting UGC</div>
-              <a class="cta-secondary" href="/install" style="display:inline-block;">Start free</a>
+              <a class="cta-secondary" href="https://apps.shopify.com/honest-ugc" target="_blank" style="display:inline-block;">Start free</a>
             </div>
             <div class="f-card" style="text-align:center;border-color:rgba(125,211,252,0.35);box-shadow:0 10px 40px rgba(125,211,252,0.15)">
               <div style="font-weight:800;font-size:22px;">Growth</div>
