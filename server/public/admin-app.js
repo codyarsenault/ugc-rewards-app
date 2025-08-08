@@ -757,6 +757,10 @@ function populateJobForm(job) {
   document.getElementById('rewardValue').value = job.reward_value;
   document.getElementById('rewardProduct').value = job.reward_product || '';
   document.getElementById('rewardGiftCardAmount').value = job.reward_giftcard_amount || '';
+  const cashEl = document.getElementById('rewardCashAmount');
+  if (cashEl) {
+    cashEl.value = job.reward_cash_amount || '';
+  }
   
   if (job.reward_type === 'product' && job.reward_product) {
     populateProductInfo(job);
