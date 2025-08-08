@@ -357,7 +357,7 @@ router.get('/home', (req, res) => {
 
         /* Nav */
         nav { position: sticky; top: 0; z-index: 50; background: rgba(11,13,18,0.6); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
-        .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
+        .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px; }
         .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 0.3px; }
         .brand .logo { width: 28px; height: 28px; border-radius: 6px; background: transparent url('/assets/logo.png') center/cover no-repeat; box-shadow: none; }
         .nav-links { display: flex; gap: 22px; align-items: center; }
