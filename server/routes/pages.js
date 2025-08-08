@@ -143,7 +143,14 @@ router.get('/', (req, res) => {
           .trust { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 640px) {
+          body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+          .max { padding-left: 16px !important; padding-right: 16px !important; margin-left: auto; margin-right: auto; }
+          @supports (padding: max(0px)) {
+            .max { padding-left: max(16px, env(safe-area-inset-left)) !important; padding-right: max(16px, env(safe-area-inset-right)) !important; }
+          }
           .hero, section { overflow-x: hidden; }
+          .hero-grid, .badges, .trust, .panel { margin-left: auto; margin-right: auto; }
+          .trust, .badges { width: 100%; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
           section { padding: 80px 0; }
@@ -457,11 +464,14 @@ router.get('/home', (req, res) => {
           .trust { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 640px) {
+          body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
           .max { padding-left: 16px !important; padding-right: 16px !important; margin-left: auto; margin-right: auto; }
           @supports (padding: max(0px)) {
             .max { padding-left: max(16px, env(safe-area-inset-left)) !important; padding-right: max(16px, env(safe-area-inset-right)) !important; }
           }
           .hero, section { overflow-x: hidden; }
+          .hero-grid, .badges, .trust, .panel { margin-left: auto; margin-right: auto; }
+          .trust, .badges { width: 100%; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
           section { padding: 80px 0; }
