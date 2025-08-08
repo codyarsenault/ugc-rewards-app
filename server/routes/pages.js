@@ -94,7 +94,7 @@ router.get('/', (req, res) => {
         .kpi .big { font-size: 24px; font-weight: 800; color: var(--text); }
 
         /* Features */
-        section { padding: 110px 0; }
+        section { padding: 20px 0; }
         #how { padding-top: 100px; padding-bottom: 100px; }
         #pricing { padding-top: 0px; padding-bottom: 100px; }
         .center { text-align: center; }
