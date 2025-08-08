@@ -42,8 +42,11 @@ router.get('/', (req, res) => {
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow-x: hidden; }
         a { color: inherit; text-decoration: none; }
-        .wrap { position: relative; min-height: 100vh; background: var(--grad); }
+        .wrap { position: relative; min-height: 100vh; background: var(--grad); overflow-x: hidden; }
         .max { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        @supports (padding: max(0px)) {
+          .max { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+        }
 
         /* Nav */
         nav { position: sticky; top: 0; z-index: 50; background: rgba(11,13,18,0.6); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
@@ -141,6 +144,9 @@ router.get('/', (req, res) => {
         }
         @media (max-width: 640px) {
           .max { padding: 0 16px; }
+          @supports (padding: max(0px)) {
+            .max { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+          }
           .hero, section { overflow-x: hidden; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
@@ -356,8 +362,11 @@ router.get('/home', (req, res) => {
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow-x: hidden; }
         a { color: inherit; text-decoration: none; }
-        .wrap { position: relative; min-height: 100vh; background: var(--grad); }
+        .wrap { position: relative; min-height: 100vh; background: var(--grad); overflow-x: hidden; }
         .max { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        @supports (padding: max(0px)) {
+          .max { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+        }
 
         /* Nav */
         nav { position: sticky; top: 0; z-index: 50; background: rgba(11,13,18,0.6); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
@@ -453,6 +462,9 @@ router.get('/home', (req, res) => {
         }
         @media (max-width: 640px) {
           .max { padding: 0 16px; }
+          @supports (padding: max(0px)) {
+            .max { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+          }
           .hero, section { overflow-x: hidden; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
