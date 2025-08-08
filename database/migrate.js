@@ -153,10 +153,40 @@ async function migrate() {
          END LOOP;
        END$$;
      `);
-    await client.query(`
-      ALTER TABLE jobs
-      ADD CONSTRAINT jobs_reward_type_check CHECK (reward_type IN ('percentage','fixed','product','giftcard','cash'));
-    `);
+        await client.query(`
+       DO $$
+       DECLARE conname text; clause text;
+       BEGIN
+         -- Try to get named constraint first
+         SELECT tc.constraint_name, cc.check_clause INTO conname, clause
+         FROM information_schema.table_constraints tc
+         JOIN information_schema.check_constraints cc ON tc.constraint_name = cc.constraint_name
+         WHERE tc.table_name='jobs' AND tc.constraint_type='CHECK' AND tc.constraint_name='jobs_reward_type_check';
+
+         -- If not found, find any reward_type check constraint
+         IF conname IS NULL THEN
+           SELECT tc.constraint_name, cc.check_clause INTO conname, clause
+           FROM information_schema.table_constraints tc
+           JOIN information_schema.check_constraints cc ON tc.constraint_name = cc.constraint_name
+           WHERE tc.table_name='jobs' AND tc.constraint_type='CHECK' AND cc.check_clause ILIKE '%reward_type%'
+           LIMIT 1;
+         END IF;
+
+         IF conname IS NULL THEN
+           -- No existing constraint, add fresh
+           EXECUTE 'ALTER TABLE jobs ADD CONSTRAINT jobs_reward_type_check CHECK (reward_type IN (''percentage'',''fixed'',''product'',''giftcard'',''cash''))';
+         ELSE
+           -- If it already includes cash, do nothing; else replace
+           IF clause ILIKE '%cash%' THEN
+             -- already supports cash
+             PERFORM 1;
+           ELSE
+             EXECUTE format('ALTER TABLE jobs DROP CONSTRAINT %I', conname);
+             EXECUTE 'ALTER TABLE jobs ADD CONSTRAINT jobs_reward_type_check CHECK (reward_type IN (''percentage'',''fixed'',''product'',''giftcard'',''cash''))';
+           END IF;
+         END IF;
+       END$$;
+     `);
     await client.query(`
       ALTER TABLE jobs ADD COLUMN IF NOT EXISTS reward_cash_amount NUMERIC(10,2);
     `);
