@@ -347,12 +347,12 @@ function updateSubmissionStats() {
   
   const pendingCount = allSubmissions.filter(s => 
     s.status === 'pending' || 
-    (s.status === 'approved' && s.reward_type === 'giftcard' && !s.reward_fulfilled)
+    (s.status === 'approved' && (s.reward_type === 'giftcard' || s.reward_type === 'cash') && !s.reward_fulfilled)
   ).length;
   
   const approvedCount = allSubmissions.filter(s => 
     s.status === 'approved' && 
-    (s.reward_type !== 'giftcard' || s.reward_fulfilled)
+    ((s.reward_type !== 'giftcard' && s.reward_type !== 'cash') || s.reward_fulfilled)
   ).length;
   
   document.getElementById('pendingCount').textContent = pendingCount;
@@ -389,12 +389,12 @@ function filterSubmissionsByStatus() {
   } else if (currentSubmissionFilter === 'pending') {
     return allSubmissions.filter(s => 
       s.status === 'pending' || 
-      (s.status === 'approved' && s.reward_type === 'giftcard' && !s.reward_fulfilled)
+      (s.status === 'approved' && (s.reward_type === 'giftcard' || s.reward_type === 'cash') && !s.reward_fulfilled)
     );
   } else if (currentSubmissionFilter === 'approved') {
     return allSubmissions.filter(s => 
       s.status === 'approved' && 
-      (s.reward_type !== 'giftcard' || s.reward_fulfilled)
+      ((s.reward_type !== 'giftcard' && s.reward_type !== 'cash') || s.reward_fulfilled)
     );
   } else {
     return allSubmissions.filter(s => s.status === currentSubmissionFilter);
@@ -467,6 +467,15 @@ function createSubmissionActions(sub) {
       <div style="margin-top: 8px;">
         <button onclick="sendGiftCard(${sub.id})" class="btn btn-${sub.reward_fulfilled ? 'secondary' : 'primary'} btn-sm">
           ${sub.reward_fulfilled ? 'Resend' : 'Send'} Gift Card Email
+        </button>
+      </div>
+    `;
+  } else if (sub.status === 'approved' && sub.reward_type === 'cash') {
+    actions += `
+      <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
+        <input type="text" id="paypalTx_${sub.id}" class="input-sm" placeholder="PayPal Transaction ID" value="${sub.reward_paypal_transaction_id ? sub.reward_paypal_transaction_id : ''}" style="min-width: 180px;">
+        <button onclick="markCashFulfilled(${sub.id})" class="btn btn-${sub.reward_fulfilled ? 'secondary' : 'primary'} btn-sm" style="width: auto;">
+          ${sub.reward_fulfilled ? 'Update' : 'Mark'} Transaction ID
         </button>
       </div>
     `;
@@ -703,6 +712,8 @@ function formatReward(job) {
     return '$' + job.reward_value + ' off';
   } else if (job.reward_type === 'giftcard') {
     return '$' + job.reward_giftcard_amount + ' gift card';
+  } else if (job.reward_type === 'cash') {
+    return '$' + (job.reward_cash_amount || job.reward_value || 0) + ' cash';
   } else {
     return 'Free ' + (job.reward_product || 'product');
   }
@@ -791,29 +802,59 @@ window.updateRewardFields = function() {
   const valueGroup = document.getElementById('rewardValueGroup');
   const productGroup = document.getElementById('rewardProductGroup');
   const giftCardGroup = document.getElementById('rewardGiftCardGroup');
+  let cashGroup = document.getElementById('rewardCashGroup');
+  if (!cashGroup) {
+    // Create cash group on the fly if not present (defensive)
+    const container = valueGroup.parentElement;
+    cashGroup = document.createElement('div');
+    cashGroup.className = 'form-group';
+    cashGroup.id = 'rewardCashGroup';
+    cashGroup.style.display = 'none';
+    cashGroup.innerHTML = `
+      <label for="rewardCashAmount">Cash Amount*</label>
+      <input type="number" id="rewardCashAmount" name="rewardCashAmount" min="1" placeholder="Amount in $">
+    `;
+    container.appendChild(cashGroup);
+  }
   
   if (rewardType === 'product') {
     valueGroup.style.display = 'none';
     productGroup.style.display = 'block';
     giftCardGroup.style.display = 'none';
+    cashGroup.style.display = 'none';
     document.getElementById('rewardValue').required = false;
     document.getElementById('rewardProduct').required = true;
     document.getElementById('rewardGiftCardAmount').required = false;
+    document.getElementById('rewardCashAmount') && (document.getElementById('rewardCashAmount').required = false);
   } else if (rewardType === 'giftcard') {
     valueGroup.style.display = 'none';
     productGroup.style.display = 'none';
     giftCardGroup.style.display = 'block';
+    cashGroup.style.display = 'none';
     document.getElementById('rewardValue').required = false;
     document.getElementById('rewardProduct').required = false;
     document.getElementById('rewardGiftCardAmount').required = true;
+    document.getElementById('rewardCashAmount') && (document.getElementById('rewardCashAmount').required = false);
+    clearProductSelection();
+  } else if (rewardType === 'cash') {
+    valueGroup.style.display = 'none';
+    productGroup.style.display = 'none';
+    giftCardGroup.style.display = 'none';
+    cashGroup.style.display = 'block';
+    document.getElementById('rewardValue').required = false;
+    document.getElementById('rewardProduct').required = false;
+    document.getElementById('rewardGiftCardAmount').required = false;
+    document.getElementById('rewardCashAmount').required = true;
     clearProductSelection();
   } else {
     valueGroup.style.display = 'block';
     productGroup.style.display = 'none';
     giftCardGroup.style.display = 'none';
+    cashGroup.style.display = 'none';
     document.getElementById('rewardValue').required = true;
     document.getElementById('rewardProduct').required = false;
     document.getElementById('rewardGiftCardAmount').required = false;
+    document.getElementById('rewardCashAmount') && (document.getElementById('rewardCashAmount').required = false);
     const label = rewardType === 'percentage' ? 'Discount Percentage' : 'Amount Off ($)';
     valueGroup.querySelector('label').textContent = label + '*';
     clearProductSelection();
@@ -1359,3 +1400,27 @@ function startSessionHealthCheck() {
     }
   }, 5 * 60 * 1000); // 5 minutes
 }
+
+// Mark cash reward fulfilled
+window.markCashFulfilled = async function(submissionId) {
+  const tx = document.getElementById(`paypalTx_${submissionId}`).value.trim();
+  if (!tx) {
+    alert('Please enter the PayPal Transaction ID');
+    return;
+  }
+  try {
+    const response = await window.makeAuthenticatedRequest(`/api/admin/rewards/${submissionId}/cash-fulfill`, {
+      method: 'POST',
+      body: JSON.stringify({ transactionId: tx })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to mark cash fulfilled');
+    }
+    alert('Marked as fulfilled');
+    loadSubmissions();
+  } catch (e) {
+    console.error(e);
+    alert('Error: ' + e.message);
+  }
+};

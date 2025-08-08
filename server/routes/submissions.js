@@ -35,7 +35,8 @@ adminSubmissionRoutes.get('/submissions', async (req, res) => {
       job_title: sub.job_title,
       job_id: sub.job_id,
       reward_type: sub.reward_type || null,
-      reward_fulfilled: sub.reward_fulfilled || false
+      reward_fulfilled: sub.reward_fulfilled || false,
+      reward_paypal_transaction_id: sub.reward_paypal_transaction_id || null
     }));
     
     res.json({ submissions: transformedSubmissions });
@@ -167,6 +168,54 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
         } catch (error) {
           console.error('Error processing gift card reward:', error);
           errorMessage = 'Failed to process gift card reward. The submission remains pending.';
+        }
+      }
+      else if (job.reward_type === 'cash') {
+        try {
+          await RewardsModel.create({
+            submissionId: submission.id,
+            jobId: job.id,
+            type: 'cash',
+            code: null,
+            value: job.reward_cash_amount || job.reward_value || 0,
+            status: 'pending_fulfillment',
+            expiresAt: null
+          });
+          
+          // Notify admin that a manual cash payout is required
+          const customizations = await CustomizationsModel.getByShop(shop) || {};
+          const notificationEmailTo = customizations.notification_email;
+          if (notificationEmailTo) {
+            const amountDisplay = job.reward_cash_amount || job.reward_value || 0;
+            const paypalEmailText = submission.paypal_email ? `<li><strong>PayPal Email:</strong> ${submission.paypal_email}</li>` : '';
+            await sendNotificationEmail({
+              to: notificationEmailTo,
+              subject: 'Manual Cash Payout Required - Honest UGC',
+              html: `
+                <h2>Cash Reward Needs to be Paid</h2>
+                <p>A manual cash reward needs to be fulfilled for an approved UGC submission:</p>
+                <ul>
+                  <li><strong>Customer:</strong> ${submission.customer_email}</li>
+                  <li><strong>Amount:</strong> $${amountDisplay}</li>
+                  ${paypalEmailText}
+                  <li><strong>Job:</strong> ${job.title}</li>
+                  <li><strong>Submission ID:</strong> #${submission.shop_submission_number || submission.id}</li>
+                </ul>
+                <p><strong>Action Required:</strong></p>
+                <ol>
+                  <li>Send $${amountDisplay} via PayPal to the email above (if provided).</li>
+                  <li>Return to Honest UGC and enter the PayPal Transaction ID, then click "Mark/Update Transaction ID" on this submission.</li>
+                </ol>
+              `
+            });
+          }
+          
+          // For cash payouts, do not send any customer email from the system; admin will pay via PayPal
+          // Keep rewardSentSuccessfully true to mark approval but we'll keep view logic pending until fulfilled
+          rewardSentSuccessfully = true;
+        } catch (error) {
+          console.error('Error processing cash reward:', error);
+          errorMessage = 'Failed to create cash reward record. The submission remains pending.';
         }
       }
       else if (job.reward_type === 'product') {
@@ -346,6 +395,51 @@ adminSubmissionRoutes.post('/rewards/:submissionId/send-giftcard', async (req, r
   } catch (error) {
     console.error('Error sending gift card email:', error);
     res.status(500).json({ error: 'Failed to send gift card email' });
+  }
+});
+
+// Mark cash reward as fulfilled with PayPal transaction id
+adminSubmissionRoutes.post('/rewards/:submissionId/cash-fulfill', async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { transactionId } = req.body;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
+    
+    if (!transactionId) {
+      return res.status(400).json({ error: 'Transaction ID is required' });
+    }
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to access this submission' });
+      }
+      if (job.reward_type !== 'cash') {
+        return res.status(400).json({ error: 'This submission is not a cash reward type' });
+      }
+    }
+    const reward = await RewardsModel.getBySubmissionId(submissionId);
+    if (!reward) {
+      return res.status(400).json({ error: 'No reward record found for this submission' });
+    }
+    await RewardsModel.update(reward.id, {
+      status: 'fulfilled',
+      fulfilled_at: new Date(),
+      paypal_transaction_id: transactionId,
+      paypal_email: submission.paypal_email || null
+    });
+    await SubmissionsModel.update(submissionId, {
+      reward_fulfilled: true,
+      reward_fulfilled_at: new Date()
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking cash fulfilled:', error);
+    res.status(500).json({ error: 'Failed to mark as fulfilled' });
   }
 });
 

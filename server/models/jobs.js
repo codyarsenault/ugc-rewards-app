@@ -8,9 +8,9 @@ export const JobsModel = {
         shop_domain, title, description, requirements, type, 
         reward_type, reward_value, reward_product, reward_giftcard_amount, spots_available, 
         deadline, example_content, reward_product_id, reward_product_handle, 
-        reward_product_image, reward_product_price
+        reward_product_image, reward_product_price, reward_cash_amount
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `;
     const values = [
@@ -29,7 +29,8 @@ export const JobsModel = {
       job.rewardProductId || null,
       job.rewardProductHandle || null,
       job.rewardProductImage || null,
-      job.rewardProductPrice || null
+      job.rewardProductPrice || null,
+      job.rewardCashAmount || null
     ];
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -103,6 +104,7 @@ export const JobsModel = {
       rewardProductHandle: 'reward_product_handle',   // Add this
       rewardProductImage: 'reward_product_image',     // Add this
       rewardProductPrice: 'reward_product_price',     // Add this
+      rewardCashAmount: 'reward_cash_amount',
       updatedAt: 'updated_at'
       // Add more mappings as needed
     };
@@ -117,6 +119,9 @@ export const JobsModel = {
       // Convert empty strings to null for numeric fields
       let processedValue = value;
       if (value === '' && ['reward_value', 'spots_available', 'spots_filled', 'reward_giftcard_amount', 'reward_product_price'].includes(dbKey)) {
+        processedValue = null;
+      }
+      if (value === '' && dbKey === 'reward_cash_amount') {
         processedValue = null;
       }
       

@@ -133,6 +133,34 @@ async function migrate() {
       );
     `);
 
+    // Extend jobs table to support 'cash' reward type and amount
+    console.log("Extending jobs table for 'cash' reward type...");
+        await client.query(`
+       DO $$
+       DECLARE r record;
+       BEGIN
+         -- Drop only CHECK constraints that enforce specific allowed values on reward_type (not NOT NULL)
+         FOR r IN
+           SELECT tc.constraint_name
+           FROM information_schema.table_constraints tc
+           JOIN information_schema.check_constraints cc ON tc.constraint_name = cc.constraint_name
+           WHERE tc.table_name = 'jobs'
+             AND tc.constraint_type = 'CHECK'
+             AND cc.check_clause ILIKE '%reward_type%'
+             AND cc.check_clause ILIKE '% IN %'
+         LOOP
+           EXECUTE format('ALTER TABLE jobs DROP CONSTRAINT IF EXISTS %I', r.constraint_name);
+         END LOOP;
+       END$$;
+     `);
+    await client.query(`
+      ALTER TABLE jobs
+      ADD CONSTRAINT jobs_reward_type_check CHECK (reward_type IN ('percentage','fixed','product','giftcard','cash'));
+    `);
+    await client.query(`
+      ALTER TABLE jobs ADD COLUMN IF NOT EXISTS reward_cash_amount NUMERIC(10,2);
+    `);
+
     console.log('Creating submissions table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS submissions (
@@ -159,6 +187,12 @@ async function migrate() {
     console.log('Adding shop_domain column to submissions table if needed...');
     await client.query(`
       ALTER TABLE submissions ADD COLUMN IF NOT EXISTS shop_domain VARCHAR(255);
+    `);
+
+    // Add PayPal email to submissions
+    console.log('Adding paypal_email column to submissions table if needed...');
+    await client.query(`
+      ALTER TABLE submissions ADD COLUMN IF NOT EXISTS paypal_email TEXT;
     `);
 
     // Add shop_submission_number column to submissions if it doesn't exist
@@ -230,6 +264,15 @@ async function migrate() {
         fulfilled_notes TEXT,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Add PayPal specific tracking columns to rewards
+    console.log('Adding PayPal tracking columns to rewards table if needed...');
+    await client.query(`
+      ALTER TABLE rewards ADD COLUMN IF NOT EXISTS paypal_email TEXT;
+    `);
+    await client.query(`
+      ALTER TABLE rewards ADD COLUMN IF NOT EXISTS paypal_transaction_id TEXT;
     `);
 
     console.log('Creating sessions table...');

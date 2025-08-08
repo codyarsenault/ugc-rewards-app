@@ -5,7 +5,8 @@ export const SubmissionsModel = {
   async getAll() {
     const query = `
       SELECT s.*, j.title as job_title, j.reward_type, j.shop_domain as job_shop_domain,
-             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled
+             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled,
+             r.paypal_transaction_id as reward_paypal_transaction_id
       FROM submissions s
       LEFT JOIN jobs j ON s.job_id = j.id
       LEFT JOIN rewards r ON s.id = r.submission_id
@@ -19,7 +20,8 @@ export const SubmissionsModel = {
   async getByShop(shopDomain) {
     const query = `
       SELECT s.*, j.title as job_title, j.reward_type, 
-             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled
+             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled,
+             r.paypal_transaction_id as reward_paypal_transaction_id
       FROM submissions s
       LEFT JOIN jobs j ON s.job_id = j.id
       LEFT JOIN rewards r ON s.id = r.submission_id
@@ -39,9 +41,12 @@ export const SubmissionsModel = {
              j.reward_value, 
              j.reward_product, 
              j.reward_giftcard_amount, 
-             j.shop_domain as job_shop_domain
+             j.shop_domain as job_shop_domain,
+             r.paypal_transaction_id as reward_paypal_transaction_id,
+             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled
       FROM submissions s
       LEFT JOIN jobs j ON s.job_id = j.id
+      LEFT JOIN rewards r ON s.id = r.submission_id
       WHERE s.id = $1
     `;
     const result = await pool.query(query, [id]);
@@ -70,9 +75,10 @@ export const SubmissionsModel = {
         job_id, 
         shop_domain,
         shop_submission_number,
+        paypal_email,
         created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
       RETURNING *
     `;
     const values = [
@@ -83,7 +89,8 @@ export const SubmissionsModel = {
       submission.status || 'pending',
       submission.jobId || null,
       submission.shopDomain || null,
-      shopSubmissionNumber
+      shopSubmissionNumber,
+      submission.paypalEmail || null
     ];
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -153,7 +160,8 @@ export const SubmissionsModel = {
   async getByJobId(jobId) {
     const query = `
       SELECT s.*, 
-             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled
+             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled,
+             r.paypal_transaction_id as reward_paypal_transaction_id
       FROM submissions s
       LEFT JOIN rewards r ON s.id = r.submission_id
       WHERE s.job_id = $1
@@ -194,7 +202,8 @@ export const SubmissionsModel = {
   async getRecentByShop(shopDomain, limit = 10) {
     const query = `
       SELECT s.*, j.title as job_title, j.reward_type,
-             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled
+             CASE WHEN r.status = 'fulfilled' THEN true ELSE false END as reward_fulfilled,
+             r.paypal_transaction_id as reward_paypal_transaction_id
       FROM submissions s
       LEFT JOIN jobs j ON s.job_id = j.id
       LEFT JOIN rewards r ON s.id = r.submission_id

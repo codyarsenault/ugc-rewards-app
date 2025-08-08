@@ -610,6 +610,7 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
         message: 'Missing required fields: customerEmail, type'
       });
     }
+    const paypalEmail = (req.body.paypalEmail || '').trim() || null;
 
     // Check email configuration BEFORE processing the submission
     const customizations = await CustomizationsModel.getByShop(shopDomain) || {};
@@ -669,17 +670,18 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     }
 
     // When creating the submission, ensure shopDomain is passed correctly
-    const submission = await SubmissionsModel.create({
+    const created = await SubmissionsModel.create({
       customerEmail,
       type,
       content,
       mediaUrl,
       status: 'pending',
-      jobId: req.body.jobId || null,
-      shopDomain: shopDomain // <-- This is critical!
+      jobId: req.body.jobId,
+      shopDomain,
+      paypalEmail,
     });
 
-    console.log('Submission created with number:', submission.shop_submission_number, 'for shop:', shopDomain);
+    console.log('Submission created with number:', created.shop_submission_number, 'for shop:', shopDomain);
 
     let jobName = 'General Submission';
     let job = null;
@@ -723,8 +725,8 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     res.json({
       success: true,
       message: 'Submission received!',
-      submissionId: submission.id,
-      submissionNumber: submission.shop_submission_number // Include this in the response
+      submissionId: created.id,
+      submissionNumber: created.shop_submission_number // Include this in the response
     });
   } catch (error) {
     console.error('Error saving submission:', error);
