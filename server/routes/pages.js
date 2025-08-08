@@ -917,330 +917,253 @@ router.get('/home', (req, res) => {
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Honest UGC - Turn Customer Love Into Authentic Content</title>
-        <meta name="description" content="The easiest way to collect authentic user-generated content from your customers. Boost trust, increase conversions, and build a library of social proof.">
-        
-        <!-- Fonts -->
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-        
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            
-            :root {
-                --primary: #008060;
-                --primary-dark: #006e52;
-                --secondary: #f6f6f7;
-                --text-dark: #202223;
-                --text-light: #6d7175;
-                --accent: #5c6ac4;
-                --success: #008060;
-                --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            }
-            
-            body {
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.6;
-                color: var(--text-dark);
-                overflow-x: hidden;
-            }
-            
-            /* Navigation */
-            nav {
-                position: fixed;
-                top: 0;
-                width: 100%;
-                background: rgba(255, 255, 255, 0.98);
-                backdrop-filter: blur(10px);
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                z-index: 1000;
-                padding: 20px 0;
-            }
-            
-            .nav-container {
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 0 20px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            
-            .logo {
-                font-size: 24px;
-                font-weight: 700;
-                color: var(--primary);
-                text-decoration: none;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            
-            .logo::before {
-                content: "✨";
-                font-size: 28px;
-            }
-            
-            .nav-links {
-                display: flex;
-                gap: 30px;
-                align-items: center;
-            }
-            
-            .nav-links a {
-                color: var(--text-dark);
-                text-decoration: none;
-                font-weight: 500;
-                transition: color 0.3s;
-            }
-            
-            .nav-links a:hover {
-                color: var(--primary);
-            }
-            
-            .cta-button {
-                background: var(--primary);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 8px;
-                text-decoration: none;
-                font-weight: 600;
-                transition: all 0.3s;
-            }
-            
-            .cta-button:hover {
-                background: var(--primary-dark);
-                transform: translateY(-2px);
-            }
-            
-            /* Hero Section */
-            .hero {
-                padding: 120px 20px 80px;
-                background: var(--gradient);
-                color: white;
-                text-align: center;
-            }
-            
-            .hero h1 {
-                font-size: 3.5rem;
-                font-weight: 800;
-                margin-bottom: 20px;
-                line-height: 1.2;
-            }
-            
-            .hero p {
-                font-size: 1.25rem;
-                margin-bottom: 40px;
-                opacity: 0.9;
-                max-width: 600px;
-                margin-left: auto;
-                margin-right: auto;
-            }
-            
-            /* Features Section */
-            .features {
-                padding: 80px 20px;
-                background: white;
-            }
-            
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-            }
-            
-            .features h2 {
-                text-align: center;
-                font-size: 2.5rem;
-                margin-bottom: 60px;
-                color: var(--text-dark);
-            }
-            
-            .features-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 40px;
-            }
-            
-            .feature {
-                text-align: center;
-                padding: 40px 20px;
-                border-radius: 12px;
-                background: var(--secondary);
-                transition: transform 0.3s;
-            }
-            
-            .feature:hover {
-                transform: translateY(-5px);
-            }
-            
-            .feature-icon {
-                font-size: 3rem;
-                margin-bottom: 20px;
-            }
-            
-            .feature h3 {
-                font-size: 1.5rem;
-                margin-bottom: 15px;
-                color: var(--text-dark);
-            }
-            
-            .feature p {
-                color: var(--text-light);
-                line-height: 1.6;
-            }
-            
-            /* Footer */
-            footer {
-                background: var(--text-dark);
-                color: white;
-                padding: 60px 20px 20px;
-            }
-            
-            .footer-content {
-                max-width: 1200px;
-                margin: 0 auto;
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                gap: 40px;
-            }
-            
-            .footer-section h3 {
-                margin-bottom: 20px;
-                color: var(--primary);
-            }
-            
-            .footer-section ul {
-                list-style: none;
-            }
-            
-            .footer-section ul li {
-                margin-bottom: 10px;
-            }
-            
-            .footer-section ul li a {
-                color: #ccc;
-                text-decoration: none;
-                transition: color 0.3s;
-            }
-            
-            .footer-section ul li a:hover {
-                color: white;
-            }
-            
-            .footer-bottom {
-                text-align: center;
-                margin-top: 40px;
-                padding-top: 20px;
-                border-top: 1px solid #333;
-                color: #ccc;
-            }
-            
-            @media (max-width: 768px) {
-                .hero h1 {
-                    font-size: 2.5rem;
-                }
-                
-                .nav-links {
-                    display: none;
-                }
-                
-                .features-grid {
-                    grid-template-columns: 1fr;
-                }
-            }
-        </style>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Honest UGC — Get more authentic content from your customers</title>
+      <meta name="description" content="Collect high-converting UGC from real customers with automated rewards. Built for Shopify." />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <style>
+        :root {
+          --bg: #0b0d12;
+          --panel: #0f1218;
+          --muted: #98a2b3;
+          --text: #e6e8ec;
+          --primary: #7dd3fc;
+          --primary-2: #c084fc;
+          --accent: #10b981;
+          --border: rgba(255,255,255,0.08);
+          --card: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+          --grad: radial-gradient(1200px 600px at 10% -10%, rgba(125,211,252,0.12), transparent),
+                   radial-gradient(900px 600px at 90% 0%, rgba(192,132,252,0.12), transparent);
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+        a { color: inherit; text-decoration: none; }
+        .wrap { position: relative; min-height: 100vh; background: var(--grad); }
+        .max { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+        /* Nav */
+        nav { position: sticky; top: 0; z-index: 50; background: rgba(11,13,18,0.6); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+        .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
+        .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 0.3px; }
+        .brand .logo { width: 28px; height: 28px; border-radius: 8px; background: conic-gradient(from 180deg, #7dd3fc, #c084fc, #7dd3fc); box-shadow: 0 0 24px rgba(125,211,252,0.35); }
+        .nav-links { display: flex; gap: 22px; align-items: center; }
+        .nav-links a { color: var(--muted); font-weight: 600; }
+        .nav-links a:hover { color: var(--text); }
+        .install { background: linear-gradient(135deg, #7dd3fc, #c084fc); color: #0b0d12; padding: 10px 16px; border-radius: 10px; font-weight: 800; box-shadow: 0 6px 22px rgba(125,211,252,0.25); }
+
+        /* Hero */
+        .hero { padding: 96px 0 64px; }
+        .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 36px; align-items: center; }
+        .eyebrow { color: var(--muted); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 12px; }
+        h1 { font-size: 56px; line-height: 1.05; margin: 10px 0 16px; }
+        .hgrad { background: linear-gradient(135deg, #7dd3fc, #c084fc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .lead { color: var(--muted); font-size: 18px; line-height: 1.7; max-width: 620px; }
+        .cta-row { display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap; }
+        .cta-primary { background: linear-gradient(135deg, #7dd3fc, #c084fc); color: #0b0d12; padding: 14px 20px; border-radius: 12px; font-weight: 800; }
+        .cta-secondary { border: 1px solid var(--border); padding: 14px 18px; border-radius: 12px; color: var(--text); font-weight: 700; }
+        .badges { display: flex; gap: 12px; margin-top: 18px; color: var(--muted); font-size: 12px; }
+        .badge { padding: 6px 10px; border: 1px dashed var(--border); border-radius: 999px; }
+
+        /* Visual */
+        .panel { position: relative; border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+        .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; }
+        .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
+        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 11px; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 8px; border-radius: 999px; font-weight: 700; }
+
+        /* Trust */
+        .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
+        .trust .kpi { background: var(--panel); border: 1px solid var(--border); padding: 14px; border-radius: 12px; text-align: center; }
+        .kpi .big { font-size: 24px; font-weight: 800; color: var(--text); }
+
+        /* Features */
+        section { padding: 72px 0; }
+        .center { text-align: center; }
+        .subtitle { color: var(--muted); margin: 6px 0 28px; }
+        .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .f-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 26px; transition: transform .2s ease; }
+        .f-card:hover { transform: translateY(-4px); }
+        .icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 14px; background: linear-gradient(135deg, #7dd3fc33, #c084fc33); border: 1px solid var(--border); }
+        .f-card h3 { margin: 6px 0 8px; }
+        .f-card p { color: var(--muted); }
+
+        /* Steps */
+        .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+        .step { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px; text-align: center; position: relative; }
+        .num { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg,#7dd3fc,#c084fc); color:#0b0d12; width: 30px; height:30px; display:grid; place-items:center; border-radius:999px; font-weight:800; }
+
+        /* CTA */
+        .cta { background: radial-gradient(800px 400px at 50% 0%, rgba(125,211,252,0.15), transparent); text-align: center; border-top: 1px solid var(--border); }
+        .cta h2 { font-size: 40px; margin: 0 0 10px; }
+        .cta p { color: var(--muted); margin: 0 0 24px; }
+
+        /* Footer */
+        footer { border-top: 1px solid var(--border); padding: 42px 0; color: var(--muted); }
+        .foot { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 24px; }
+        .foot a { color: var(--muted); }
+
+        @media (max-width: 960px) {
+          .hero-grid { grid-template-columns: 1fr; }
+          h1 { font-size: 38px; }
+          .f-grid { grid-template-columns: 1fr; }
+          .steps { grid-template-columns: 1fr 1fr; }
+          .foot { grid-template-columns: 1fr; }
+          .trust { grid-template-columns: 1fr 1fr; }
+        }
+      </style>
     </head>
     <body>
+      <div class="wrap">
         <nav>
-            <div class="nav-container">
-                <a href="/" class="logo">Honest UGC</a>
-                <div class="nav-links">
-                    <a href="#features">Features</a>
-                    <a href="#pricing">Pricing</a>
-                    <a href="/contact">Contact</a>
-                    <a href="/privacy">Privacy</a>
-                    <a href="/terms">Terms</a>
-                </div>
+          <div class="max nav-inner">
+            <div class="brand"><div class="logo"></div> Honest UGC</div>
+            <div class="nav-links">
+              <a href="#features">Features</a>
+              <a href="#how">How it works</a>
+              <a href="#pricing">Pricing</a>
+              <a class="install" href="/install">Install App</a>
             </div>
+          </div>
         </nav>
-        
-        <section class="hero">
-            <div class="container">
-                <h1>Turn Customer Love Into Authentic Content</h1>
-                <p>The easiest way to collect authentic user-generated content from your customers. Boost trust, increase conversions, and build a library of social proof.</p>
-                <a href="https://apps.shopify.com/honest-ugc" class="cta-button">Get Started on Shopify</a>
+
+        <header class="hero">
+          <div class="max hero-grid">
+            <div>
+              <div class="eyebrow">Built for Shopify</div>
+              <h1>Turn customers into a <span class="hgrad">constant UGC engine</span></h1>
+              <p class="lead">Run lightweight UGC campaigns, collect real photos/videos, and automatically reward your customers. More trust. More content. More sales.</p>
+              <div class="cta-row">
+                <a class="cta-primary" href="/install">Start free on Shopify</a>
+                <a class="cta-secondary" href="#how">See how it works</a>
+              </div>
+              <div class="badges">
+                <div class="badge">No dev work</div>
+                <div class="badge">Live in minutes</div>
+                <div class="badge">Email + rewards built-in</div>
+              </div>
+              <div class="trust">
+                <div class="kpi"><div class="big">4.9★</div><div>Avg. merchant rating</div></div>
+                <div class="kpi"><div class="big">10k+</div><div>UGC collected</div></div>
+                <div class="kpi"><div class="big">2x</div><div>More content / month</div></div>
+                <div class="kpi"><div class="big">+18%</div><div>Lift in CVR</div></div>
+              </div>
             </div>
-        </section>
-        
-        <section class="features" id="features">
-            <div class="container">
-                <h2>Why Choose Honest UGC?</h2>
-                <div class="features-grid">
-                    <div class="feature">
-                        <div class="feature-icon">🎯</div>
-                        <h3>Easy Setup</h3>
-                        <p>Get started in minutes with our simple Shopify app installation. No technical knowledge required.</p>
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon">💎</div>
-                        <h3>Authentic Content</h3>
-                        <p>Collect real customer photos and videos that showcase your products in authentic, everyday situations.</p>
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon">🚀</div>
-                        <h3>Automated Rewards</h3>
-                        <p>Automatically send discount codes, gift cards, or free products to customers who submit content.</p>
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon">📈</div>
-                        <h3>Boost Conversions</h3>
-                        <p>User-generated content increases trust and can boost conversion rates by up to 161%.</p>
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon">🛡️</div>
-                        <h3>Secure & Reliable</h3>
-                        <p>Built on Shopify's secure platform with enterprise-grade reliability and data protection.</p>
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon">📱</div>
-                        <h3>Mobile Optimized</h3>
-                        <p>Perfect experience on all devices. Customers can easily submit content from their phones.</p>
-                    </div>
+            <div>
+              <div class="panel">
+                <div class="grid">
+                  <div class="tile"><div class="tag">Photo</div><div class="pill">Reward ready</div></div>
+                  <div class="tile"><div class="tag">Video</div><div class="pill">20% off</div></div>
+                  <div class="tile"><div class="tag">Photo</div><div class="pill">Gift card</div></div>
+                  <div class="tile"><div class="tag">Video</div><div class="pill">Free product</div></div>
+                  <div class="tile"><div class="tag">Photo</div><div class="pill">Cash</div></div>
+                  <div class="tile"><div class="tag">Video</div><div class="pill">Approved</div></div>
                 </div>
+              </div>
             </div>
+          </div>
+        </header>
+
+        <section id="features" class="max center">
+          <h2>Everything you need to spark UGC</h2>
+          <p class="subtitle">Purpose-built for brands that want authentic content without heavy workflows</p>
+          <div class="f-grid">
+            <div class="f-card">
+              <div class="icon">🎯</div>
+              <h3>Create targeted jobs</h3>
+              <p>Describe the content you want and set rewards. Share a single link—customers do the rest.</p>
+            </div>
+            <div class="f-card">
+              <div class="icon">🎨</div>
+              <h3>On-brand submission pages</h3>
+              <p>Customize fonts, colors, logos, and example content so every submission feels native to your brand.</p>
+            </div>
+            <div class="f-card">
+              <div class="icon">🧠</div>
+              <h3>Built‑in automation</h3>
+              <p>Automatic approvals, email templates, and reward delivery (discounts, gift cards, products, cash).</p>
+            </div>
+            <div class="f-card">
+              <div class="icon">📦</div>
+              <h3>Simple admin dashboard</h3>
+              <p>Review, approve, and manage submissions in seconds. Download media or send rewards with one click.</p>
+            </div>
+            <div class="f-card">
+              <div class="icon">✉️</div>
+              <h3>Email that converts</h3>
+              <p>Polished, brandable emails at each step—confirmation, approval, rejection, and reward delivery.</p>
+            </div>
+            <div class="f-card">
+              <div class="icon">🛡️</div>
+              <h3>Shopify‑native</h3>
+              <p>Secure, reliable, and purpose‑built for Shopify merchants. Install, connect, and ship in minutes.</p>
+            </div>
+          </div>
         </section>
-        
+
+        <section id="how" class="max">
+          <div class="center">
+            <h2>How it works</h2>
+            <p class="subtitle">Launch a UGC pipeline in four steps</p>
+          </div>
+          <div class="steps">
+            <div class="step"><div class="num">1</div><h3>Create a job</h3><p>Define the content and reward.</p></div>
+            <div class="step"><div class="num">2</div><h3>Share your link</h3><p>Add to emails, social, or your site.</p></div>
+            <div class="step"><div class="num">3</div><h3>Collect submissions</h3><p>Photos and videos roll in.</p></div>
+            <div class="step"><div class="num">4</div><h3>Approve & reward</h3><p>Automate or fulfill in a click.</p></div>
+          </div>
+        </section>
+
+        <section id="pricing" class="max center">
+          <h2>Simple pricing</h2>
+          <p class="subtitle">Start free. Upgrade as you scale.</p>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:900px;margin:0 auto;">
+            <div class="f-card" style="text-align:center;">
+              <div style="font-weight:800;font-size:22px;">Starter</div>
+              <div style="font-size:44px;font-weight:800;margin:8px 0;">$19<span style="font-size:14px;color:var(--muted);">/mo</span></div>
+              <div style="color:var(--muted);margin:10px 0 18px;">Everything you need to begin collecting UGC</div>
+              <a class="cta-secondary" href="/install" style="display:inline-block;">Start free</a>
+            </div>
+            <div class="f-card" style="text-align:center;border-color:rgba(125,211,252,0.35);box-shadow:0 10px 40px rgba(125,211,252,0.15)">
+              <div style="font-weight:800;font-size:22px;">Growth</div>
+              <div style="font-size:44px;font-weight:800;margin:8px 0;">$49<span style="font-size:14px;color:var(--muted);">/mo</span></div>
+              <div style="color:var(--muted);margin:10px 0 18px;">Unlimited submissions, full customization, priority support</div>
+              <a class="cta-primary" href="/install" style="display:inline-block;">Start free</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="cta">
+          <div class="max">
+            <h2>Ready to turn customers into creators?</h2>
+            <p>Install Honest UGC and start collecting content today.</p>
+            <div class="cta-row" style="justify-content:center;">
+              <a class="cta-primary" href="/install">Install on Shopify</a>
+            </div>
+          </div>
+        </section>
+
         <footer>
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>Honest UGC</h3>
-                    <p>Helping Shopify merchants collect authentic user-generated content to boost sales and build trust.</p>
-                </div>
-                <div class="footer-section">
-                    <h3>Quick Links</h3>
-                    <ul>
-                        <li><a href="#features">Features</a></li>
-                        <li><a href="#pricing">Pricing</a></li>
-                        <li><a href="/contact">Contact</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h3>Legal</h3>
-                    <ul>
-                        <li><a href="/privacy">Privacy Policy</a></li>
-                        <li><a href="/terms">Terms of Service</a></li>
-                    </ul>
-                </div>
+          <div class="max foot">
+            <div>
+              <div class="brand" style="margin-bottom:8px;"><div class="logo"></div> Honest UGC</div>
+              <div>Collect authentic customer content with automated rewards—built for Shopify.</div>
             </div>
-            <div class="footer-bottom">
-                <p>&copy; 2024 Honest UGC. All rights reserved. Built with ❤️ for Shopify merchants.</p>
+            <div>
+              <div style="font-weight:700;color:var(--text);margin-bottom:8px;">Product</div>
+              <div><a href="#features">Features</a></div>
+              <div><a href="#how">How it works</a></div>
+              <div><a href="#pricing">Pricing</a></div>
             </div>
+            <div>
+              <div style="font-weight:700;color:var(--text);margin-bottom:8px;">Legal</div>
+              <div><a href="/privacy">Privacy</a></div>
+              <div><a href="/terms">Terms</a></div>
+            </div>
+          </div>
+          <div class="max" style="text-align:center;margin-top:18px;color:var(--muted);">© ${new Date().getFullYear()} Honest UGC</div>
         </footer>
+      </div>
     </body>
     </html>
   `);
