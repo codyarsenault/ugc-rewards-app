@@ -9,6 +9,12 @@ const router = express.Router();
 
 // Home page
 router.get('/', (req, res) => {
+  if (req.baseUrl === '/privacy') {
+    return res.send(`<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><title>Privacy Policy - Honest UGC</title><link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap\" rel=\"stylesheet\"/><style>:root{--bg:#0b0d12;--panel:#0f1218;--muted:#98a2b3;--text:#e6e8ec;--border:rgba(255,255,255,0.08)}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}.max{max-width:900px;margin:0 auto;padding:40px 20px}.card{background:linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);border:1px solid var(--border);border-radius:16px;padding:28px}a{color:#7dd3fc;text-decoration:none}ul{line-height:1.8}</style></head><body><div class=\"max\"><h1>Privacy Policy</h1><div style=\"color:var(--muted);margin-bottom:20px;\">Last updated: ${new Date().toLocaleDateString()}</div><div class=\"card\"><h2>Information We Collect</h2><ul><li>Store information from Shopify (store name, email, plan)</li><li>UGC submissions (customer email, type, content, media)</li><li>Operational data (timestamps, IP for abuse prevention)</li></ul><h2>How We Use Information</h2><ul><li>Process, review, and manage submissions</li><li>Send transactional and reward emails</li><li>Provide support and improve the product</li></ul><h2>Security</h2><p>All data is transmitted over HTTPS. Access to data is limited and audited.</p><h2>Contact</h2><p>Questions? Email <a href=\"mailto:support@honestugc.com\">support@honestugc.com</a>.</p></div><p style=\"margin-top:20px;\"><a href=\"/home\">← Back to Home</a></p></div></body></html>`);
+  }
+  if (req.baseUrl === '/terms') {
+    return res.send(`<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><title>Terms of Service - Honest UGC</title><link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap\" rel=\"stylesheet\"/><style>:root{--bg:#0b0d12;--panel:#0f1218;--muted:#98a2b3;--text:#e6e8ec;--border:rgba(255,255,255,0.08)}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}.max{max-width:900px;margin:0 auto;padding:40px 20px}.card{background:linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);border:1px solid var(--border);border-radius:16px;padding:28px}a{color:#7dd3fc;text-decoration:none}ul{line-height:1.8}</style></head><body><div class=\"max\"><h1>Terms of Service</h1><div style=\"color:var(--muted);margin-bottom:20px;\">Last updated: ${new Date().toLocaleDateString()}</div><div class=\"card\"><h2>Agreement</h2><p>By installing or using Honest UGC, you agree to these Terms and our Privacy Policy.</p><h2>Service</h2><p>Honest UGC enables merchants to collect, review, and manage user‑generated content with optional rewards.</p><h2>Merchant Responsibilities</h2><ul><li>Comply with applicable laws and platform policies</li><li>Own or have rights to use/repost submitted content</li><li>Provide accurate information and maintain account security</li></ul><h2>Limitations</h2><p>Provided “as is.” We disclaim implied warranties to the fullest extent permitted by law.</p><h2>Contact</h2><p>Contact <a href=\"mailto:support@honestugc.com\">support@honestugc.com</a>.</p></div><p style=\"margin-top:20px;\"><a href=\"/home\">← Back to Home</a></p></div></body></html>`);
+  }
 
   res.send(`
     <!DOCTYPE html>
@@ -51,7 +57,7 @@ router.get('/', (req, res) => {
 
         /* Hero */
         .hero { padding: 96px 0 64px; }
-        .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 36px; align-items: center; }
+        .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 44px; align-items: center; }
         .eyebrow { color: var(--muted); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 12px; }
         h1 { font-size: 56px; line-height: 1.05; margin: 10px 0 16px; }
         .hgrad { background: linear-gradient(135deg, #7dd3fc, #c084fc); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -67,7 +73,7 @@ router.get('/', (req, res) => {
         .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
         .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 11px; line-height: 1; white-space: nowrap; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 10px; border-radius: 999px; font-weight: 700; }
+        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 10px; line-height: 1; white-space: nowrap; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 10px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
@@ -75,7 +81,7 @@ router.get('/', (req, res) => {
         .kpi .big { font-size: 24px; font-weight: 800; color: var(--text); }
 
         /* Features */
-        section { padding: 96px 0; }
+        section { padding: 110px 0; }
         .center { text-align: center; }
         .subtitle { color: var(--muted); margin: 6px 0 28px; }
         .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
@@ -325,7 +331,7 @@ router.get('/home', (req, res) => {
         .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
         .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 11px; line-height: 1; white-space: nowrap; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 10px; border-radius: 999px; font-weight: 700; }
+        .tile .pill { position: absolute; right: 10px; bottom: 10px; font-size: 10px; line-height: 1; white-space: nowrap; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 10px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
