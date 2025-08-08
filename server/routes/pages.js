@@ -141,10 +141,13 @@ router.get('/', (req, res) => {
         }
         @media (max-width: 640px) {
           section { padding: 80px 0; }
-          .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          /* Keep tiles in a single row with horizontal scroll */
+          .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; min-height: 140px; }
           .panel::-webkit-scrollbar { display:none; }
-          .grid { display: grid; grid-auto-flow: column; grid-auto-columns: 100px; gap: 10px; width: max-content; }
-          .tile .pill { font-size: 9px; padding: 6px 10px; }
+          .grid { display: grid; grid-auto-flow: column; grid-auto-columns: 140px; gap: 12px; width: max-content; }
+          .tile { height: 96px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+          .tile .tag { position: static; font-size: 10px; padding: 4px 8px; align-self: flex-start; }
+          .tile .pill { position: static; transform: none; font-size: 10px; padding: 6px 10px; white-space: nowrap; }
           .cards { grid-template-columns: 1fr; }
           .steps { grid-template-columns: 1fr; }
           .nav-links { display: none; }
@@ -449,10 +452,12 @@ router.get('/home', (req, res) => {
         }
         @media (max-width: 640px) {
           section { padding: 80px 0; }
-          .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; min-height: 140px; }
           .panel::-webkit-scrollbar { display:none; }
-          .grid { display: grid; grid-auto-flow: column; grid-auto-columns: 100px; gap: 10px; width: max-content; }
-          .tile .pill { font-size: 9px; padding: 6px 10px; }
+          .grid { display: grid; grid-auto-flow: column; grid-auto-columns: 140px; gap: 12px; width: max-content; }
+          .tile { height: 96px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+          .tile .tag { position: static; font-size: 10px; padding: 4px 8px; align-self: flex-start; }
+          .tile .pill { position: static; transform: none; font-size: 10px; padding: 6px 10px; white-space: nowrap; }
           .cards { grid-template-columns: 1fr; }
           .steps { grid-template-columns: 1fr; }
           .nav-links { display: none; }
