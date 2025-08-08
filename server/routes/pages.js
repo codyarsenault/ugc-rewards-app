@@ -73,7 +73,7 @@ router.get('/', (req, res) => {
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
         .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; padding-bottom: 30px; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; right: auto; font-size: 10px; line-height: 1.15; white-space: normal; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 12px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; max-width: calc(100% - 24px); text-align: center; }
+        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; right: auto; font-size: 10px; line-height: 1.15; white-space: normal; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 12px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; text-align: center; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
@@ -93,6 +93,9 @@ router.get('/', (req, res) => {
         .f-card h3 { margin: 6px 0 8px; }
         .f-card p { color: var(--muted); }
 
+        /* Pricing cards container */
+        .cards { display:grid; grid-template-columns: repeat(2,1fr); gap:20px; max-width:900px; margin:0 auto; }
+
         /* Steps */
         .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
         .step { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px; text-align: center; position: relative; }
@@ -108,13 +111,32 @@ router.get('/', (req, res) => {
         .foot { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 24px; }
         .foot a { color: var(--muted); }
 
-        @media (max-width: 960px) {
-          .hero-grid { grid-template-columns: 1fr; }
+        /* Responsive */
+        @media (max-width: 1200px) {
+          .hero-grid { gap: 36px; }
+        }
+        @media (max-width: 1024px) {
+          .hero-grid { grid-template-columns: 1fr; text-align: center; }
+          .cta-row { justify-content: center; }
+          h1 { font-size: 44px; }
+          .grid { grid-template-columns: repeat(4, 1fr); }
+          .f-grid { grid-template-columns: repeat(2, 1fr); }
+          .steps { grid-template-columns: repeat(2, 1fr); }
+          section { padding: 96px 0; }
+          .panel { margin-top: 10px; }
+        }
+        @media (max-width: 860px) {
           h1 { font-size: 38px; }
-          .f-grid { grid-template-columns: 1fr; }
-          .steps { grid-template-columns: 1fr 1fr; }
-          .foot { grid-template-columns: 1fr; }
+          .grid { grid-template-columns: repeat(3, 1fr); }
           .trust { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 640px) {
+          section { padding: 80px 0; }
+          .grid { grid-template-columns: repeat(2, 1fr); }
+          .tile .pill { font-size: 9px; padding: 6px 10px; }
+          .cards { grid-template-columns: 1fr; }
+          .steps { grid-template-columns: 1fr; }
+          .nav-links { display: none; }
         }
       </style>
     </head>
@@ -221,7 +243,7 @@ router.get('/', (req, res) => {
         <section id="pricing" class="max center">
           <h2>Simple pricing</h2>
           <p class="subtitle">Start free. Upgrade as you scale.</p>
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:900px;margin:0 auto;">
+          <div class="cards">
             <div class="f-card" style="text-align:center;">
               <div style="font-weight:800;font-size:22px;">Starter</div>
               <div style="font-size:44px;font-weight:800;margin:8px 0;">$19<span style="font-size:14px;color:var(--muted);">/mo</span></div>
@@ -350,13 +372,16 @@ router.get('/home', (req, res) => {
         .f-card h3 { margin: 6px 0 8px; }
         .f-card p { color: var(--muted); }
 
+        /* Pricing cards container */
+        .cards { display:grid; grid-template-columns: repeat(2,1fr); gap:20px; max-width:900px; margin:0 auto; }
+
         /* Steps */
         .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
         .step { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px; text-align: center; position: relative; }
         .num { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg,#7dd3fc,#c084fc); color:#0b0d12; width: 30px; height:30px; display:grid; place-items:center; border-radius:999px; font-weight:800; }
 
         /* CTA */
-        .cta { background: radial-gradient(800px 400px at 50% 0%, rgba(125,211,252,0.15), transparent); text-align: center; border-top: 1px solid var(--border); }
+        .cta { background: radial-gradient(800px 400px at 50% 0%, rgba(125,211,252,0.15), transparent); text-align: center; border-top: 1px solid var(--border); padding: 120px 0; }
         .cta h2 { font-size: 40px; margin: 0 0 10px; }
         .cta p { color: var(--muted); margin: 0 0 24px; }
 
@@ -365,13 +390,32 @@ router.get('/home', (req, res) => {
         .foot { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 24px; }
         .foot a { color: var(--muted); }
 
-        @media (max-width: 960px) {
-          .hero-grid { grid-template-columns: 1fr; }
+        /* Responsive */
+        @media (max-width: 1200px) {
+          .hero-grid { gap: 36px; }
+        }
+        @media (max-width: 1024px) {
+          .hero-grid { grid-template-columns: 1fr; text-align: center; }
+          .cta-row { justify-content: center; }
+          h1 { font-size: 44px; }
+          .grid { grid-template-columns: repeat(4, 1fr); }
+          .f-grid { grid-template-columns: repeat(2, 1fr); }
+          .steps { grid-template-columns: repeat(2, 1fr); }
+          section { padding: 96px 0; }
+          .panel { margin-top: 10px; }
+        }
+        @media (max-width: 860px) {
           h1 { font-size: 38px; }
-          .f-grid { grid-template-columns: 1fr; }
-          .steps { grid-template-columns: 1fr 1fr; }
-          .foot { grid-template-columns: 1fr; }
+          .grid { grid-template-columns: repeat(3, 1fr); }
           .trust { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 640px) {
+          section { padding: 80px 0; }
+          .grid { grid-template-columns: repeat(2, 1fr); }
+          .tile .pill { font-size: 9px; padding: 6px 10px; }
+          .cards { grid-template-columns: 1fr; }
+          .steps { grid-template-columns: 1fr; }
+          .nav-links { display: none; }
         }
       </style>
     </head>
@@ -478,7 +522,7 @@ router.get('/home', (req, res) => {
         <section id="pricing" class="max center">
           <h2>Simple pricing</h2>
           <p class="subtitle">Start free. Upgrade as you scale.</p>
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:900px;margin:0 auto;">
+          <div class="cards">
             <div class="f-card" style="text-align:center;">
               <div style="font-weight:800;font-size:22px;">Starter</div>
               <div style="font-size:44px;font-weight:800;margin:8px 0;">$19<span style="font-size:14px;color:var(--muted);">/mo</span></div>
