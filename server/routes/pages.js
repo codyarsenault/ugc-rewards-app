@@ -82,7 +82,7 @@ router.get('/', (req, res) => {
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
         .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; padding-bottom: 30px; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; right: auto; font-size: 10px; line-height: 1.15; white-space: normal; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 12px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; max-width: calc(100% - 24px); text-align: center; }
+        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; right: auto; font-size: 10px; line-height: 1.15; white-space: normal; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 12px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; text-align: center; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
@@ -720,7 +720,7 @@ router.get('/terms', (req, res) => {
           <h2>Termination</h2>
           <p>You may uninstall at any time. We may suspend access for abuse, non‑payment, or security issues.</p>
           <h2>Contact</h2>
-          <p>For questions about these terms, contact <a href="mailto:support@honestugc.com">support@honestugc.com</a>.</p>
+          <p>For questions about these terms, contact <a href="mailto:hello@honestugc.com">hello@honestugc.com</a>.</p>
         </div>
         <p style="margin-top:20px;"><a href="/home">← Back to Home</a></p>
       </div>

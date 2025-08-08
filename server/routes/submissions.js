@@ -27,6 +27,7 @@ adminSubmissionRoutes.get('/submissions', async (req, res) => {
       id: sub.id,
       shop_submission_number: sub.shop_submission_number,
       customerEmail: sub.customer_email,
+      paypal_email: sub.paypal_email || null,
       type: sub.type,
       content: sub.content,
       status: sub.status,

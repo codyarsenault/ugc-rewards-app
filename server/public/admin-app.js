@@ -410,6 +410,7 @@ function createSubmissionsTable(submissions) {
           <th>ID</th>
           <th>Date</th>
           <th>Customer</th>
+          <th>PayPal Email</th>
           <th>Type</th>
           <th>Job</th>
           <th>Content</th>
@@ -431,6 +432,7 @@ function createSubmissionRow(sub) {
       <td>#${sub.shop_submission_number || sub.id}</td>
       <td>${new Date(sub.createdAt).toLocaleDateString()}</td>
       <td>${sub.customerEmail}</td>
+      <td>${sub.paypal_email ? `<a href="mailto:${sub.paypal_email}">${sub.paypal_email}</a>` : '-'}</td>
       <td>${sub.type}</td>
       <td>${sub.job_title ? `<a href="#" onclick="viewJobFromSubmission(event, ${sub.job_id})">${sub.job_title}</a>` : '-'}</td>
       <td class="review-content">${sub.content || 'No content'}</td>
