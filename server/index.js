@@ -32,6 +32,7 @@ import {
 import { JobsModel } from './models/jobs.js';
 import { ShopifyDiscountService } from './services/shopifyDiscount.js';
 import { RewardsModel } from './models/rewards.js';
+import { pageRoutes } from './routes/pages.js';
 import { publicJobRoutes, adminJobRoutes } from './routes/jobs.js';
 import { CustomizationsModel } from './models/customizations.js';
 import { ShopInstallationsModel } from './models/shopInstallations.js';
@@ -395,6 +396,8 @@ async function ensureSession(req, res, next) {
 // #1  Serve static files
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadsDir));
+app.use('/', pageRoutes);
+
 
 // #2 Security headers middleware
 app.use((req, res, next) => {
@@ -808,106 +811,6 @@ app.post('/api/admin/email-settings', async (req, res) => {
   }
 });
 
-// Privacy and terms pages
-app.get('/privacy', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Privacy Policy - Honest UGC</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-            line-height: 1.6;
-            color: #333;
-          }
-          h1, h2 { color: #202223; }
-        </style>
-      </head>
-      <body>
-        <h1>Privacy Policy</h1>
-        <p>Last updated: ${new Date().toLocaleDateString()}</p>
-        
-        <h2>Information We Collect</h2>
-        <p>Honest UGC collects information necessary to provide our services:</p>
-        <ul>
-          <li>Store information from Shopify (store name, email)</li>
-          <li>Customer submissions (email, content, media files)</li>
-          <li>Usage data to improve our services</li>
-        </ul>
-        
-        <h2>How We Use Information</h2>
-        <p>We use collected information to:</p>
-        <ul>
-          <li>Process and manage UGC submissions</li>
-          <li>Send reward emails to customers</li>
-          <li>Provide customer support</li>
-          <li>Improve our services</li>
-        </ul>
-        
-        <h2>Data Security</h2>
-        <p>We implement appropriate security measures to protect your data. All data is transmitted over secure HTTPS connections.</p>
-        
-        <h2>Contact Us</h2>
-        <p>If you have questions about this privacy policy, please contact us through your Shopify admin.</p>
-      </body>
-    </html>
-  `);
-});
-
-app.get('/terms', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Terms of Service - Honest UGC</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-            line-height: 1.6;
-            color: #333;
-          }
-          h1, h2 { color: #202223; }
-        </style>
-      </head>
-      <body>
-        <h1>Terms of Service</h1>
-        <p>Last updated: ${new Date().toLocaleDateString()}</p>
-        
-        <h2>Acceptance of Terms</h2>
-        <p>By using Honest UGC, you agree to these terms of service.</p>
-        
-        <h2>Description of Service</h2>
-        <p>Honest UGC is a Shopify app that helps stores collect and manage user-generated content with automated rewards.</p>
-        
-        <h2>User Responsibilities</h2>
-        <ul>
-          <li>Provide accurate information</li>
-          <li>Comply with all applicable laws</li>
-          <li>Respect intellectual property rights</li>
-          <li>Not use the service for deceptive or harmful purposes</li>
-        </ul>
-        
-        <h2>Limitation of Liability</h2>
-        <p>Honest UGC is provided "as is" without warranties. We are not liable for any damages arising from use of our service.</p>
-        
-        <h2>Contact</h2>
-        <p>For questions about these terms, contact us through your Shopify admin.</p>
-      </body>
-    </html>
-  `);
-});
-
 app.get('/robots.txt', (req, res) => {
   res.type('text/plain');
   res.send(`User-agent: *
@@ -920,6 +823,33 @@ Disallow: /admin/
 Disallow: /submit
 
 Sitemap: ${process.env.HOST}/sitemap.xml`);
+});
+
+// Add a sitemap.xml route
+
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${process.env.HOST}/</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${process.env.HOST}/privacy</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${process.env.HOST}/terms</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>`);
 });
 
 // Debug endpoint
