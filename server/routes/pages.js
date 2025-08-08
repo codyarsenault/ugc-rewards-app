@@ -54,6 +54,15 @@ router.get('/', (req, res) => {
         .nav-links a { font-weight: 600; }
         .nav-links a:hover { color: var(--text); }
         .install { background: linear-gradient(135deg, #7dd3fc, #c084fc); color: #0b0d12; padding: 10px 16px; border-radius: 10px; font-weight: 800; box-shadow: 0 6px 22px rgba(125,211,252,0.25); }
+        .hamburger { display: none; width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: transparent; align-items: center; justify-content: center; cursor: pointer; }
+        .hamburger span { display:block; width:18px; height:2px; background: var(--text); position: relative; }
+        .hamburger span::before, .hamburger span::after { content:''; position:absolute; left:0; width:18px; height:2px; background: var(--text); }
+        .hamburger span::before { top:-6px; }
+        .hamburger span::after { top:6px; }
+        .mobile-menu { display:none; position: absolute; right: 20px; top: 58px; background: var(--panel); border:1px solid var(--border); border-radius: 10px; padding: 10px; min-width: 180px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .mobile-menu a { display:block; padding: 10px 12px; color: var(--text); border-radius: 8px; }
+        .mobile-menu a:hover { background: rgba(255,255,255,0.05); }
+        .mobile-menu.open { display:block; }
 
         /* Hero */
         .hero { padding: 96px 0 64px; }
@@ -73,7 +82,7 @@ router.get('/', (req, res) => {
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
         .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; padding-bottom: 30px; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; right: auto; font-size: 10px; line-height: 1.15; white-space: normal; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 12px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; text-align: center; }
+        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; right: auto; font-size: 10px; line-height: 1.15; white-space: normal; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 12px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; max-width: calc(100% - 24px); text-align: center; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
@@ -119,7 +128,7 @@ router.get('/', (req, res) => {
           .hero-grid { grid-template-columns: 1fr; text-align: center; }
           .cta-row { justify-content: center; }
           h1 { font-size: 44px; }
-          .grid { grid-template-columns: repeat(4, 1fr); }
+          .grid { grid-template-columns: repeat(5, 1fr); }
           .f-grid { grid-template-columns: repeat(2, 1fr); }
           .steps { grid-template-columns: repeat(2, 1fr); }
           section { padding: 96px 0; }
@@ -127,16 +136,19 @@ router.get('/', (req, res) => {
         }
         @media (max-width: 860px) {
           h1 { font-size: 38px; }
-          .grid { grid-template-columns: repeat(3, 1fr); }
+          .grid { grid-template-columns: repeat(5, 1fr); }
           .trust { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 640px) {
           section { padding: 80px 0; }
-          .grid { grid-template-columns: repeat(2, 1fr); }
+          .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .panel::-webkit-scrollbar { display:none; }
+          .grid { display: grid; grid-auto-flow: column; grid-auto-columns: 100px; gap: 10px; width: max-content; }
           .tile .pill { font-size: 9px; padding: 6px 10px; }
           .cards { grid-template-columns: 1fr; }
           .steps { grid-template-columns: 1fr; }
           .nav-links { display: none; }
+          .hamburger { display: flex; }
         }
       </style>
     </head>
@@ -150,6 +162,13 @@ router.get('/', (req, res) => {
               <a href="#how">How it works</a>
               <a href="#pricing">Pricing</a>
               <a class="install" href="https://apps.shopify.com/honest-ugc" target="_blank">Install App</a>
+            </div>
+            <button class="hamburger" id="menuBtn" aria-label="Menu"><span></span></button>
+            <div class="mobile-menu" id="mobileMenu">
+              <a href="#features">Features</a>
+              <a href="#how">How it works</a>
+              <a href="#pricing">Pricing</a>
+              <a href="https://apps.shopify.com/honest-ugc" target="_blank">Install App</a>
             </div>
           </div>
         </nav>
@@ -290,6 +309,16 @@ router.get('/', (req, res) => {
           <div class="max" style="text-align:center;margin-top:18px;color:var(--muted);">© ${new Date().getFullYear()} Honest UGC</div>
         </footer>
       </div>
+      <script>
+        document.addEventListener('DOMContentLoaded', function(){
+          var b1 = document.getElementById('menuBtn');
+          var m1 = document.getElementById('mobileMenu');
+          var b2 = document.getElementById('menuBtn2');
+          var m2 = document.getElementById('mobileMenu2');
+          if (b1 && m1) b1.addEventListener('click', function(){ m1.classList.toggle('open'); });
+          if (b2 && m2) b2.addEventListener('click', function(){ m2.classList.toggle('open'); });
+        });
+      </script>
     </body>
     </html>
   `);
@@ -335,6 +364,15 @@ router.get('/home', (req, res) => {
         .nav-links a { font-weight: 600; }
         .nav-links a:hover { color: var(--text); }
         .install { background: linear-gradient(135deg, #7dd3fc, #c084fc); color: #0b0d12; padding: 10px 16px; border-radius: 10px; font-weight: 800; box-shadow: 0 6px 22px rgba(125,211,252,0.25); }
+        .hamburger { display: none; width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: transparent; align-items: center; justify-content: center; cursor: pointer; }
+        .hamburger span { display:block; width:18px; height:2px; background: var(--text); position: relative; }
+        .hamburger span::before, .hamburger span::after { content:''; position:absolute; left:0; width:18px; height:2px; background: var(--text); }
+        .hamburger span::before { top:-6px; }
+        .hamburger span::after { top:6px; }
+        .mobile-menu { display:none; position: absolute; right: 20px; top: 58px; background: var(--panel); border:1px solid var(--border); border-radius: 10px; padding: 10px; min-width: 180px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .mobile-menu a { display:block; padding: 10px 12px; color: var(--text); border-radius: 8px; }
+        .mobile-menu a:hover { background: rgba(255,255,255,0.05); }
+        .mobile-menu.open { display:block; }
 
         /* Hero */
         .hero { padding: 96px 0 64px; }
@@ -398,7 +436,7 @@ router.get('/home', (req, res) => {
           .hero-grid { grid-template-columns: 1fr; text-align: center; }
           .cta-row { justify-content: center; }
           h1 { font-size: 44px; }
-          .grid { grid-template-columns: repeat(4, 1fr); }
+          .grid { grid-template-columns: repeat(5, 1fr); }
           .f-grid { grid-template-columns: repeat(2, 1fr); }
           .steps { grid-template-columns: repeat(2, 1fr); }
           section { padding: 96px 0; }
@@ -406,16 +444,19 @@ router.get('/home', (req, res) => {
         }
         @media (max-width: 860px) {
           h1 { font-size: 38px; }
-          .grid { grid-template-columns: repeat(3, 1fr); }
+          .grid { grid-template-columns: repeat(5, 1fr); }
           .trust { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 640px) {
           section { padding: 80px 0; }
-          .grid { grid-template-columns: repeat(2, 1fr); }
+          .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .panel::-webkit-scrollbar { display:none; }
+          .grid { display: grid; grid-auto-flow: column; grid-auto-columns: 100px; gap: 10px; width: max-content; }
           .tile .pill { font-size: 9px; padding: 6px 10px; }
           .cards { grid-template-columns: 1fr; }
           .steps { grid-template-columns: 1fr; }
           .nav-links { display: none; }
+          .hamburger { display: flex; }
         }
       </style>
     </head>
@@ -429,6 +470,13 @@ router.get('/home', (req, res) => {
               <a href="#how">How it works</a>
               <a href="#pricing">Pricing</a>
               <a class="install" href="/install">Install App</a>
+            </div>
+            <button class="hamburger" id="menuBtn2" aria-label="Menu"><span></span></button>
+            <div class="mobile-menu" id="mobileMenu2">
+              <a href="#features">Features</a>
+              <a href="#how">How it works</a>
+              <a href="#pricing">Pricing</a>
+              <a href="/install">Install App</a>
             </div>
           </div>
         </nav>
@@ -569,6 +617,13 @@ router.get('/home', (req, res) => {
           <div class="max" style="text-align:center;margin-top:18px;color:var(--muted);">© ${new Date().getFullYear()} Honest UGC</div>
         </footer>
       </div>
+      <script>
+        document.addEventListener('DOMContentLoaded', function(){
+          var b1 = document.getElementById('menuBtn2');
+          var m1 = document.getElementById('mobileMenu2');
+          if (b1 && m1) b1.addEventListener('click', function(){ m1.classList.toggle('open'); });
+        });
+      </script>
     </body>
     </html>
   `);
