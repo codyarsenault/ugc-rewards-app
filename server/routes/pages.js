@@ -40,7 +40,7 @@ router.get('/', (req, res) => {
                    radial-gradient(900px 600px at 90% 0%, rgba(192,132,252,0.12), transparent);
         }
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+        html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow-x: hidden; }
         a { color: inherit; text-decoration: none; }
         .wrap { position: relative; min-height: 100vh; background: var(--grad); }
         .max { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
@@ -141,11 +141,11 @@ router.get('/', (req, res) => {
         }
         @media (max-width: 640px) {
           section { padding: 80px 0; }
-          /* Keep tiles in a single row with horizontal scroll */
-          .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; min-height: 140px; }
-          .panel::-webkit-scrollbar { display:none; }
-          .grid { display: grid; grid-auto-flow: column; grid-auto-columns: 140px; gap: 12px; width: max-content; }
-          .tile { height: 96px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+          /* Keep tiles within container; scroll inside grid only */
+          .panel { width: 100%; overflow: hidden; min-height: 140px; }
+          .grid { display: flex; gap: 12px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; scroll-behavior: smooth; }
+          .grid::-webkit-scrollbar { display:none; }
+          .tile { flex: 0 0 132px; height: 96px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
           .tile .tag { position: static; font-size: 10px; padding: 4px 8px; align-self: flex-start; }
           .tile .pill { position: static; transform: none; font-size: 10px; padding: 6px 10px; white-space: nowrap; }
           .cards { grid-template-columns: 1fr; }
@@ -316,10 +316,7 @@ router.get('/', (req, res) => {
         document.addEventListener('DOMContentLoaded', function(){
           var b1 = document.getElementById('menuBtn');
           var m1 = document.getElementById('mobileMenu');
-          var b2 = document.getElementById('menuBtn2');
-          var m2 = document.getElementById('mobileMenu2');
           if (b1 && m1) b1.addEventListener('click', function(){ m1.classList.toggle('open'); });
-          if (b2 && m2) b2.addEventListener('click', function(){ m2.classList.toggle('open'); });
         });
       </script>
     </body>
@@ -353,7 +350,7 @@ router.get('/home', (req, res) => {
                    radial-gradient(900px 600px at 90% 0%, rgba(192,132,252,0.12), transparent);
         }
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+        html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow-x: hidden; }
         a { color: inherit; text-decoration: none; }
         .wrap { position: relative; min-height: 100vh; background: var(--grad); }
         .max { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
@@ -452,10 +449,10 @@ router.get('/home', (req, res) => {
         }
         @media (max-width: 640px) {
           section { padding: 80px 0; }
-          .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; min-height: 140px; }
-          .panel::-webkit-scrollbar { display:none; }
-          .grid { display: grid; grid-auto-flow: column; grid-auto-columns: 140px; gap: 12px; width: max-content; }
-          .tile { height: 96px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+          .panel { width: 100%; overflow: hidden; min-height: 140px; }
+          .grid { display: flex; gap: 12px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; scroll-behavior: smooth; }
+          .grid::-webkit-scrollbar { display:none; }
+          .tile { flex: 0 0 132px; height: 96px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
           .tile .tag { position: static; font-size: 10px; padding: 4px 8px; align-self: flex-start; }
           .tile .pill { position: static; transform: none; font-size: 10px; padding: 6px 10px; white-space: nowrap; }
           .cards { grid-template-columns: 1fr; }
