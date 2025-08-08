@@ -141,11 +141,11 @@ router.get('/', (req, res) => {
         }
         @media (max-width: 640px) {
           section { padding: 80px 0; }
-          /* Keep tiles within container; scroll inside grid only */
+          /* Keep tiles within container; show only 3 on mobile */
           .panel { width: 100%; overflow: hidden; min-height: 140px; }
-          .grid { display: flex; gap: 12px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; scroll-behavior: smooth; }
-          .grid::-webkit-scrollbar { display:none; }
-          .tile { flex: 0 0 132px; height: 96px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+          .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+          .grid .tile:nth-child(n+4) { display: none; }
+          .tile { height: 104px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
           .tile .tag { position: static; font-size: 10px; padding: 4px 8px; align-self: flex-start; }
           .tile .pill { position: static; transform: none; font-size: 10px; padding: 6px 10px; white-space: nowrap; }
           .cards { grid-template-columns: 1fr; }
@@ -450,9 +450,9 @@ router.get('/home', (req, res) => {
         @media (max-width: 640px) {
           section { padding: 80px 0; }
           .panel { width: 100%; overflow: hidden; min-height: 140px; }
-          .grid { display: flex; gap: 12px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; scroll-behavior: smooth; }
-          .grid::-webkit-scrollbar { display:none; }
-          .tile { flex: 0 0 132px; height: 96px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+          .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+          .grid .tile:nth-child(n+4) { display: none; }
+          .tile { height: 104px; aspect-ratio: auto; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
           .tile .tag { position: static; font-size: 10px; padding: 4px 8px; align-self: flex-start; }
           .tile .pill { position: static; transform: none; font-size: 10px; padding: 6px 10px; white-space: nowrap; }
           .cards { grid-template-columns: 1fr; }
