@@ -396,7 +396,6 @@ async function ensureSession(req, res, next) {
 // #1  Serve static files
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadsDir));
-app.use('/', pageRoutes);
 
 
 // #2 Security headers middleware
@@ -919,6 +918,25 @@ app.get('/install', (req, res) => {
   }
   
   res.redirect(`/api/auth?shop=${shop}`);
+});
+
+// Public pages (homepage, etc.) - only for non-app routes
+app.use('/home', pageRoutes);
+app.use('/about', pageRoutes);
+app.use('/pricing', pageRoutes);
+app.use('/contact', pageRoutes);
+app.use('/privacy', pageRoutes);
+app.use('/terms', pageRoutes);
+
+// Redirect root to homepage for non-app users (when not embedded in Shopify)
+app.get('/', (req, res, next) => {
+  // If this is a Shopify app request (has embedded param or is from Shopify), skip to next middleware
+  if (req.query.embedded || req.headers.referer?.includes('myshopify.com') || req.headers.referer?.includes('admin.shopify.com')) {
+    return next();
+  }
+  
+  // Otherwise, redirect to homepage
+  res.redirect('/home');
 });
 
 // Error handling

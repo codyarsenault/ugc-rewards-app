@@ -9,6 +9,7 @@ const router = express.Router();
 
 // Home page
 router.get('/', (req, res) => {
+
   res.send(`
     <!DOCTYPE html>
     <html lang="en">
@@ -891,6 +892,341 @@ router.get('/', (req, res) => {
                         <li><a href="mailto:support@honestugc.com">Contact Us</a></li>
                         <li><a href="/docs">Documentation</a></li>
                         <li><a href="/faq">FAQ</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Legal</h3>
+                    <ul>
+                        <li><a href="/privacy">Privacy Policy</a></li>
+                        <li><a href="/terms">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Honest UGC. All rights reserved. Built with ❤️ for Shopify merchants.</p>
+            </div>
+        </footer>
+    </body>
+    </html>
+  `);
+});
+
+// Home page (alternative route)
+router.get('/home', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Honest UGC - Turn Customer Love Into Authentic Content</title>
+        <meta name="description" content="The easiest way to collect authentic user-generated content from your customers. Boost trust, increase conversions, and build a library of social proof.">
+        
+        <!-- Fonts -->
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            :root {
+                --primary: #008060;
+                --primary-dark: #006e52;
+                --secondary: #f6f6f7;
+                --text-dark: #202223;
+                --text-light: #6d7175;
+                --accent: #5c6ac4;
+                --success: #008060;
+                --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }
+            
+            body {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                line-height: 1.6;
+                color: var(--text-dark);
+                overflow-x: hidden;
+            }
+            
+            /* Navigation */
+            nav {
+                position: fixed;
+                top: 0;
+                width: 100%;
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(10px);
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                z-index: 1000;
+                padding: 20px 0;
+            }
+            
+            .nav-container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .logo {
+                font-size: 24px;
+                font-weight: 700;
+                color: var(--primary);
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            
+            .logo::before {
+                content: "✨";
+                font-size: 28px;
+            }
+            
+            .nav-links {
+                display: flex;
+                gap: 30px;
+                align-items: center;
+            }
+            
+            .nav-links a {
+                color: var(--text-dark);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.3s;
+            }
+            
+            .nav-links a:hover {
+                color: var(--primary);
+            }
+            
+            .cta-button {
+                background: var(--primary);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 600;
+                transition: all 0.3s;
+            }
+            
+            .cta-button:hover {
+                background: var(--primary-dark);
+                transform: translateY(-2px);
+            }
+            
+            /* Hero Section */
+            .hero {
+                padding: 120px 20px 80px;
+                background: var(--gradient);
+                color: white;
+                text-align: center;
+            }
+            
+            .hero h1 {
+                font-size: 3.5rem;
+                font-weight: 800;
+                margin-bottom: 20px;
+                line-height: 1.2;
+            }
+            
+            .hero p {
+                font-size: 1.25rem;
+                margin-bottom: 40px;
+                opacity: 0.9;
+                max-width: 600px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            
+            /* Features Section */
+            .features {
+                padding: 80px 20px;
+                background: white;
+            }
+            
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            
+            .features h2 {
+                text-align: center;
+                font-size: 2.5rem;
+                margin-bottom: 60px;
+                color: var(--text-dark);
+            }
+            
+            .features-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 40px;
+            }
+            
+            .feature {
+                text-align: center;
+                padding: 40px 20px;
+                border-radius: 12px;
+                background: var(--secondary);
+                transition: transform 0.3s;
+            }
+            
+            .feature:hover {
+                transform: translateY(-5px);
+            }
+            
+            .feature-icon {
+                font-size: 3rem;
+                margin-bottom: 20px;
+            }
+            
+            .feature h3 {
+                font-size: 1.5rem;
+                margin-bottom: 15px;
+                color: var(--text-dark);
+            }
+            
+            .feature p {
+                color: var(--text-light);
+                line-height: 1.6;
+            }
+            
+            /* Footer */
+            footer {
+                background: var(--text-dark);
+                color: white;
+                padding: 60px 20px 20px;
+            }
+            
+            .footer-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 40px;
+            }
+            
+            .footer-section h3 {
+                margin-bottom: 20px;
+                color: var(--primary);
+            }
+            
+            .footer-section ul {
+                list-style: none;
+            }
+            
+            .footer-section ul li {
+                margin-bottom: 10px;
+            }
+            
+            .footer-section ul li a {
+                color: #ccc;
+                text-decoration: none;
+                transition: color 0.3s;
+            }
+            
+            .footer-section ul li a:hover {
+                color: white;
+            }
+            
+            .footer-bottom {
+                text-align: center;
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #333;
+                color: #ccc;
+            }
+            
+            @media (max-width: 768px) {
+                .hero h1 {
+                    font-size: 2.5rem;
+                }
+                
+                .nav-links {
+                    display: none;
+                }
+                
+                .features-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <div class="nav-container">
+                <a href="/" class="logo">Honest UGC</a>
+                <div class="nav-links">
+                    <a href="#features">Features</a>
+                    <a href="#pricing">Pricing</a>
+                    <a href="/contact">Contact</a>
+                    <a href="/privacy">Privacy</a>
+                    <a href="/terms">Terms</a>
+                </div>
+            </div>
+        </nav>
+        
+        <section class="hero">
+            <div class="container">
+                <h1>Turn Customer Love Into Authentic Content</h1>
+                <p>The easiest way to collect authentic user-generated content from your customers. Boost trust, increase conversions, and build a library of social proof.</p>
+                <a href="https://apps.shopify.com/honest-ugc" class="cta-button">Get Started on Shopify</a>
+            </div>
+        </section>
+        
+        <section class="features" id="features">
+            <div class="container">
+                <h2>Why Choose Honest UGC?</h2>
+                <div class="features-grid">
+                    <div class="feature">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Easy Setup</h3>
+                        <p>Get started in minutes with our simple Shopify app installation. No technical knowledge required.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">💎</div>
+                        <h3>Authentic Content</h3>
+                        <p>Collect real customer photos and videos that showcase your products in authentic, everyday situations.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🚀</div>
+                        <h3>Automated Rewards</h3>
+                        <p>Automatically send discount codes, gift cards, or free products to customers who submit content.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">📈</div>
+                        <h3>Boost Conversions</h3>
+                        <p>User-generated content increases trust and can boost conversion rates by up to 161%.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🛡️</div>
+                        <h3>Secure & Reliable</h3>
+                        <p>Built on Shopify's secure platform with enterprise-grade reliability and data protection.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">📱</div>
+                        <h3>Mobile Optimized</h3>
+                        <p>Perfect experience on all devices. Customers can easily submit content from their phones.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <footer>
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Honest UGC</h3>
+                    <p>Helping Shopify merchants collect authentic user-generated content to boost sales and build trust.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#pricing">Pricing</a></li>
+                        <li><a href="/contact">Contact</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
