@@ -69,11 +69,11 @@ router.get('/', (req, res) => {
         .badge { padding: 6px 10px; border: 1px dashed var(--border); border-radius: 999px; white-space: nowrap; }
 
         /* Visual */
-        .panel { position: relative; border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+        .panel { position: relative; border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
         .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-        .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; }
+        .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; padding-bottom: 30px; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; right: auto; font-size: 9px; line-height: 1; white-space: nowrap; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 10px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; max-width: calc(100% - 20px); text-align: center; }
+        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; right: auto; font-size: 10px; line-height: 1.15; white-space: normal; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 12px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; max-width: calc(100% - 24px); text-align: center; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
@@ -82,8 +82,8 @@ router.get('/', (req, res) => {
 
         /* Features */
         section { padding: 110px 0; }
-        #how { padding-top: 140px; padding-bottom: 140px; }
-        #pricing { padding-top: 140px; }
+        #how { padding-top: 100px; padding-bottom: 100px; }
+        #pricing { padding-top: 0px; padding-bottom: 100px; }
         .center { text-align: center; }
         .subtitle { color: var(--muted); margin: 6px 0 28px; }
         .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
@@ -329,11 +329,11 @@ router.get('/home', (req, res) => {
         .badge { padding: 6px 10px; border: 1px dashed var(--border); border-radius: 999px; }
 
         /* Visual */
-        .panel { position: relative; border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+        .panel { position: relative; border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
         .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-        .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; }
+        .tile { aspect-ratio: 9/16; border-radius: 10px; background: radial-gradient(200px 120px at 50% 20%, rgba(125,211,252,0.25), transparent), #0b0d12; border: 1px solid var(--border); position: relative; overflow: hidden; padding-bottom: 30px; }
         .tile .tag { position: absolute; left: 10px; top: 10px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px; color: var(--muted); }
-        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; right: auto; font-size: 9px; line-height: 1; white-space: nowrap; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 10px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; max-width: calc(100% - 20px); text-align: center; }
+        .tile .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; right: auto; font-size: 10px; line-height: 1.15; white-space: normal; background: #052e2b; color: #34d399; border: 1px solid rgba(52,211,153,0.35); padding: 6px 12px; border-radius: 999px; font-weight: 700; letter-spacing: .2px; max-width: calc(100% - 24px); text-align: center; }
 
         /* Trust */
         .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; color: var(--muted); }
