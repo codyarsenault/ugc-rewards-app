@@ -276,7 +276,7 @@ router.get('/', (req, res) => {
               <div style="font-weight:800;font-size:22px;">Growth</div>
               <div style="font-size:44px;font-weight:800;margin:8px 0;">$49<span style="font-size:14px;color:var(--muted);">/mo</span></div>
               <div style="color:var(--muted);margin:10px 0 18px;">Unlimited submissions, full customization, priority support</div>
-              <a class="cta-primary" href="/install" style="display:inline-block;">Start free</a>
+              <a class="cta-primary" href="https://apps.shopify.com/honest-ugc" target="_blank" style="display:inline-block;">Start free</a>
             </div>
           </div>
         </section>
@@ -286,7 +286,7 @@ router.get('/', (req, res) => {
             <h2>Ready to turn customers into creators?</h2>
             <p>Install Honest UGC and start collecting content today.</p>
             <div class="cta-row" style="justify-content:center;">
-              <a class="cta-primary" href="/install">Install on Shopify</a>
+              <a class="cta-primary" href="https://apps.shopify.com/honest-ugc" target="_blank">Install on Shopify</a>
             </div>
           </div>
         </section>
