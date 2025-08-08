@@ -47,7 +47,7 @@ router.get('/', (req, res) => {
 
         /* Nav */
         nav { position: sticky; top: 0; z-index: 50; background: rgba(11,13,18,0.6); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
-        .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
+        .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px; }
         .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 0.3px; }
         .brand .logo { width: 28px; height: 28px; border-radius: 6px; background: transparent url('/assets/logo.png') center/cover no-repeat; box-shadow: none; }
         .nav-links { display: flex; gap: 22px; align-items: center; }
@@ -481,7 +481,7 @@ router.get('/home', (req, res) => {
               <a href="#features">Features</a>
               <a href="#how">How it works</a>
               <a href="#pricing">Pricing</a>
-              <a href="/install">Install App</a>
+              <a href="https://apps.shopify.com/honest-ugc" target="_blank">Install App</a>
             </div>
           </div>
         </nav>
@@ -493,7 +493,7 @@ router.get('/home', (req, res) => {
               <h1>Turn customers into a <span class="hgrad">constant UGC engine</span></h1>
               <p class="lead">Run lightweight UGC campaigns, collect real photos/videos, and automatically reward your customers. More trust. More content. More sales.</p>
               <div class="cta-row">
-                <a class="cta-primary" href="/install">Start free on Shopify</a>
+                <a class="cta-primary" href="https://apps.shopify.com/honest-ugcl" target="_blank">Start free on Shopify</a>
                 <a class="cta-secondary" href="#how">See how it works</a>
               </div>
               <div class="badges">
