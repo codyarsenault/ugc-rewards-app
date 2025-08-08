@@ -43,7 +43,7 @@ router.get('/', (req, res) => {
         html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow-x: hidden; }
         a { color: inherit; text-decoration: none; }
         .wrap { position: relative; min-height: 100vh; background: var(--grad); overflow-x: hidden; }
-        .max { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .max { max-width: 1200px; margin-left: auto; margin-right: auto; padding-left: 20px; padding-right: 20px; }
         @supports (padding: max(0px)) {
           .max { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
         }
@@ -143,10 +143,6 @@ router.get('/', (req, res) => {
           .trust { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 640px) {
-          .max { padding: 0 16px; }
-          @supports (padding: max(0px)) {
-            .max { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
-          }
           .hero, section { overflow-x: hidden; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
@@ -363,7 +359,7 @@ router.get('/home', (req, res) => {
         html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow-x: hidden; }
         a { color: inherit; text-decoration: none; }
         .wrap { position: relative; min-height: 100vh; background: var(--grad); overflow-x: hidden; }
-        .max { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .max { max-width: 1200px; margin-left: auto; margin-right: auto; padding-left: 20px; padding-right: 20px; }
         @supports (padding: max(0px)) {
           .max { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
         }
@@ -461,9 +457,9 @@ router.get('/home', (req, res) => {
           .trust { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 640px) {
-          .max { padding: 0 16px; }
+          .max { padding-left: 16px !important; padding-right: 16px !important; margin-left: auto; margin-right: auto; }
           @supports (padding: max(0px)) {
-            .max { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+            .max { padding-left: max(16px, env(safe-area-inset-left)) !important; padding-right: max(16px, env(safe-area-inset-right)) !important; }
           }
           .hero, section { overflow-x: hidden; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
