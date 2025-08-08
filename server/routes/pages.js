@@ -471,7 +471,7 @@ router.get('/home', (req, res) => {
               <a href="#features">Features</a>
               <a href="#how">How it works</a>
               <a href="#pricing">Pricing</a>
-              <a class="install" href="/install">Install App</a>
+              <a class="install" href="https://apps.shopify.com/honest-ugc" target="_blank">Install App</a>
             </div>
             <button class="hamburger" id="menuBtn2" aria-label="Menu"><span></span></button>
             <div class="mobile-menu" id="mobileMenu2">
@@ -577,13 +577,13 @@ router.get('/home', (req, res) => {
               <div style="font-weight:800;font-size:22px;">Starter</div>
               <div style="font-size:44px;font-weight:800;margin:8px 0;">$19<span style="font-size:14px;color:var(--muted);">/mo</span></div>
               <div style="color:var(--muted);margin:10px 0 18px;">Everything you need to begin collecting UGC</div>
-              <a class="cta-secondary" href="/install" style="display:inline-block;">Start free</a>
+              <a class="cta-secondary" href="https://apps.shopify.com/honest-ugc" target="_blank" style="display:inline-block;">Start free</a>
             </div>
             <div class="f-card" style="text-align:center;border-color:rgba(125,211,252,0.35);box-shadow:0 10px 40px rgba(125,211,252,0.15)">
               <div style="font-weight:800;font-size:22px;">Growth</div>
               <div style="font-size:44px;font-weight:800;margin:8px 0;">$49<span style="font-size:14px;color:var(--muted);">/mo</span></div>
               <div style="color:var(--muted);margin:10px 0 18px;">Unlimited submissions, full customization, priority support</div>
-              <a class="cta-primary" href="/install" style="display:inline-block;">Start free</a>
+              <a class="cta-primary" href="https://apps.shopify.com/honest-ugc" target="_blank" style="display:inline-block;">Start free</a>
             </div>
           </div>
         </section>
@@ -593,7 +593,7 @@ router.get('/home', (req, res) => {
             <h2>Ready to turn customers into creators?</h2>
             <p>Install Honest UGC and start collecting content today.</p>
             <div class="cta-row" style="justify-content:center;">
-              <a class="cta-primary" href="/install">Install on Shopify</a>
+              <a class="cta-primary" href="https://apps.shopify.com/honest-ugc" target="_blank">Install on Shopify</a>
             </div>
           </div>
         </section>
