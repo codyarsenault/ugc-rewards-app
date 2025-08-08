@@ -79,6 +79,7 @@ router.get('/', (req, res) => {
         .cta-secondary { border: 1px solid var(--border); padding: 14px 18px; border-radius: 12px; color: var(--text); font-weight: 700; }
         .badges { display: flex; gap: 12px; margin-top: 18px; color: var(--muted); font-size: 12px; }
         .badge { padding: 6px 10px; border: 1px dashed var(--border); border-radius: 999px; white-space: nowrap; }
+        .badges { justify-content: center; flex-wrap: wrap; }
 
         /* Visual */
         .panel { position: relative; border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 28px 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); min-height: 200px; }
@@ -128,7 +129,7 @@ router.get('/', (req, res) => {
           .hero-grid { gap: 36px; }
         }
         @media (max-width: 1024px) {
-          .hero-grid { grid-template-columns: 1fr; text-align: center; }
+          .hero-grid { grid-template-columns: 1fr; text-align: center; justify-items: center; }
           .cta-row { justify-content: center; }
           h1 { font-size: 44px; }
           .grid { grid-template-columns: repeat(5, 1fr); }
@@ -140,7 +141,7 @@ router.get('/', (req, res) => {
         @media (max-width: 860px) {
           h1 { font-size: 38px; }
           .grid { grid-template-columns: repeat(5, 1fr); }
-          .trust { grid-template-columns: 1fr 1fr; }
+          .trust { grid-template-columns: 1fr 1fr; justify-items: center; }
         }
         @media (max-width: 640px) {
           body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
@@ -150,6 +151,7 @@ router.get('/', (req, res) => {
           }
           .hero, section { overflow-x: hidden; }
           .hero-grid, .badges, .trust, .panel { margin-left: auto; margin-right: auto; }
+          .hero-grid { justify-items: center; }
           .trust, .badges { width: 100%; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
@@ -449,7 +451,7 @@ router.get('/home', (req, res) => {
           .hero-grid { gap: 36px; }
         }
         @media (max-width: 1024px) {
-          .hero-grid { grid-template-columns: 1fr; text-align: center; }
+          .hero-grid { grid-template-columns: 1fr; text-align: center; justify-items: center; }
           .cta-row { justify-content: center; }
           h1 { font-size: 44px; }
           .grid { grid-template-columns: repeat(5, 1fr); }
@@ -461,7 +463,7 @@ router.get('/home', (req, res) => {
         @media (max-width: 860px) {
           h1 { font-size: 38px; }
           .grid { grid-template-columns: repeat(5, 1fr); }
-          .trust { grid-template-columns: 1fr 1fr; }
+          .trust { grid-template-columns: 1fr 1fr; justify-items: center; }
         }
         @media (max-width: 640px) {
           body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
@@ -471,6 +473,7 @@ router.get('/home', (req, res) => {
           }
           .hero, section { overflow-x: hidden; }
           .hero-grid, .badges, .trust, .panel { margin-left: auto; margin-right: auto; }
+          .hero-grid { justify-items: center; }
           .trust, .badges { width: 100%; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
