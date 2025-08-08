@@ -95,7 +95,7 @@ router.get('/', (req, res) => {
 
         /* Features */
         section { padding: 20px 0; }
-        #how { padding-top: 100px; padding-bottom: 100px; }
+        #how { padding-top: 55px; padding-bottom: 55px; }
         #pricing { padding-top: 0px; padding-bottom: 100px; }
         .center { text-align: center; }
         .subtitle { color: var(--muted); margin: 6px 0 28px; }
@@ -477,7 +477,7 @@ router.get('/home', (req, res) => {
           .trust, .badges { width: 100%; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
-          section { padding: 80px 0; }
+          section { padding: 0px 0; }
           .panel { width: 100%; overflow: hidden; min-height: 140px; }
           .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
           .grid .tile:nth-child(n+4) { display: none; }
