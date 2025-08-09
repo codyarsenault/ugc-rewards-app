@@ -155,7 +155,7 @@ router.get('/', (req, res) => {
           .trust, .badges { width: 100%; }
           .features, .how-it-works, .pricing, .testimonials { overflow-x: hidden; }
           .kpi, .feature-card, .pricing-card { max-width: 100%; }
-          section { padding: 80px 0; }
+          section { padding: 0px 0; }
           /* Keep tiles within container; show only 3 on mobile */
           .panel { width: 100%; overflow: hidden; min-height: 140px; }
           .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
