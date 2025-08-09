@@ -36,6 +36,8 @@ import { pageRoutes } from './routes/pages.js';
 import { publicJobRoutes, adminJobRoutes } from './routes/jobs.js';
 import { CustomizationsModel } from './models/customizations.js';
 import { ShopInstallationsModel } from './models/shopInstallations.js';
+import { attachPlan } from './middleware/plan.js';
+import { PLANS, getPlanFlags, getPlanLimits } from './config/plans.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -101,6 +103,48 @@ const webhookHandlers = {
         console.error('Error cleaning up shop data for uninstall:', error);
       }
     },
+  },
+  APP_SUBSCRIPTIONS_UPDATE: {
+    deliveryMethod: DeliveryMethod.Http,
+    callbackUrl: '/api/webhooks',
+    callback: async (topic, shop, body, webhookId) => {
+      console.log('=== APP_SUBSCRIPTIONS_UPDATE webhook received ===');
+      console.log('Shop:', shop);
+      try {
+        // Load offline session for this shop
+        const offlineId = shopify.api.session.getOfflineId(shop);
+        const session = await sessionStorage.loadSession(offlineId);
+        if (!session) {
+          console.warn('No offline session found for shop in APP_SUBSCRIPTIONS_UPDATE:', shop);
+          return;
+        }
+        const client = new shopify.api.clients.Graphql({ session });
+        const query = `#graphql
+          query {
+            currentAppInstallation {
+              activeSubscriptions { name status }
+            }
+          }
+        `;
+        const resp = await client.request(query);
+        const subs = resp?.data?.currentAppInstallation?.activeSubscriptions || [];
+        const active = subs.find(s => s.status === 'ACTIVE' && s.name && s.name.startsWith('Honest UGC - '));
+        if (!active) {
+          // No active sub – default to starter
+          await ShopInstallationsModel.update(shop, { plan_name: 'starter' });
+          console.log('No active subscription found; set plan to starter for', shop);
+          return;
+        }
+        let plan_name = 'starter';
+        if (active.name.includes('Pro')) plan_name = 'pro';
+        else if (active.name.includes('Scale')) plan_name = 'scale';
+        else if (active.name.includes('Starter')) plan_name = 'starter';
+        await ShopInstallationsModel.update(shop, { plan_name });
+        console.log('Updated plan from webhook for', shop, '=>', plan_name);
+      } catch (err) {
+        console.error('Error handling APP_SUBSCRIPTIONS_UPDATE:', err);
+      }
+    }
   },
   CUSTOMERS_REDACT: {
     deliveryMethod: DeliveryMethod.Http,
@@ -548,10 +592,113 @@ app.get('/api/admin/health', validateSessionToken, (req, res) => {
 
 // Apply session token validation to all admin routes
 app.use('/api/admin', validateSessionToken);
+// Attach plan to admin requests
+app.use('/api/admin', attachPlan);
 
 // Admin routes
 app.use('/api/admin', adminJobRoutes);
 app.use('/api/admin', adminSubmissionRoutes);
+
+// Admin: current plan info
+app.get('/api/admin/me', async (req, res) => {
+  try {
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
+    const install = await ShopInstallationsModel.getByShop(shop);
+    const plan = (install?.plan_name || 'starter').toLowerCase();
+    res.json({
+      shop,
+      plan,
+      features: getPlanFlags(plan),
+      limits: getPlanLimits(plan)
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load profile' });
+  }
+});
+
+// Admin: start subscription (GraphQL appSubscriptionCreate)
+app.post('/api/admin/billing/subscribe', async (req, res) => {
+  try {
+    const { plan } = req.body || {};
+    const planKey = (plan || '').toLowerCase();
+    const selected = PLANS[planKey];
+    if (!selected) return res.status(400).json({ error: 'INVALID_PLAN' });
+    const session = res.locals.shopify.session;
+    const client = new shopify.api.clients.Graphql({ session });
+    const name = `Honest UGC - ${selected.displayName}`;
+    const test = process.env.NODE_ENV !== 'production';
+    const returnUrl = `${process.env.HOST}/api/billing/return?plan=${encodeURIComponent(planKey)}`;
+    const mutation = `#graphql
+      mutation appSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean) {
+        appSubscriptionCreate(
+          name: $name,
+          returnUrl: $returnUrl,
+          test: $test,
+          lineItems: $lineItems
+        ) {
+          confirmationUrl
+          userErrors { field message }
+        }
+      }
+    `;
+    const variables = {
+      name,
+      test,
+      returnUrl,
+      lineItems: [
+        {
+          plan: {
+            appRecurringPricingDetails: {
+              price: { amount: selected.priceAmount, currencyCode: selected.priceCurrency },
+              interval: selected.interval,
+              trialDays: selected.trialDays
+            }
+          }
+        }
+      ]
+    };
+    const resp = await client.request(mutation, { variables });
+    const userErrors = resp?.data?.appSubscriptionCreate?.userErrors;
+    const confirmationUrl = resp?.data?.appSubscriptionCreate?.confirmationUrl;
+    if (userErrors && userErrors.length) {
+      console.error('Billing userErrors:', userErrors);
+      return res.status(400).json({ error: 'BILLING_ERROR', userErrors });
+    }
+    if (!confirmationUrl) return res.status(500).json({ error: 'NO_CONFIRMATION_URL' });
+    res.json({ confirmationUrl });
+  } catch (e) {
+    console.error('Subscribe error:', e);
+    res.status(500).json({ error: 'Failed to start subscription' });
+  }
+});
+
+// Billing return URL handler: verify sub and persist plan
+app.get('/api/billing/return', async (req, res) => {
+  try {
+    const session = res.locals.shopify?.session;
+    // If not present (coming from Shopify redirect), load offline session via host param
+    let shop = session?.shop;
+    if (!shop && req.query.host) {
+      try {
+        const decodedHost = Buffer.from(req.query.host, 'base64').toString('utf-8');
+        const match = decodedHost.match(/([^\/]+\.myshopify\.com)/);
+        if (match) shop = match[1];
+      } catch {}
+    }
+    if (!shop) return res.status(400).send('Shop missing');
+    const planKey = (req.query.plan || '').toLowerCase();
+    // Store intended plan optimistically; webhook will be source of truth
+    if (planKey === 'starter' || planKey === 'scale' || planKey === 'pro') {
+      await ShopInstallationsModel.update(shop, { plan_name: planKey });
+    }
+    // Redirect back into embedded app
+    return res.redirect(`/?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(req.query.host || '')}&embedded=1`);
+  } catch (e) {
+    console.error('Billing return error:', e);
+    return res.status(500).send('Subscription processed, but redirect failed. You can reopen the app from Shopify.');
+  }
+});
 
 // Get customizations (public)
 app.get('/api/public/customizations', async (req, res) => {

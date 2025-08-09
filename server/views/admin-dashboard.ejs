@@ -351,6 +351,7 @@
         <button class="tab" onclick="switchTab('jobs')">Jobs</button>
         <button class="tab" onclick="switchTab('customizations')">Customizations</button>
         <button class="tab" onclick="switchTab('email-settings')">Email Settings</button>
+        <button class="tab" onclick="switchTab('plans')">Plans</button>
       </div>
 
       <!-- Submissions Tab -->
@@ -737,6 +738,45 @@
         </div>
       </div>
 
+      <!-- Plans Tab -->
+      <div id="plans-tab" class="tab-content">
+        <div class="card">
+          <h1>Your Plan</h1>
+          <div id="currentPlanBanner" style="margin-bottom: 16px; color: #616161;">Loading plan...</div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 20px;">
+            <div class="panel">
+              <h3>Starter</h3>
+              <p>$14.99/mo</p>
+              <ul>
+                <li>Up to 3 jobs</li>
+                <li>10 approvals / month</li>
+                <li>Percentage, fixed, gift cards, free product</li>
+              </ul>
+              <button class="btn btn-primary" onclick="startSubscription('starter')">Choose Starter</button>
+            </div>
+            <div class="panel">
+              <h3>Scale</h3>
+              <p>$29.99/mo</p>
+              <ul>
+                <li>Up to 10 jobs</li>
+                <li>Unlimited approvals</li>
+                <li>Percentage, fixed, gift cards, free product</li>
+              </ul>
+              <button class="btn btn-primary" onclick="startSubscription('scale')">Choose Scale</button>
+            </div>
+            <div class="panel">
+              <h3>Pro</h3>
+              <p>$49.99/mo</p>
+              <ul>
+                <li>Unlimited jobs & approvals</li>
+                <li>All rewards incl. cash</li>
+                <li>Priority support</li>
+              </ul>
+              <button class="btn btn-primary" onclick="startSubscription('pro')">Choose Pro</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
     <!-- Job Creation/Edit Modal -->
     <div id="jobModal" class="modal">

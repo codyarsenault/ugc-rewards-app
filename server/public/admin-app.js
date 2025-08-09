@@ -45,9 +45,19 @@ function initializeApp() {
   
   window.lazyImageObserver = lazyImageObserver;
   
+  // Optimistic gating: temporarily disable cash option until plan loads
+  const rewardTypeSelect = document.getElementById('rewardType');
+  if (rewardTypeSelect) {
+    const cashOption = Array.from(rewardTypeSelect.options).find(o => o.value === 'cash');
+    if (cashOption) cashOption.disabled = true;
+  }
+
   // Set up event listeners
   setupEventListeners();
   
+  // Load plan info early to adjust UI (e.g., hide cash)
+  loadPlanInfo().catch(console.error);
+
   // Load initial data
   loadSubmissions();
   loadEmailSettings();
@@ -309,6 +319,8 @@ window.switchTab = function(tab) {
     loadCustomizations();
   } else if (tab === 'email-settings') {
     loadEmailSettings();
+  } else if (tab === 'plans') {
+    loadPlanInfo();
   } else {
     loadSubmissions();
   }
@@ -843,15 +855,32 @@ window.updateRewardFields = function() {
     document.getElementById('rewardCashAmount') && (document.getElementById('rewardCashAmount').required = false);
     clearProductSelection();
   } else if (rewardType === 'cash') {
-    valueGroup.style.display = 'none';
-    productGroup.style.display = 'none';
-    giftCardGroup.style.display = 'none';
-    cashGroup.style.display = 'block';
-    document.getElementById('rewardValue').required = false;
-    document.getElementById('rewardProduct').required = false;
-    document.getElementById('rewardGiftCardAmount').required = false;
-    document.getElementById('rewardCashAmount').required = true;
-    clearProductSelection();
+    // Check if plan allows cash (via disabled option state set by loadPlanInfo)
+    const rewardTypeSelect = document.getElementById('rewardType');
+    const cashOption = Array.from(rewardTypeSelect.options).find(o => o.value === 'cash');
+    const cashAllowed = cashOption && !cashOption.disabled;
+    if (!cashAllowed) {
+      // Fallback to percentage if not allowed
+      rewardTypeSelect.value = 'percentage';
+      valueGroup.style.display = 'block';
+      productGroup.style.display = 'none';
+      giftCardGroup.style.display = 'none';
+      cashGroup.style.display = 'none';
+      document.getElementById('rewardValue').required = true;
+      document.getElementById('rewardProduct').required = false;
+      document.getElementById('rewardGiftCardAmount').required = false;
+      document.getElementById('rewardCashAmount') && (document.getElementById('rewardCashAmount').required = false);
+    } else {
+      valueGroup.style.display = 'none';
+      productGroup.style.display = 'none';
+      giftCardGroup.style.display = 'none';
+      cashGroup.style.display = 'block';
+      document.getElementById('rewardValue').required = false;
+      document.getElementById('rewardProduct').required = false;
+      document.getElementById('rewardGiftCardAmount').required = false;
+      document.getElementById('rewardCashAmount').required = true;
+      clearProductSelection();
+    }
   } else {
     valueGroup.style.display = 'block';
     productGroup.style.display = 'none';
@@ -1428,5 +1457,50 @@ window.markCashFulfilled = async function(submissionId) {
   } catch (e) {
     console.error(e);
     alert('Error: ' + e.message);
+  }
+};
+
+// Plans UI
+async function loadPlanInfo() {
+  try {
+    const resp = await window.makeAuthenticatedRequest('/api/admin/me');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const current = data.plan || 'starter';
+    const banner = document.getElementById('currentPlanBanner');
+    if (banner) {
+      banner.textContent = `Current plan: ${current.toUpperCase()}`;
+    }
+    // Hide cash reward type for non-pro plans
+    const allowCash = !!(data.features && data.features.rewards && data.features.rewards.cash);
+    const rewardTypeSelect = document.getElementById('rewardType');
+    if (rewardTypeSelect) {
+      const cashOption = Array.from(rewardTypeSelect.options).find(o => o.value === 'cash');
+      if (cashOption) {
+        cashOption.disabled = !allowCash;
+        if (!allowCash && rewardTypeSelect.value === 'cash') {
+          rewardTypeSelect.value = 'percentage';
+          updateRewardFields();
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load plan info', e);
+  }
+}
+
+window.startSubscription = async function(plan) {
+  try {
+    const resp = await window.makeAuthenticatedRequest('/api/admin/billing/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ plan })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed to start subscription');
+    // Top-level redirect to confirmation
+    window.top.location.href = data.confirmationUrl;
+  } catch (e) {
+    console.error('Subscription error', e);
+    alert('Failed to start subscription: ' + e.message);
   }
 };

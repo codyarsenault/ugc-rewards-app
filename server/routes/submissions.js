@@ -12,6 +12,8 @@ import {
   sendFreeProductEmail,
 } from '../services/email.js';
 import { shopifyApp } from '@shopify/shopify-app-express';
+import { getPlanFlags, getPlanLimits } from '../config/plans.js';
+import { ShopInstallationsModel } from '../models/shopInstallations.js';
 
 export const adminSubmissionRoutes = express.Router();
 
@@ -53,6 +55,14 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
     const submissionId = req.params.id;
     const session = res.locals.shopify.session;
     const shop = session.shop;
+    // Enforce monthly approvals limit
+    const install = await ShopInstallationsModel.getByShop(shop);
+    const plan = (install?.plan_name || 'starter').toLowerCase();
+    const limits = getPlanLimits(plan);
+    const approvedThisMonth = await SubmissionsModel.countApprovedThisMonthByShop(shop);
+    if (typeof limits.monthlyApprovals === 'number' && approvedThisMonth >= limits.monthlyApprovals) {
+      return res.status(402).json({ success: false, message: `Your plan allows ${limits.monthlyApprovals} approvals per month.` });
+    }
     
     // Note: We need to get the shopify instance from somewhere
     // You might need to pass it through middleware or import it
@@ -172,6 +182,13 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
         }
       }
       else if (job.reward_type === 'cash') {
+        // Ensure plan supports cash rewards (secondary check)
+        const install = await ShopInstallationsModel.getByShop(shop);
+        const plan = (install?.plan_name || 'starter').toLowerCase();
+        const flags = getPlanFlags(plan);
+        if (!flags?.rewards?.cash) {
+          return res.status(402).json({ success: false, message: 'Cash rewards require the Pro plan.' });
+        }
         try {
           await RewardsModel.create({
             submissionId: submission.id,

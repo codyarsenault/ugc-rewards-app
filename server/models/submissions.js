@@ -198,6 +198,21 @@ export const SubmissionsModel = {
     return counts;
   },
 
+  // Count approved submissions in the current month for a shop
+  async countApprovedThisMonthByShop(shopDomain) {
+    const query = `
+      SELECT COUNT(*)::int as count
+      FROM submissions s
+      LEFT JOIN jobs j ON s.job_id = j.id
+      WHERE (j.shop_domain = $1 OR s.shop_domain = $1)
+        AND s.status = 'approved'
+        AND s.updated_at >= date_trunc('month', now())
+        AND s.updated_at < (date_trunc('month', now()) + interval '1 month')
+    `;
+    const result = await pool.query(query, [shopDomain]);
+    return result.rows[0]?.count || 0;
+  },
+
   // Get recent submissions for a shop (with limit)
   async getRecentByShop(shopDomain, limit = 10) {
     const query = `

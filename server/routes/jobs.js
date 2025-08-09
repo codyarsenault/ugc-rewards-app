@@ -1,5 +1,6 @@
 import express from 'express';
 import { JobsModel } from '../models/jobs.js';
+import { attachPlan, enforceLimit } from '../middleware/plan.js';
 
 // Create separate routers for public and admin
 export const publicJobRoutes = express.Router();
@@ -54,7 +55,7 @@ publicJobRoutes.get('/jobs/:id', async (req, res) => {
 // ADMIN ROUTES (auth required via validateSessionToken middleware in index.js)
 // These routes now get the shop from res.locals.shopify.session
 
-adminJobRoutes.get('/jobs', async (req, res) => {
+adminJobRoutes.get('/jobs', attachPlan, async (req, res) => {
   try {
     // Get shop from session (set by validateSessionToken middleware)
     const session = res.locals.shopify.session;
@@ -69,11 +70,22 @@ adminJobRoutes.get('/jobs', async (req, res) => {
   }
 });
 
-adminJobRoutes.post('/jobs', async (req, res) => {
+adminJobRoutes.post('/jobs', attachPlan, async (req, res) => {
   try {
     // Get shop from session
     const session = res.locals.shopify.session;
     const shopDomain = session.shop;
+    // Enforce plan limits: maxJobs
+    const existing = await JobsModel.getByShop(shopDomain);
+    const currentCount = existing?.length || 0;
+    const max = req.planLimits?.maxJobs;
+    if (typeof max === 'number' && currentCount >= max) {
+      return res.status(402).json({ error: 'LIMIT_REACHED', message: `Your plan allows up to ${max} jobs.` });
+    }
+    // Disallow cash rewards unless plan supports it
+    if (req.body?.rewardType === 'cash' && !(req.planFlags?.rewards?.cash)) {
+      return res.status(402).json({ error: 'UPGRADE_REQUIRED', message: 'Cash rewards require the Pro plan.' });
+    }
     
     const job = await JobsModel.create({
       shopDomain,
@@ -86,7 +98,7 @@ adminJobRoutes.post('/jobs', async (req, res) => {
   }
 });
 
-adminJobRoutes.put('/jobs/:id', async (req, res) => {
+adminJobRoutes.put('/jobs/:id', attachPlan, async (req, res) => {
   try {
     const jobId = req.params.id;
     const session = res.locals.shopify.session;
@@ -102,6 +114,11 @@ adminJobRoutes.put('/jobs/:id', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to update this job' });
     }
 
+    // Disallow switching to cash rewards unless plan supports it
+    if (req.body?.rewardType === 'cash' && !(req.planFlags?.rewards?.cash)) {
+      return res.status(402).json({ error: 'UPGRADE_REQUIRED', message: 'Cash rewards require the Pro plan.' });
+    }
+
     // Update the job
     const job = await JobsModel.update(jobId, req.body);
     res.json({ job });
@@ -111,7 +128,7 @@ adminJobRoutes.put('/jobs/:id', async (req, res) => {
   }
 });
 
-adminJobRoutes.delete('/jobs/:id', async (req, res) => {
+adminJobRoutes.delete('/jobs/:id', attachPlan, async (req, res) => {
   try {
     const jobId = req.params.id;
     const session = res.locals.shopify.session;
