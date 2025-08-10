@@ -1497,6 +1497,11 @@ window.startSubscription = async function(plan) {
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Failed to start subscription');
+    if (data.devActivated) {
+      alert(`Plan set to ${data.plan.toUpperCase()} (dev mode)`);
+      window.location.reload();
+      return;
+    }
     // Top-level redirect to confirmation
     window.top.location.href = data.confirmationUrl;
   } catch (e) {

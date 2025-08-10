@@ -662,6 +662,16 @@ app.post('/api/admin/billing/subscribe', async (req, res) => {
     const confirmationUrl = resp?.data?.appSubscriptionCreate?.confirmationUrl;
     if (userErrors && userErrors.length) {
       console.error('Billing userErrors:', userErrors);
+      const mpError = userErrors.find(e => (e.message || '').includes('Managed Pricing Apps'));
+      if (mpError) {
+        // Fallback for managed pricing apps: set plan without billing (dev mode)
+        try {
+          await ShopInstallationsModel.update(session.shop, { plan_name: planKey });
+          return res.json({ devActivated: true, plan: planKey });
+        } catch (e) {
+          console.error('Failed to set plan in managed pricing fallback:', e);
+        }
+      }
       return res.status(400).json({ error: 'BILLING_ERROR', userErrors });
     }
     if (!confirmationUrl) return res.status(500).json({ error: 'NO_CONFIRMATION_URL' });
