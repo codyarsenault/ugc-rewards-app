@@ -1073,18 +1073,57 @@ app.get('/', ensureSession, async (req, res) => {
     
     console.log('Rendering admin dashboard for shop:', shop);
     
+    const initialView = (req.query.view || 'submissions');
     res.render('admin-dashboard', {
       shop,
       submitLink,
       emailSetupComplete,
       customizations,
-      env: process.env
+      env: process.env,
+      initialView
     });
   } catch (error) {
     console.error('Error in root route:', error);
     res.status(500).send('An error occurred. Please try again.');
   }
 });
+
+// App Bridge sidebar paths that map to views
+const appViewRoutes = [
+  { path: '/app/submissions', view: 'submissions' },
+  { path: '/app/jobs', view: 'jobs' },
+  { path: '/app/customizations', view: 'customizations' },
+  { path: '/app/email-settings', view: 'email-settings' },
+  { path: '/app/plans', view: 'plans' },
+];
+for (const { path: p, view } of appViewRoutes) {
+  app.get(p, ensureSession, async (req, res) => {
+    try {
+      const session = res.locals.shopify.session;
+      const shop = session.shop;
+      const submitLink = `${process.env.HOST}/jobs/${encodeURIComponent(shop)}`;
+      let customizations = {};
+      let emailSetupComplete = false;
+      try {
+        customizations = await CustomizationsModel.getByShop(shop) || {};
+        emailSetupComplete = isEmailSetupComplete(customizations);
+      } catch (error) {
+        console.error('Error loading customizations:', error);
+      }
+      res.render('admin-dashboard', {
+        shop,
+        submitLink,
+        emailSetupComplete,
+        customizations,
+        env: process.env,
+        initialView: view
+      });
+    } catch (e) {
+      console.error('Error rendering app view:', e);
+      res.status(500).send('Failed to load');
+    }
+  });
+}
 
 // Install route for new shops
 app.get('/install', (req, res) => {

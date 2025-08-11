@@ -57,11 +57,25 @@ function initializeApp() {
   
   // Load plan info early to adjust UI (e.g., hide cash)
   loadPlanInfo().catch(console.error);
-
-  // Load initial data
-  loadSubmissions();
-  loadEmailSettings();
-  
+ 
+  // Do not preload any tab; switchTab below will load the correct one
+ 
+  // Handle nav view param to switch tabs
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view') || (typeof INITIAL_VIEW !== 'undefined' ? INITIAL_VIEW : null);
+    if (view) {
+      switchTab(view);
+    } else {
+      const path = window.location.pathname;
+      if (path.includes('/app/jobs')) switchTab('jobs');
+      else if (path.includes('/app/customizations')) switchTab('customizations');
+      else if (path.includes('/app/email-settings')) switchTab('email-settings');
+      else if (path.includes('/app/plans')) switchTab('plans');
+      else switchTab('submissions');
+    }
+  } catch {}
+ 
   // Start periodic session health checks
   startSessionHealthCheck();
 }
@@ -306,11 +320,11 @@ function setupModalHandlers() {
 
 // Tab switching
 window.switchTab = function(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  
+  // No top tabs anymore; just show the correct content section
+  // Show selected content
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.getElementById(tab + '-tab').classList.add('active');
+  const target = document.getElementById(tab + '-tab');
+  if (target) target.classList.add('active');
   
   // Load data for the tab
   if (tab === 'jobs') {

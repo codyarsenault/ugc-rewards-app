@@ -13,6 +13,7 @@
   // Global configuration
   const HOST = '<%= env.HOST %>';
   const API_KEY = '<%= env.SHOPIFY_API_KEY %>';
+  const INITIAL_VIEW = "<%= initialView || 'submissions' %>";
   
   console.log('App configuration:', { HOST, API_KEY });
   console.log('URL params:', window.location.search);
@@ -266,6 +267,14 @@
     <link rel="stylesheet" href="/public/admin-styles.css">
   </head>
   <body>
+    <ui-nav-menu>
+      <a href="/" rel="home">Home</a>
+      <a href="/app/submissions">Submissions</a>
+      <a href="/app/jobs">Jobs</a>
+      <a href="/app/customizations">Customizations</a>
+      <a href="/app/email-settings">Email Settings</a>
+      <a href="/app/plans">Plans</a>
+    </ui-nav-menu>
     <!-- Rest of your HTML remains the same -->
     <div class="container">
       <!-- Email Setup Banner (conditionally shown) -->
@@ -345,17 +354,10 @@
       </div>
       <% } %>
       
-      <!-- Navigation Tabs -->
-      <div class="tabs">
-        <button class="tab active" onclick="switchTab('submissions')">All Submissions</button>
-        <button class="tab" onclick="switchTab('jobs')">Jobs</button>
-        <button class="tab" onclick="switchTab('customizations')">Customizations</button>
-        <button class="tab" onclick="switchTab('email-settings')">Email Settings</button>
-        <button class="tab" onclick="switchTab('plans')">Plans</button>
-      </div>
+      <!-- In-page tabs removed; using Shopify sidebar nav (ui-nav-menu) -->
 
       <!-- Submissions Tab -->
-      <div id="submissions-tab" class="tab-content active">
+      <div id="submissions-tab" class="<%= (initialView === 'submissions' || !initialView) ? 'tab-content active' : 'tab-content' %>">
         <div class="card">
           <h1>UGC Jobs Submission Dashboard</h1>
           <div class="submission-form-link">
@@ -402,7 +404,7 @@
       </div>
 
       <!-- Jobs Tab -->
-      <div id="jobs-tab" class="tab-content">
+      <div id="jobs-tab" class="<%= initialView === 'jobs' ? 'tab-content active' : 'tab-content' %>">
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <h1>UGC Jobs</h1>
@@ -436,7 +438,7 @@
       </div>
 
       <!-- Customizations Tab -->
-<div id="customizations-tab" class="tab-content">
+<div id="customizations-tab" class="<%= initialView === 'customizations' ? 'tab-content active' : 'tab-content' %>">
   <div class="card">
     <h1>Customize Your UGC Pages</h1>
     
@@ -603,7 +605,7 @@
 </div>
 
       <!-- Email Settings Tab -->
-      <div id="email-settings-tab" class="tab-content">
+      <div id="email-settings-tab" class="<%= initialView === 'email-settings' ? 'tab-content active' : 'tab-content' %>">
         <div class="card">
           <h1>Email Content Customization</h1>
           <p style="color: #666; margin-bottom: 30px;">Customize the email content sent to your customers at different stages of the UGC process.</p>
@@ -739,7 +741,7 @@
       </div>
 
       <!-- Plans Tab -->
-      <div id="plans-tab" class="tab-content">
+      <div id="plans-tab" class="<%= initialView === 'plans' ? 'tab-content active' : 'tab-content' %>">
         <div class="card">
           <h1>Your Plan</h1>
           <div id="currentPlanBanner" style="margin-bottom: 16px; color: #616161;">Loading plan...</div>
