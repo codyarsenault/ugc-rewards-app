@@ -4,6 +4,21 @@
     <title>Honest UGC Admin</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preload" href="/public/admin-styles.css" as="style">
+    <style>
+      /* Critical CSS to prevent FOUC: hide non-active tabs immediately */
+      .tab-content { display: none; }
+      .tab-content.active { display: block; }
+      html { background: #f6f6f7; }
+      /* Disable transitions on first paint to avoid flicker */
+      .no-transitions *, .no-transitions *::before, .no-transitions *::after { transition: none !important; }
+    </style>
+    <script>
+      document.documentElement.classList.add('no-transitions');
+      window.addEventListener('load', function() {
+        document.documentElement.classList.remove('no-transitions');
+      });
+    </script>
     
     <!-- Load App Bridge -->
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" data-api-key="<%= env.SHOPIFY_API_KEY %>"></script>
