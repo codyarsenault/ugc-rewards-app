@@ -342,6 +342,20 @@ function setupModalHandlers() {
       }
     }
   };
+ 
+  // Improve iOS behavior: attach direct handlers to the media modal
+  const mediaModal = document.getElementById('mediaModal');
+  if (mediaModal) {
+    const handler = (e) => {
+      const onMedia = e.target.closest('#modalImage, #modalVideo, .modal-media-actions, .close');
+      if (!onMedia && mediaModal.classList.contains('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+      }
+    };
+    ['click', 'touchstart'].forEach((evt) => mediaModal.addEventListener(evt, handler, { passive: false }));
+  }
 }
 
 // Tab switching
