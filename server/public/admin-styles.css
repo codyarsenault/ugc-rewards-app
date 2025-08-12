@@ -148,6 +148,49 @@ td {
   vertical-align: top;
   word-break: break-word;
 }
+
+/* Responsive: Recent Submissions table on small screens */
+@media (max-width: 640px) {
+  #submissionsTable {
+    overflow-x: hidden;
+  }
+  #submissionsTable table {
+    width: 100%;
+  }
+  #submissionsTable th,
+  #submissionsTable td {
+    padding: 8px;
+    font-size: 12px;
+  }
+  /* Hide Date, Type, Job columns on mobile (2,5,6) */
+  #submissionsTable th:nth-child(2),
+  #submissionsTable td:nth-child(2),
+  #submissionsTable th:nth-child(5),
+  #submissionsTable td:nth-child(5),
+  #submissionsTable th:nth-child(6),
+  #submissionsTable td:nth-child(6) {
+    display: none;
+  }
+  /* Make PayPal Email and Content friendlier */
+  #submissionsTable th:nth-child(4),
+  #submissionsTable td:nth-child(4) {
+    word-break: break-all;
+  }
+  #submissionsTable th:nth-child(7),
+  #submissionsTable td:nth-child(7) {
+    max-width: 160px;
+    white-space: normal;
+  }
+  /* Media preview smaller */
+  .media-preview {
+    max-width: 64px;
+    max-height: 64px;
+  }
+  /* Actions stack nicely */
+  #submissionsTable td:last-child {
+    white-space: nowrap;
+  }
+}
 .col-id { 
   width: 60px; 
   max-width: 60px;
