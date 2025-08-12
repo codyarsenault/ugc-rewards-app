@@ -589,6 +589,30 @@ video.modal-content {
   gap: 8px;
   align-items: center;
 }
+
+/* Mobile: keep actions inside card and stack layout */
+@media (max-width: 640px) {
+  .job-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .job-meta {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .job-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 6px;
+  }
+  .job-actions .btn {
+    flex: 0 0 auto;
+  }
+  .job-info h3 {
+    word-break: break-word;
+  }
+}
 /* Status indicators for email setup */
 .status-complete {
   color: #008060;
