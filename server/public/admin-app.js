@@ -324,15 +324,21 @@ function setupImagePreviews() {
 // Modal handlers
 function setupModalHandlers() {
   window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-      if (event.target.id === 'jobModal') {
-        closeJobModal();
-      } else if (event.target.id === 'mediaModal') {
-        closeModal();
-      } else if (event.target.id === 'jobViewModal') {
-        closeJobViewModal();
-      } else if (event.target.id === 'quickEmailSetupModal') {
-        closeQuickEmailSetup();
+    // Generic: click on overlay closes corresponding modal
+    if (event.target.classList && event.target.classList.contains('modal')) {
+      if (event.target.id === 'jobModal') return closeJobModal();
+      if (event.target.id === 'mediaModal') return closeModal();
+      if (event.target.id === 'jobViewModal') return closeJobViewModal();
+      if (event.target.id === 'quickEmailSetupModal') return closeQuickEmailSetup();
+    }
+    // Special handling for media modal on mobile: close when tapping anywhere
+    // inside the modal that is NOT the media content or action buttons
+    const mediaModal = document.getElementById('mediaModal');
+    if (mediaModal && mediaModal.classList.contains('open')) {
+      const clickedInsideModal = event.target.closest('#mediaModal');
+      const clickedOnMedia = event.target.closest('img.modal-content, video.modal-content, .modal-media-actions, .close');
+      if (clickedInsideModal && !clickedOnMedia) {
+        return closeModal();
       }
     }
   };
