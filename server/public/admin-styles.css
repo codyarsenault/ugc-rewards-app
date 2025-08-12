@@ -162,23 +162,25 @@ td {
     padding: 8px;
     font-size: 12px;
   }
-  /* Hide Date, Type, Job columns on mobile (2,5,6) */
+  /* Hide Date (2), PayPal Email (4), Type (5) on mobile */
   #submissionsTable th:nth-child(2),
   #submissionsTable td:nth-child(2),
+  #submissionsTable th:nth-child(4),
+  #submissionsTable td:nth-child(4),
   #submissionsTable th:nth-child(5),
-  #submissionsTable td:nth-child(5),
-  #submissionsTable th:nth-child(6),
-  #submissionsTable td:nth-child(6) {
+  #submissionsTable td:nth-child(5) {
     display: none;
   }
   /* Make PayPal Email and Content friendlier */
-  #submissionsTable th:nth-child(4),
-  #submissionsTable td:nth-child(4) {
-    word-break: break-all;
-  }
+  /* (PayPal Email hidden on mobile) */
   #submissionsTable th:nth-child(7),
   #submissionsTable td:nth-child(7) {
     max-width: 160px;
+    white-space: normal;
+  }
+  /* Ensure Job column (6) is visible and wraps well */
+  #submissionsTable th:nth-child(6),
+  #submissionsTable td:nth-child(6) {
     white-space: normal;
   }
   /* Media preview smaller */
