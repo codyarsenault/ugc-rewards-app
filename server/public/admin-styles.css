@@ -551,10 +551,29 @@ video.modal-content {
   padding: 15px;
   border-radius: 6px;
   margin-bottom: 20px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .submission-form-link a {
   color: #2c6ecb;
   text-decoration: none;
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+}
+@media (max-width: 640px) {
+  .submission-form-link {
+    font-size: 14px;
+  }
+  .submission-form-link a {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 8px 10px;
+    border: 1px solid #e1e3e5;
+    border-radius: 6px;
+    background: #fff;
+  }
 }
 #mediaModal img,
 #mediaModal video {
