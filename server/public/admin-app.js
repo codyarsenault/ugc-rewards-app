@@ -36,9 +36,29 @@ function initializeApp() {
   const lazyImageObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        const img = entry.target;
-        img.src = img.dataset.src;
-        lazyImageObserver.unobserve(img);
+        const el = entry.target;
+        const src = el.dataset && el.dataset.src ? el.dataset.src : null;
+        if (!src) {
+          lazyImageObserver.unobserve(el);
+          return;
+        }
+        if (el.tagName === 'VIDEO') {
+          // Prime video preview frames for iOS/Safari
+          let videoSrc = src.includes('#t=') ? src : (src + (src.includes('?') ? '&' : '#') + 't=0.1');
+          el.setAttribute('preload', 'metadata');
+          el.setAttribute('playsinline', '');
+          el.setAttribute('webkit-playsinline', '');
+          el.muted = true;
+          el.src = videoSrc;
+          const onMeta = () => {
+            try { el.currentTime = 0.1; } catch {}
+            el.removeEventListener('loadedmetadata', onMeta);
+          };
+          el.addEventListener('loadedmetadata', onMeta);
+        } else {
+          el.src = src;
+        }
+        lazyImageObserver.unobserve(el);
       }
     });
   });
@@ -473,7 +493,7 @@ function createSubmissionRow(sub) {
 // Create media preview element
 function createMediaPreview(sub) {
   if (sub.type === 'video') {
-    return `<video class="media-preview lazy" data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'video')"></video>`;
+    return `<video class="media-preview lazy" preload="metadata" playsinline webkit-playsinline muted data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'video')"></video>`;
   } else {
     return `<img class="media-preview lazy" data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'image')" alt="Submission media">`;
   }
