@@ -1599,6 +1599,12 @@ async function loadPlanInfo() {
       }
       if (data.freeShop) {
         console.log('Note: this shop is whitelisted (freeShop). Shopify may still request payment setup for the store, but your plan is free.');
+        const freeBtn = document.getElementById('activateFreeProBtn');
+        if (freeBtn && !data.hasPlan) {
+          freeBtn.style.display = 'inline-block';
+        } else if (freeBtn) {
+          freeBtn.style.display = 'none';
+        }
       }
     }
     // Hide cash reward type for non-pro plans
@@ -1684,5 +1690,21 @@ window.cancelPlan = async function() {
   } catch (e) {
     console.error('Cancel plan failed', e);
     alert('Failed to cancel plan: ' + e.message);
+  }
+};
+
+window.activateFreePro = async function() {
+  try {
+    const resp = await window.makeAuthenticatedRequest('/api/admin/billing/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ plan: 'pro' })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed to activate plan');
+    // If managed pricing path returns devActivated, reload to update banner
+    window.location.reload();
+  } catch (e) {
+    console.error('Activate free pro failed', e);
+    alert('Failed to activate plan: ' + e.message);
   }
 };
