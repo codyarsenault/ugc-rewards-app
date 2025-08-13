@@ -753,7 +753,7 @@ video.modal-content {
 /* Media thumbnails grid for submissions table */
 .media-thumb-grid {
   display: grid;
-  grid-template-columns: repeat(3, 48px);
+  grid-template-columns: repeat(2, 48px);
   gap: 6px;
   align-items: center;
 }
