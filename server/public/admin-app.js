@@ -1597,6 +1597,9 @@ async function loadPlanInfo() {
         cancelBtn.style.display = data.hasPlan ? 'inline-block' : 'none';
         cancelBtn.textContent = 'Cancel plan';
       }
+      if (data.freeShop) {
+        console.log('Note: this shop is whitelisted (freeShop). Shopify may still request payment setup for the store, but your plan is free.');
+      }
     }
     // Hide cash reward type for non-pro plans
     const allowCash = !!(data.features && data.features.rewards && data.features.rewards.cash);

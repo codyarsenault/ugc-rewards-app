@@ -611,10 +611,16 @@ app.get('/api/admin/me', async (req, res) => {
     const planRaw = install?.plan_name || null;
     const hasPlan = !!planRaw;
     const planKey = (planRaw || 'starter').toLowerCase();
+    const freeShops = (process.env.FREE_SHOPS || '')
+      .split(',')
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean);
+    const freeShop = freeShops.includes((shop || '').toLowerCase());
     res.json({
       shop,
       plan: planRaw,
       hasPlan,
+      freeShop,
       features: getPlanFlags(planKey),
       limits: getPlanLimits(planKey),
       managedPricing: process.env.USE_MANAGED_PRICING === 'true'
