@@ -512,11 +512,17 @@ function createSubmissionRow(sub) {
 
 // Create media preview element
 function createMediaPreview(sub) {
-  if (sub.type === 'video') {
-    return `<video class="media-preview lazy" preload="metadata" playsinline webkit-playsinline muted data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'video', ${sub.id})"></video>`;
-  } else {
-    return `<img class="media-preview lazy" data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'image', ${sub.id})" alt="Submission media">`;
-  }
+  const urls = Array.isArray(sub.mediaUrls) && sub.mediaUrls.length ? sub.mediaUrls : (sub.mediaUrl ? [sub.mediaUrl] : []);
+  if (urls.length === 0) return '-';
+  const thumbs = urls.map((url, idx) => {
+    const isVideo = /\.(mp4|mov|avi|wmv|flv|webm|mkv)(\?|$)/i.test(url);
+    const onclick = `openModal('${url}', '${isVideo ? 'video' : 'image'}', ${sub.id})`;
+    if (isVideo) {
+      return `<video class="media-thumb lazy" preload="metadata" playsinline webkit-playsinline muted data-src="${url}" onclick="${onclick}"></video>`;
+    }
+    return `<img class="media-thumb lazy" data-src="${url}" onclick="${onclick}" alt="Submission media">`;
+  }).join('');
+  return `<div class="media-thumb-grid">${thumbs}</div>`;
 }
 
 // Create submission action buttons
@@ -1463,7 +1469,8 @@ window.downloadCurrentMedia = async function() {
   // Prefer secure server-side download to set Content-Disposition
   if (currentSubmissionId) {
     try {
-      const resp = await window.makeAuthenticatedRequest(`/api/admin/submissions/${currentSubmissionId}/download`, {
+      const urlParam = currentMediaUrl ? `?url=${encodeURIComponent(currentMediaUrl)}` : '';
+      const resp = await window.makeAuthenticatedRequest(`/api/admin/submissions/${currentSubmissionId}/download${urlParam}`, {
         method: 'GET'
       });
       if (!resp.ok) throw new Error('Failed to start download');

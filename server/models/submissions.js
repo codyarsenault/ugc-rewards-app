@@ -76,9 +76,10 @@ export const SubmissionsModel = {
         shop_domain,
         shop_submission_number,
         paypal_email,
+        media_urls,
         created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, NOW())
       RETURNING *
     `;
     const values = [
@@ -90,7 +91,8 @@ export const SubmissionsModel = {
       submission.jobId || null,
       submission.shopDomain || null,
       shopSubmissionNumber,
-      submission.paypalEmail || null
+      submission.paypalEmail || null,
+      JSON.stringify(submission.mediaUrls || null)
     ];
     const result = await pool.query(query, values);
     return result.rows[0];

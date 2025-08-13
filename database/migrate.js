@@ -231,6 +231,12 @@ async function migrate() {
       ALTER TABLE submissions ADD COLUMN IF NOT EXISTS shop_submission_number INTEGER;
     `);
 
+    // NEW: Add media_urls array column for multiple uploads
+    console.log('Adding media_urls column to submissions table if needed...');
+    await client.query(`
+      ALTER TABLE submissions ADD COLUMN IF NOT EXISTS media_urls JSONB;
+    `);
+
     // Populate shop_submission_number for existing submissions
     console.log('Populating shop_submission_number for existing submissions...');
     await client.query(`

@@ -456,7 +456,7 @@ app.use((req, res, next) => {
     res.setHeader('Content-Security-Policy', "frame-ancestors https://*.myshopify.com https://admin.shopify.com");
   } else if (req.path.startsWith('/jobs/') || req.path.startsWith('/submit')) {
     // Public pages - use minimal CSP to allow screenshots
-    res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; img-src 'self' https: data: blob:;");
+    res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:");
   } else if (!req.path.startsWith('/api/auth')) {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Content-Security-Policy', "frame-ancestors https://*.myshopify.com https://admin.shopify.com");
@@ -721,8 +721,8 @@ app.get('/api/public/customizations', async (req, res) => {
   }
 });
 
-// FIXED: Public submission endpoint with better shop domain handling
-app.post('/api/public/submit', upload.single('media'), async (req, res) => {
+// FIXED: Public submission endpoint with better shop domain handling (supports multiple media files)
+app.post('/api/public/submit', upload.array('media', 10), async (req, res) => {
   try {
     let shopDomain = getShopDomain(req, res);
     
@@ -799,45 +799,52 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     }
 
     let mediaUrl = null;
-    if (req.file) {
+    let mediaUrls = [];
+    const files = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+    if (files.length > 0) {
       const hasS3Creds = (
         process.env.AWS_ACCESS_KEY_ID &&
         process.env.AWS_SECRET_ACCESS_KEY &&
         process.env.AWS_REGION &&
         process.env.S3_BUCKET_NAME
       );
-      
-      if (hasS3Creds) {
-        try {
-          mediaUrl = await uploadToS3(req.file, req.file.originalname);
-        } catch (error) {
-          console.error('S3 upload failed:', error);
-          const filename = Date.now() + '-' + req.file.originalname;
-          const localPath = path.join(uploadsDir, filename);
-          fs.writeFileSync(localPath, req.file.buffer);
-          mediaUrl = `/uploads/${filename}`;
+
+      for (const f of files) {
+        let uploadedUrl = null;
+        const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.originalname}`;
+        if (hasS3Creds) {
+          try {
+            uploadedUrl = await uploadToS3(f, uniqueName);
+          } catch (error) {
+            console.error('S3 upload failed:', error);
+            const localPath = path.join(uploadsDir, uniqueName);
+            fs.writeFileSync(localPath, f.buffer);
+            uploadedUrl = `/uploads/${uniqueName}`;
+          }
+        } else {
+          const localPath = path.join(uploadsDir, uniqueName);
+          fs.writeFileSync(localPath, f.buffer);
+          uploadedUrl = `/uploads/${uniqueName}`;
         }
-      } else {
-        const filename = Date.now() + '-' + req.file.originalname;
-        const localPath = path.join(uploadsDir, filename);
-        fs.writeFileSync(localPath, req.file.buffer);
-        mediaUrl = `/uploads/${filename}`;
+        mediaUrls.push(uploadedUrl);
       }
+      mediaUrl = mediaUrls[0] || null;
     }
 
     // When creating the submission, ensure shopDomain is passed correctly
-    const created = await SubmissionsModel.create({
+    const submission = await SubmissionsModel.create({
       customerEmail,
       type,
       content,
       mediaUrl,
+      mediaUrls,
       status: 'pending',
-      jobId: req.body.jobId,
+      jobId: req.body.jobId || null,
       shopDomain,
       paypalEmail,
     });
 
-    console.log('Submission created with number:', created.shop_submission_number, 'for shop:', shopDomain);
+    console.log('Submission created with number:', submission.shop_submission_number, 'for shop:', shopDomain);
 
     let jobName = 'General Submission';
     let job = null;
@@ -881,8 +888,8 @@ app.post('/api/public/submit', upload.single('media'), async (req, res) => {
     res.json({
       success: true,
       message: 'Submission received!',
-      submissionId: created.id,
-      submissionNumber: created.shop_submission_number // Include this in the response
+      submissionId: submission.id,
+      submissionNumber: submission.shop_submission_number // Include this in the response
     });
   } catch (error) {
     console.error('Error saving submission:', error);

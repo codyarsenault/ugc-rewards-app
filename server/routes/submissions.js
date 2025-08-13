@@ -34,6 +34,7 @@ adminSubmissionRoutes.get('/submissions', async (req, res) => {
       content: sub.content,
       status: sub.status,
       mediaUrl: sub.media_url,
+      mediaUrls: sub.media_urls || null,
       createdAt: sub.created_at,
       job_title: sub.job_title,
       job_id: sub.job_id,
@@ -600,7 +601,22 @@ adminSubmissionRoutes.get('/submissions/:id/download', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to access this submission' });
     }
 
-    const mediaUrl = submission.media_url;
+    const requestedUrl = req.query.url;
+    const mediaList = Array.isArray(submission.media_urls) ? submission.media_urls : [];
+
+    // Determine which URL to download
+    let mediaUrl = submission.media_url;
+    if (requestedUrl) {
+      // Allow download if it matches primary URL or one of the stored URLs
+      if (requestedUrl === submission.media_url || mediaList.includes(requestedUrl)) {
+        mediaUrl = requestedUrl;
+      } else {
+        return res.status(400).json({ error: 'Requested media is not part of this submission' });
+      }
+    } else if (!mediaUrl && mediaList.length > 0) {
+      mediaUrl = mediaList[0];
+    }
+
     if (!mediaUrl) {
       return res.status(400).json({ error: 'No media available for this submission' });
     }
@@ -639,7 +655,6 @@ adminSubmissionRoutes.get('/submissions/:id/download', async (req, res) => {
     // Stream body to response (Node 18 fetch returns web stream)
     const readable = upstream.body;
     if (readable && typeof readable.pipeTo === 'function') {
-      // Convert web stream to Node stream
       const { Readable } = await import('stream');
       Readable.fromWeb(upstream.body).pipe(res);
     } else {

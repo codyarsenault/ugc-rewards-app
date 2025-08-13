@@ -483,12 +483,13 @@
         <div class="form-group" id="mediaGroup" style="display:none;">
       <label id="mediaLabel">Upload Photo/Video</label>
       <div class="file-upload">
-      <input type="file" id="media" name="media" accept="image/*,video/*">
+      <input type="file" id="media" name="media" accept="image/*,video/*" multiple>
         <label for="media" class="file-upload-label">
-          <span id="fileLabel">Choose file or drag and drop here</span>
+          <span id="fileLabel">Choose file(s) or drag and drop here</span>
         </label>
       </div>
       <div id="fileInfo" class="file-info"></div>
+      <div id="mediaPreviewList" style="display: none; margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;"></div>
     </div>
     
         
@@ -657,6 +658,9 @@
     const fileLabel = document.getElementById('fileLabel');
     const fileInfo = document.getElementById('fileInfo');
     const submitBtn = document.getElementById('submitBtn');
+    // Disable native validation bubbles; we validate manually
+    if (form) form.setAttribute('novalidate', '');
+    if (fileInput) fileInput.required = false;
     
     // Get URL params
     const urlParams = new URLSearchParams(window.location.search);
@@ -773,7 +777,7 @@
         // Show media upload if needed
         if (job.type === 'photo' || job.type === 'video') {
           mediaGroup.style.display = 'block';
-          fileInput.required = true;
+          fileInput.required = false;
           
           // Update the label based on job type
           const mediaLabel = document.getElementById('mediaLabel');
@@ -884,34 +888,198 @@
     typeSelect.addEventListener('change', (e) => {
       if (e.target.value === 'photo' || e.target.value === 'video') {
         mediaGroup.style.display = 'block';
-        fileInput.required = true;
+        fileInput.required = false;
       } else {
         mediaGroup.style.display = 'none';
         fileInput.required = false;
         fileInput.value = '';
-        fileLabel.textContent = 'Choose file or drag and drop here';
+        fileLabel.textContent = 'Choose file(s) or drag and drop here';
         fileInfo.textContent = '';
       }
     });
     
+    // Client-side state for selected files
+    const selectedFiles = [];
+    let nextFileId = 1;
+
+    function getFileExt(name) {
+      const idx = name.lastIndexOf('.');
+      return idx >= 0 ? name.substring(idx + 1).toLowerCase() : '';
+    }
+    function isVideoFile(name) {
+      return ['mp4','mov','avi','wmv','flv','webm','mkv'].includes(getFileExt(name));
+    }
+    function isImageFile(name) {
+      return ['jpg','jpeg','png','gif','webp','bmp','tiff','svg'].includes(getFileExt(name));
+    }
+
+    function addFiles(filesList) {
+      const files = Array.from(filesList || []);
+      if (files.length === 0) return;
+
+      for (const f of files) {
+        // Max 10 files total
+        if (selectedFiles.length >= 10) break;
+
+        // Enforce accept types
+        const name = f.name || '';
+        if (!isImageFile(name) && !isVideoFile(name)) continue;
+
+        // Size limit 50MB per file
+        if (f.size > 50 * 1024 * 1024) continue;
+
+        // De-dupe by name+size
+        const dup = selectedFiles.find(it => it.file.name === f.name && it.file.size === f.size && it.file.type === f.type);
+        if (dup) continue;
+
+        selectedFiles.push({ id: nextFileId++, file: f });
+      }
+      renderMediaList();
+      fileInput.value = '';
+    }
+
+    function removeFile(id) {
+      const idx = selectedFiles.findIndex(it => it.id === id);
+      if (idx >= 0) {
+        selectedFiles.splice(idx, 1);
+        renderMediaList();
+      }
+    }
+    // Expose for inline onclick
+    window.removeFile = removeFile;
+
+    function initVideoThumb(videoEl) {
+      try {
+        videoEl.muted = true;
+        videoEl.setAttribute('playsinline', '');
+        videoEl.setAttribute('webkit-playsinline', '');
+        videoEl.preload = 'metadata';
+
+        const makeSnapshot = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const vw = videoEl.videoWidth || 320;
+            const vh = videoEl.videoHeight || 180;
+            if (!vw || !vh) return;
+
+            // Render at displayed tile size times device pixel ratio for crispness
+            const container = videoEl.parentElement;
+            const rect = container ? container.getBoundingClientRect() : { width: 160, height: 160 };
+            const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+            const targetW = Math.max(1, Math.round(rect.width * dpr));
+            const targetH = Math.max(1, Math.round(rect.height * dpr));
+            canvas.width = targetW;
+            canvas.height = targetH;
+
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Crop to cover
+            const targetRatio = targetW / targetH;
+            const videoRatio = vw / vh;
+            let sx = 0, sy = 0, sw = vw, sh = vh;
+            if (videoRatio > targetRatio) {
+              // video is wider than target, crop sides
+              sw = Math.round(vh * targetRatio);
+              sx = Math.round((vw - sw) / 2);
+            } else if (videoRatio < targetRatio) {
+              // video is taller than target, crop top/bottom
+              sh = Math.round(vw / targetRatio);
+              sy = Math.round((vh - sh) / 2);
+            }
+
+            ctx.drawImage(videoEl, sx, sy, sw, sh, 0, 0, targetW, targetH);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            if (dataUrl) {
+              const img = document.createElement('img');
+              img.src = dataUrl;
+              img.alt = 'Video preview';
+              img.style.width = '100%';
+              img.style.height = '100%';
+              img.style.objectFit = 'cover';
+              img.style.borderRadius = '8px';
+              if (container) container.replaceChild(img, videoEl);
+            }
+          } catch (e) {
+            console.warn('Canvas snapshot failed', e);
+          }
+        };
+
+        const onLoadedMetadata = () => {
+          // Try seek then snapshot on seeked; fallback to loadeddata
+          const trySeek = () => {
+            try { videoEl.currentTime = Math.min(0.1, (videoEl.duration || 1) / 10); } catch {}
+          };
+          const onSeeked = () => {
+            videoEl.removeEventListener('seeked', onSeeked);
+            makeSnapshot();
+          };
+          videoEl.addEventListener('seeked', onSeeked);
+          trySeek();
+          // Fallback if seeked never fires
+          setTimeout(() => {
+            if (videoEl && videoEl.parentElement && videoEl.tagName.toLowerCase() === 'video') {
+              makeSnapshot();
+            }
+          }, 400);
+        };
+
+        const onLoadedData = async () => {
+          // As a backup, attempt a very brief play to decode a frame then snapshot
+          try { await videoEl.play(); } catch {}
+          setTimeout(() => {
+            try { videoEl.pause(); } catch {}
+            makeSnapshot();
+          }, 150);
+        };
+
+        videoEl.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+        videoEl.addEventListener('loadeddata', onLoadedData, { once: true });
+        videoEl.load();
+      } catch (e) {
+        console.warn('Video thumb init failed', e);
+      }
+    }
+
+    function renderMediaList() {
+      const list = document.getElementById('mediaPreviewList');
+      if (!list) return;
+      if (selectedFiles.length === 0) {
+        list.style.display = 'none';
+        fileLabel.textContent = 'Choose file(s) or drag and drop here';
+        fileInfo.textContent = '';
+        return;
+      }
+      list.style.display = 'grid';
+      const totalSize = selectedFiles.reduce((sum, it) => sum + it.file.size, 0);
+      const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+      fileInfo.style.color = '#666';
+      fileInfo.textContent = `${selectedFiles.length} file(s), total ${sizeMB} MB`;
+      fileLabel.textContent = `${selectedFiles.length} file(s) ready`;
+
+      list.innerHTML = selectedFiles.map(it => {
+        const name = it.file.name || 'file';
+        const isVid = isVideoFile(name);
+        const url = URL.createObjectURL(it.file);
+        const thumb = isVid
+          ? `<video src="${url}#t=0.1" preload="metadata" muted playsinline webkit-playsinline style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></video>`
+          : `<img src="${url}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />`;
+        return `
+          <div class="media-item" style="position:relative;width:100%;padding-top:100%;background:#f6f6f7;border:1px solid #e8e5e3;border-radius:10px;overflow:hidden;">
+            <div style="position:absolute;inset:0;">${thumb}</div>
+            <button type="button" aria-label="Remove" onclick="(function(){ removeFile(${it.id}); })()" style="position:absolute;top:6px;right:6px;background:#fff;border:1px solid #ddd;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;">×</button>
+          </div>
+        `;
+      }).join('');
+
+      // Initialize video thumbnails after DOM update
+      list.querySelectorAll('video').forEach(initVideoThumb);
+    }
+    
     // Handle file selection
     fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        fileLabel.textContent = file.name;
-        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        fileInfo.textContent = `File size: ${sizeMB} MB`;
-        
-        // Validate file size (50MB limit)
-        if (file.size > 50 * 1024 * 1024) {
-          fileInfo.style.color = 'red';
-          fileInfo.textContent += ' (File too large! Maximum size is 50MB)';
-          submitBtn.disabled = true;
-        } else {
-          fileInfo.style.color = '#666';
-          submitBtn.disabled = false;
-        }
-      }
+      addFiles(e.target.files);
     });
     
     // Handle form submission (replace the existing form submission handler in submit.html)
@@ -927,6 +1095,17 @@
     
     // Create FormData object
     const formData = new FormData(form);
+    // Replace any existing 'media' form entries with our managed selection
+    while (formData.has('media')) formData.delete('media');
+    // Require at least one file if mediaGroup is visible and job expects media
+    if (mediaGroup.style.display !== 'none' && selectedFiles.length === 0) {
+      messageDiv.innerHTML = '<div class="error">Please add at least one media file.</div>';
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Submit & Get Reward';
+      messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    selectedFiles.forEach(it => formData.append('media', it.file, it.file.name));
     
     // CRITICAL: Get shop parameter from URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -1095,11 +1274,8 @@
     function handleDrop(e) {
       const dt = e.dataTransfer;
       const files = dt.files;
-      
-      if (files.length > 0) {
-        fileInput.files = files;
-        const event = new Event('change', { bubbles: true });
-        fileInput.dispatchEvent(event);
+      if (files && files.length > 0) {
+        addFiles(files);
       }
     }
   </script>
