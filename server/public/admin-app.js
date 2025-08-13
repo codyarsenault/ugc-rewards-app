@@ -1641,7 +1641,20 @@ window.startSubscription = async function(plan) {
   }
 };
 
-window.openShopifyPlans = function() {
-  // Let server compute the correct URL and redirect (handles embedded context)
-  window.location.href = `/api/admin/billing/redirect-managed-plans`;
+window.openShopifyPlans = async function() {
+  try {
+    const resp = await window.makeAuthenticatedRequest('/api/admin/billing/managed-plans-url');
+    if (!resp.ok) throw new Error('Failed to get plans URL');
+    const data = await resp.json();
+    if (!data.url) throw new Error('No URL returned');
+    // Top-level redirect
+    if (window.top) {
+      window.top.location.href = data.url;
+    } else {
+      window.location.href = data.url;
+    }
+  } catch (e) {
+    console.error('Open Shopify plans failed', e);
+    alert('Unable to open Shopify pricing page. Please try again.');
+  }
 };
