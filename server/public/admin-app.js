@@ -1617,6 +1617,8 @@ window.startSubscription = async function(plan) {
       const reason = data.devReason || '';
       if (reason === 'free_shop') {
         alert(`Plan set to ${planLabel} (free for this shop)`);
+      } else if (reason === 'managed_pricing') {
+        alert(`Plan set to ${planLabel}`);
       } else {
         alert(`Plan set to ${planLabel} (dev mode)`);
       }

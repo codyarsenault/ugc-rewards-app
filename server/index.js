@@ -210,6 +210,9 @@ const shopify = shopifyApp({
     scopes:       ['write_discounts', 'read_customers', 'write_price_rules'],
     hostName:     process.env.HOST.replace(/^https?:\/\//, ''),
     apiVersion:   LATEST_API_VERSION,
+    future: {
+      unstable_managedPricingSupport: true
+    }
   },
   auth: {
     path:         '/api/auth',
@@ -626,6 +629,18 @@ app.post('/api/admin/billing/subscribe', async (req, res) => {
     if (!selected) return res.status(400).json({ error: 'INVALID_PLAN' });
     const session = res.locals.shopify.session;
 
+    // Managed pricing mode: do not use Billing API; immediately set plan
+    if (process.env.USE_MANAGED_PRICING === 'true') {
+      // Respect whitelist (FREE_SHOPS) but we treat all shops the same here—no billing intent
+      try {
+        await ShopInstallationsModel.update(session.shop, { plan_name: planKey });
+        return res.json({ devActivated: true, plan: planKey, devReason: 'managed_pricing' });
+      } catch (e) {
+        console.error('Managed pricing plan set failed:', e);
+        return res.status(500).json({ error: 'FAILED_TO_SET_PLAN_MANAGED' });
+      }
+    }
+
     // Bypass billing for whitelisted shops (comma-separated in FREE_SHOPS)
     const freeShops = (process.env.FREE_SHOPS || '')
       .split(',')
@@ -681,7 +696,6 @@ app.post('/api/admin/billing/subscribe', async (req, res) => {
       const mpError = userErrors.find(e => (e.message || '').includes('Managed Pricing Apps'));
       const allowDevFallback = process.env.ALLOW_DEV_ACTIVATION === 'true' || process.env.NODE_ENV !== 'production';
       if (mpError && allowDevFallback) {
-        // Optional fallback for development/testing environments only
         try {
           await ShopInstallationsModel.update(session.shop, { plan_name: planKey });
           return res.json({ devActivated: true, plan: planKey, devReason: 'managed_pricing_fallback' });
