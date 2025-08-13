@@ -128,11 +128,11 @@ const webhookHandlers = {
         `;
         const resp = await client.request(query);
         const subs = resp?.data?.currentAppInstallation?.activeSubscriptions || [];
-        const active = subs.find(s => s.status === 'ACTIVE' && s.name && s.name.startsWith('Honest UGC - '));
+        const active = subs.find(s => s.status === 'ACTIVE' && s.name);
         if (!active) {
-          // No active sub – default to starter
-          await ShopInstallationsModel.update(shop, { plan_name: 'starter' });
-          console.log('No active subscription found; set plan to starter for', shop);
+          // No active subscription – clear plan; we will reflect this state in UI
+          await ShopInstallationsModel.update(shop, { plan_name: null });
+          console.log('No active subscription found; cleared plan for', shop);
           return;
         }
         let plan_name = 'starter';
@@ -608,8 +608,36 @@ app.get('/api/admin/me', async (req, res) => {
     const session = res.locals.shopify.session;
     const shop = session.shop;
     const install = await ShopInstallationsModel.getByShop(shop);
-    const planRaw = install?.plan_name || null;
-    const hasPlan = !!planRaw;
+    let planRaw = install?.plan_name || null;
+    let hasPlan = !!planRaw;
+    const useManaged = process.env.USE_MANAGED_PRICING === 'true';
+
+    // Live reconcile with Shopify for managed pricing
+    if (useManaged) {
+      try {
+        const client = new shopify.api.clients.Graphql({ session });
+        const query = `#graphql
+          query { currentAppInstallation { activeSubscriptions { name status } } }
+        `;
+        const resp = await client.request(query);
+        const subs = resp?.data?.currentAppInstallation?.activeSubscriptions || [];
+        const active = subs.find(s => s.status === 'ACTIVE' && s.name);
+        let planFromShop = null;
+        if (active) {
+          if (/pro/i.test(active.name)) planFromShop = 'pro';
+          else if (/scale/i.test(active.name)) planFromShop = 'scale';
+          else if (/starter|mini/i.test(active.name)) planFromShop = 'starter';
+        }
+        if (planFromShop !== planRaw) {
+          await ShopInstallationsModel.update(shop, { plan_name: planFromShop });
+          planRaw = planFromShop;
+          hasPlan = !!planRaw;
+        }
+      } catch (e) {
+        console.warn('Plan reconcile failed (managed pricing):', e?.message || e);
+      }
+    }
+
     const planKey = (planRaw || 'starter').toLowerCase();
     const freeShops = (process.env.FREE_SHOPS || '')
       .split(',')
@@ -623,7 +651,7 @@ app.get('/api/admin/me', async (req, res) => {
       freeShop,
       features: getPlanFlags(planKey),
       limits: getPlanLimits(planKey),
-      managedPricing: process.env.USE_MANAGED_PRICING === 'true'
+      managedPricing: useManaged
     });
   } catch (e) {
     res.status(500).json({ error: 'Failed to load profile' });
