@@ -628,11 +628,13 @@ app.get('/api/admin/me', async (req, res) => {
           else if (/scale/i.test(active.name)) planFromShop = 'scale';
           else if (/starter|mini/i.test(active.name)) planFromShop = 'starter';
         }
-        if (planFromShop !== planRaw) {
+        // Only overwrite local plan when Shopify reports a specific active plan.
+        // If Shopify has no active subscription (null), keep our local plan (e.g., free/whitelisted shops).
+        if (planFromShop && planFromShop !== planRaw) {
           await ShopInstallationsModel.update(shop, { plan_name: planFromShop });
           planRaw = planFromShop;
-          hasPlan = !!planRaw;
         }
+        hasPlan = !!planRaw;
       } catch (e) {
         console.warn('Plan reconcile failed (managed pricing):', e?.message || e);
       }
