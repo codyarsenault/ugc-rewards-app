@@ -543,6 +543,13 @@ video.modal-content {
 #downloadMediaBtn:active {
   transform: scale(0.98);
 }
+
+/* Hide download button on small screens (mobile) */
+@media (max-width: 768px) {
+  #downloadMediaBtn {
+    display: none !important;
+  }
+}
 .job-card {
   border: 1px solid #e1e3e5;
   border-radius: 6px;

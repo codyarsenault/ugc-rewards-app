@@ -513,9 +513,9 @@ function createSubmissionRow(sub) {
 // Create media preview element
 function createMediaPreview(sub) {
   if (sub.type === 'video') {
-    return `<video class="media-preview lazy" preload="metadata" playsinline webkit-playsinline muted data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'video')"></video>`;
+    return `<video class="media-preview lazy" preload="metadata" playsinline webkit-playsinline muted data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'video', ${sub.id})"></video>`;
   } else {
-    return `<img class="media-preview lazy" data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'image')" alt="Submission media">`;
+    return `<img class="media-preview lazy" data-src="${sub.mediaUrl}" onclick="openModal('${sub.mediaUrl}', 'image', ${sub.id})" alt="Submission media">`;
   }
 }
 
@@ -1408,8 +1408,9 @@ window.resetEmailSettingsToDefaults = function() {
 // Modal functions
 let currentMediaUrl = '';
 let currentMediaType = '';
+let currentSubmissionId = null;
 
-window.openModal = function(src, type) {
+window.openModal = function(src, type, submissionId) {
   const modal = document.getElementById('mediaModal');
   const modalImg = document.getElementById('modalImage');
   const modalVideo = document.getElementById('modalVideo');
@@ -1417,6 +1418,7 @@ window.openModal = function(src, type) {
   // Store current media info for download
   currentMediaUrl = src;
   currentMediaType = type;
+  currentSubmissionId = submissionId || null;
   
   modal.classList.add('open');
   
@@ -1441,6 +1443,7 @@ window.closeModal = function() {
   // Clear current media info
   currentMediaUrl = '';
   currentMediaType = '';
+  currentSubmissionId = null;
 };
 
 // Download current media function
@@ -1449,21 +1452,72 @@ window.downloadCurrentMedia = async function() {
     alert('No media to download');
     return;
   }
-  
-  // Extract filename from URL or create a default one
-  const urlParts = currentMediaUrl.split('/');
-  const filename = urlParts[urlParts.length - 1] || `submission-media.${currentMediaType === 'video' ? 'mp4' : 'jpg'}`;
-  
-  // Create a temporary link and trigger download
-  const link = document.createElement('a');
-  link.href = currentMediaUrl;
-  link.download = filename;
-  link.target = '_blank';
-  
-  // Add to DOM temporarily, click, then remove
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+
+  // Detect mobile (basic heuristic); on mobile the button is hidden, but guard anyway
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+    // Do nothing; button should be hidden via CSS
+    return;
+  }
+
+  // Prefer secure server-side download to set Content-Disposition
+  if (currentSubmissionId) {
+    try {
+      const resp = await window.makeAuthenticatedRequest(`/api/admin/submissions/${currentSubmissionId}/download`, {
+        method: 'GET'
+      });
+      if (!resp.ok) throw new Error('Failed to start download');
+      const cd = resp.headers.get('content-disposition') || '';
+      let filename = 'submission-media';
+      const match = cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+      if (match) filename = decodeURIComponent(match[1] || match[2]);
+
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      return;
+    } catch (e) {
+      console.error('Server download failed, falling back:', e);
+    }
+  }
+
+  // Fallback: client-side fetch and download
+  try {
+    const resp = await fetch(currentMediaUrl, { credentials: 'omit' });
+    if (!resp.ok) throw new Error('Network response was not ok');
+    const blob = await resp.blob();
+
+    const urlParts = currentMediaUrl.split('?')[0].split('/');
+    let filename = urlParts[urlParts.length - 1] || `submission-media.${currentMediaType === 'video' ? 'mp4' : 'jpg'}`;
+    if (!/\.[a-zA-Z0-9]{2,6}$/.test(filename)) {
+      filename += currentMediaType === 'video' ? '.mp4' : '.jpg';
+    }
+
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  } catch (e) {
+    const urlParts = currentMediaUrl.split('/');
+    const filename = urlParts[urlParts.length - 1] || `submission-media.${currentMediaType === 'video' ? 'mp4' : 'jpg'}`;
+    const link = document.createElement('a');
+    link.href = currentMediaUrl;
+    link.download = filename;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };
 
 window.openQuickEmailSetup = function() {

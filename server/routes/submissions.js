@@ -577,3 +577,77 @@ adminSubmissionRoutes.post('/submissions/:id/resend-reward', async (req, res) =>
     res.status(500).json({ error: 'Failed to resend reward email: ' + error.message });
   }
 });
+
+// Add secure download route for submission media
+adminSubmissionRoutes.get('/submissions/:id/download', async (req, res) => {
+  try {
+    const submissionId = req.params.id;
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
+
+    const submission = await SubmissionsModel.getById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Authorization: must belong to this shop
+    if (submission.job_id) {
+      const job = await JobsModel.getById(submission.job_id);
+      if (!job || job.shop_domain !== shop) {
+        return res.status(403).json({ error: 'Unauthorized to access this submission' });
+      }
+    } else if (submission.shop_domain && submission.shop_domain !== shop) {
+      return res.status(403).json({ error: 'Unauthorized to access this submission' });
+    }
+
+    const mediaUrl = submission.media_url;
+    if (!mediaUrl) {
+      return res.status(400).json({ error: 'No media available for this submission' });
+    }
+
+    // Fetch the file
+    const upstream = await fetch(mediaUrl);
+    if (!upstream.ok) {
+      return res.status(502).json({ error: 'Failed to fetch media from storage' });
+    }
+
+    // Determine filename
+    let filename = 'submission-media';
+    const cd = upstream.headers.get('content-disposition');
+    if (cd) {
+      const match = cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+      if (match) {
+        filename = decodeURIComponent(match[1] || match[2]);
+      }
+    }
+    if (!filename || filename === 'submission-media') {
+      try {
+        const urlPath = new URL(mediaUrl).pathname;
+        const last = urlPath.split('/').pop();
+        if (last) filename = last;
+      } catch {}
+    }
+
+    // Content type and length
+    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+    const contentLength = upstream.headers.get('content-length');
+
+    res.setHeader('Content-Type', contentType);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Stream body to response (Node 18 fetch returns web stream)
+    const readable = upstream.body;
+    if (readable && typeof readable.pipeTo === 'function') {
+      // Convert web stream to Node stream
+      const { Readable } = await import('stream');
+      Readable.fromWeb(upstream.body).pipe(res);
+    } else {
+      const arrayBuffer = await upstream.arrayBuffer();
+      res.end(Buffer.from(arrayBuffer));
+    }
+  } catch (error) {
+    console.error('Error downloading submission media:', error);
+    res.status(500).json({ error: 'Failed to download media' });
+  }
+});
