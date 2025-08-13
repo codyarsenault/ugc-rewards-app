@@ -1651,7 +1651,6 @@ window.openShopifyPlans = async function() {
     if (!resp.ok) throw new Error('Failed to get plans URL');
     const data = await resp.json();
     if (!data.url) throw new Error('No URL returned');
-    // Top-level redirect
     if (window.top) {
       window.top.location.href = data.url;
     } else {
@@ -1660,5 +1659,27 @@ window.openShopifyPlans = async function() {
   } catch (e) {
     console.error('Open Shopify plans failed', e);
     alert('Unable to open Shopify pricing page. Please try again.');
+  }
+};
+
+window.cancelPlan = async function() {
+  try {
+    const confirmCancel = confirm('This will cancel your plan. You may need to confirm in Shopify billing. Continue?');
+    if (!confirmCancel) return;
+    const resp = await window.makeAuthenticatedRequest('/api/admin/billing/cancel', { method: 'POST' });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed to cancel plan');
+    // Update banner and buttons locally
+    const banner = document.getElementById('currentPlanBanner');
+    if (banner) banner.textContent = 'No plan selected';
+    const btn = document.getElementById('managedPricingBtn');
+    if (btn) btn.textContent = 'View plans';
+    const cancelBtn = document.getElementById('cancelPlanBtn');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    // Redirect to Shopify billing so merchant can finalize
+    await openShopifyPlans();
+  } catch (e) {
+    console.error('Cancel plan failed', e);
+    alert('Failed to cancel plan: ' + e.message);
   }
 };

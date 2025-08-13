@@ -768,7 +768,7 @@ video.modal-content {
 }
 /* Subscription banner */
 .subscription-banner {
-  background: #1a7f37; /* Shopify green */
+  background: #008060; /* match primary button */
   color: #fff;
   padding: 10px 14px;
   border-radius: 6px;

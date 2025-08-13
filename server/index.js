@@ -775,6 +775,21 @@ app.get('/api/billing/return', async (req, res) => {
   }
 });
 
+// Attempt to cancel plan (managed pricing UX helper)
+app.post('/api/admin/billing/cancel', async (req, res) => {
+  try {
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
+    // In managed pricing, actual cancellation is done in Shopify Admin.
+    // We clear local plan so UI reflects pending change and advise the merchant to confirm in Shopify.
+    await ShopInstallationsModel.update(shop, { plan_name: null });
+    return res.json({ success: true, message: 'Plan marked for cancellation. Please confirm in Shopify billing.' });
+  } catch (e) {
+    console.error('Cancel plan error:', e);
+    res.status(500).json({ error: 'Failed to cancel plan' });
+  }
+});
+
 // Get customizations (public)
 app.get('/api/public/customizations', async (req, res) => {
   try {
