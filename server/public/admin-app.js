@@ -1584,13 +1584,18 @@ async function loadPlanInfo() {
     const current = (data.plan || 'none').toString();
     const banner = document.getElementById('currentPlanBanner');
     if (banner) {
-      banner.textContent = data.plan ? `Current plan: ${current.toUpperCase()}` : 'No plan selected';
+      banner.textContent = data.plan ? `You are subscribed to the ${current.toUpperCase()} plan` : 'No plan selected';
     }
     if (data.managedPricing) {
       const btn = document.getElementById('managedPricingBtn');
       if (btn) {
         btn.style.display = 'inline-block';
         btn.textContent = data.hasPlan ? 'Change plan' : 'View plans';
+      }
+      const cancelBtn = document.getElementById('cancelPlanBtn');
+      if (cancelBtn) {
+        cancelBtn.style.display = data.hasPlan ? 'inline-block' : 'none';
+        cancelBtn.textContent = 'Cancel plan';
       }
     }
     // Hide cash reward type for non-pro plans

@@ -766,3 +766,32 @@ video.modal-content {
   border: 1px solid #eee;
   cursor: pointer;
 }
+/* Subscription banner */
+.subscription-banner {
+  background: #1a7f37; /* Shopify green */
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.subscription-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+.subscription-actions .btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+}
+.subscription-actions .btn-secondary {
+  background: #f6f6f7;
+  color: #202223;
+  border: 1px solid #c9cccf;
+}
+.subscription-actions .btn-secondary:hover {
+  background: #ebebec;
+}

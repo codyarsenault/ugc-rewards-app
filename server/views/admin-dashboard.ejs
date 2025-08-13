@@ -759,9 +759,10 @@
       <div id="plans-tab" class="<%= initialView === 'plans' ? 'tab-content active' : 'tab-content' %>">
         <div class="card">
           <h1>Your Plan</h1>
-          <div id="currentPlanBanner" style="margin-bottom: 16px; color: #616161;">Loading plan...</div>
-          <div style="margin-bottom: 8px;">
+          <div class="subscription-banner" id="currentPlanBanner">Loading plan...</div>
+          <div class="subscription-actions">
             <button id="managedPricingBtn" class="btn btn-primary" style="display:none;" onclick="openShopifyPlans()">View Plans</button>
+            <button id="cancelPlanBtn" class="btn btn-secondary" style="display:none;" onclick="openShopifyPlans()">Cancel Plan</button>
           </div>
           <div style="margin-top: 8px; color:#999; font-size: 13px;">Billing and trials are managed in Shopify.</div>
         </div>
