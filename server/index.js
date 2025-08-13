@@ -613,10 +613,29 @@ app.get('/api/admin/me', async (req, res) => {
       shop,
       plan,
       features: getPlanFlags(plan),
-      limits: getPlanLimits(plan)
+      limits: getPlanLimits(plan),
+      managedPricing: process.env.USE_MANAGED_PRICING === 'true'
     });
   } catch (e) {
     res.status(500).json({ error: 'Failed to load profile' });
+  }
+});
+// Redirect to Shopify-hosted managed pricing plans page
+app.get('/api/admin/billing/redirect-managed-plans', async (req, res) => {
+  try {
+    const session = res.locals.shopify.session;
+    const shop = session.shop;
+    // Build hosted plans URL: https://admin.shopify.com/store/{shop}/charges/{app_handle}/pricing_plans
+    // app handle is typically the app's handle; we’ll derive from HOST or env
+    const appHandle = process.env.SHOPIFY_APP_HANDLE || 'honest-ugc';
+    const storeSlug = shop.replace('.myshopify.com', '');
+    const url = `https://admin.shopify.com/store/${encodeURIComponent(storeSlug)}/charges/${encodeURIComponent(appHandle)}/pricing_plans`;
+    // In embedded context, top-level redirect is required
+    res.set('X-Frame-Options', 'ALLOWALL');
+    return res.redirect(url);
+  } catch (e) {
+    console.error('Managed plans redirect error:', e);
+    res.status(500).send('Unable to open Shopify pricing page');
   }
 });
 

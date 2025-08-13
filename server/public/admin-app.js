@@ -1586,6 +1586,14 @@ async function loadPlanInfo() {
     if (banner) {
       banner.textContent = `Current plan: ${current.toUpperCase()}`;
     }
+    // If managed pricing is enabled server-side, show a link to Shopify-hosted plans
+    if (data.managedPricing) {
+      const link = document.getElementById('managedPricingLink');
+      if (link && data.shop) {
+        link.style.display = 'inline-block';
+        link.href = `/api/admin/billing/redirect-managed-plans`;
+      }
+    }
     // Hide cash reward type for non-pro plans
     const allowCash = !!(data.features && data.features.rewards && data.features.rewards.cash);
     const rewardTypeSelect = document.getElementById('rewardType');
@@ -1631,4 +1639,9 @@ window.startSubscription = async function(plan) {
     console.error('Subscription error', e);
     alert('Failed to start subscription: ' + e.message);
   }
+};
+
+window.openShopifyPlans = function() {
+  // Let server compute the correct URL and redirect (handles embedded context)
+  window.location.href = `/api/admin/billing/redirect-managed-plans`;
 };
