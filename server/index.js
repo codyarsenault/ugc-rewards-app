@@ -608,12 +608,15 @@ app.get('/api/admin/me', async (req, res) => {
     const session = res.locals.shopify.session;
     const shop = session.shop;
     const install = await ShopInstallationsModel.getByShop(shop);
-    const plan = (install?.plan_name || 'starter').toLowerCase();
+    const planRaw = install?.plan_name || null;
+    const hasPlan = !!planRaw;
+    const planKey = (planRaw || 'starter').toLowerCase();
     res.json({
       shop,
-      plan,
-      features: getPlanFlags(plan),
-      limits: getPlanLimits(plan),
+      plan: planRaw,
+      hasPlan,
+      features: getPlanFlags(planKey),
+      limits: getPlanLimits(planKey),
       managedPricing: process.env.USE_MANAGED_PRICING === 'true'
     });
   } catch (e) {

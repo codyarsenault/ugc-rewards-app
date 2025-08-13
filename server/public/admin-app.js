@@ -1581,17 +1581,16 @@ async function loadPlanInfo() {
     const resp = await window.makeAuthenticatedRequest('/api/admin/me');
     if (!resp.ok) return;
     const data = await resp.json();
-    const current = data.plan || 'starter';
+    const current = (data.plan || 'none').toString();
     const banner = document.getElementById('currentPlanBanner');
     if (banner) {
-      banner.textContent = `Current plan: ${current.toUpperCase()}`;
+      banner.textContent = data.plan ? `Current plan: ${current.toUpperCase()}` : 'No plan selected';
     }
-    // If managed pricing is enabled server-side, show a link to Shopify-hosted plans
     if (data.managedPricing) {
-      const link = document.getElementById('managedPricingLink');
-      if (link && data.shop) {
-        link.style.display = 'inline-block';
-        link.href = `/api/admin/billing/redirect-managed-plans`;
+      const btn = document.getElementById('managedPricingBtn');
+      if (btn) {
+        btn.style.display = 'inline-block';
+        btn.textContent = data.hasPlan ? 'Change plan' : 'View plans';
       }
     }
     // Hide cash reward type for non-pro plans
