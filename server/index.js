@@ -625,6 +625,22 @@ app.post('/api/admin/billing/subscribe', async (req, res) => {
     const selected = PLANS[planKey];
     if (!selected) return res.status(400).json({ error: 'INVALID_PLAN' });
     const session = res.locals.shopify.session;
+
+    // Bypass billing for whitelisted shops (comma-separated in FREE_SHOPS)
+    const freeShops = (process.env.FREE_SHOPS || '')
+      .split(',')
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean);
+    if (freeShops.includes((session.shop || '').toLowerCase())) {
+      try {
+        await ShopInstallationsModel.update(session.shop, { plan_name: planKey });
+        return res.json({ devActivated: true, plan: planKey, devReason: 'free_shop' });
+      } catch (e) {
+        console.error('FREE_SHOPS plan set failed:', e);
+        return res.status(500).json({ error: 'FAILED_TO_SET_PLAN_FOR_FREE_SHOP' });
+      }
+    }
+
     const client = new shopify.api.clients.Graphql({ session });
     const name = `Honest UGC - ${selected.displayName}`;
     const test = process.env.NODE_ENV !== 'production';
@@ -663,11 +679,12 @@ app.post('/api/admin/billing/subscribe', async (req, res) => {
     if (userErrors && userErrors.length) {
       console.error('Billing userErrors:', userErrors);
       const mpError = userErrors.find(e => (e.message || '').includes('Managed Pricing Apps'));
-      if (mpError) {
-        // Fallback for managed pricing apps: set plan without billing (dev mode)
+      const allowDevFallback = process.env.ALLOW_DEV_ACTIVATION === 'true' || process.env.NODE_ENV !== 'production';
+      if (mpError && allowDevFallback) {
+        // Optional fallback for development/testing environments only
         try {
           await ShopInstallationsModel.update(session.shop, { plan_name: planKey });
-          return res.json({ devActivated: true, plan: planKey });
+          return res.json({ devActivated: true, plan: planKey, devReason: 'managed_pricing_fallback' });
         } catch (e) {
           console.error('Failed to set plan in managed pricing fallback:', e);
         }
