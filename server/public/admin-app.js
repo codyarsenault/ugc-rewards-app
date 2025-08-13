@@ -1613,7 +1613,13 @@ window.startSubscription = async function(plan) {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Failed to start subscription');
     if (data.devActivated) {
-      alert(`Plan set to ${data.plan.toUpperCase()} (dev mode)`);
+      const planLabel = (data.plan || plan || '').toString().toUpperCase();
+      const reason = data.devReason || '';
+      if (reason === 'free_shop') {
+        alert(`Plan set to ${planLabel} (free for this shop)`);
+      } else {
+        alert(`Plan set to ${planLabel} (dev mode)`);
+      }
       window.location.reload();
       return;
     }
