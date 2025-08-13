@@ -682,8 +682,7 @@ app.post('/api/admin/billing/subscribe', async (req, res) => {
           plan: {
             appRecurringPricingDetails: {
               price: { amount: selected.priceAmount, currencyCode: selected.priceCurrency },
-              interval: selected.interval,
-              trialDays: selected.trialDays || 0
+              interval: selected.interval
             }
           }
         }
