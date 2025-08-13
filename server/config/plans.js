@@ -5,7 +5,7 @@ export const PLANS = {
     priceAmount: 14.99,
     priceCurrency: 'USD',
     interval: 'EVERY_30_DAYS',
-    trialDays: 7,
+    trialDays: 14,
     limits: {
       maxJobs: 3,
       monthlyApprovals: 10,
@@ -25,7 +25,7 @@ export const PLANS = {
     priceAmount: 29.99,
     priceCurrency: 'USD',
     interval: 'EVERY_30_DAYS',
-    trialDays: 7,
+    trialDays: 14,
     limits: {
       maxJobs: 10,
       monthlyApprovals: Infinity,
@@ -45,7 +45,7 @@ export const PLANS = {
     priceAmount: 49.99,
     priceCurrency: 'USD',
     interval: 'EVERY_30_DAYS',
-    trialDays: 7,
+    trialDays: 14,
     limits: {
       maxJobs: Infinity,
       monthlyApprovals: Infinity,
