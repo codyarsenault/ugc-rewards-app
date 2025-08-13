@@ -1592,11 +1592,6 @@ async function loadPlanInfo() {
         btn.style.display = 'inline-block';
         btn.textContent = data.hasPlan ? 'Change plan' : 'View plans';
       }
-      const cancelBtn = document.getElementById('cancelPlanBtn');
-      if (cancelBtn) {
-        cancelBtn.style.display = data.hasPlan ? 'inline-block' : 'none';
-        cancelBtn.textContent = 'Cancel plan';
-      }
       if (data.freeShop) {
         console.log('Note: this shop is whitelisted (freeShop). Shopify may still request payment setup for the store, but your plan is free.');
         const freeBtn = document.getElementById('activateFreeProBtn');
@@ -1671,27 +1666,7 @@ window.openShopifyPlans = async function() {
   }
 };
 
-window.cancelPlan = async function() {
-  try {
-    const confirmCancel = confirm('This will cancel your plan. You may need to confirm in Shopify billing. Continue?');
-    if (!confirmCancel) return;
-    const resp = await window.makeAuthenticatedRequest('/api/admin/billing/cancel', { method: 'POST' });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Failed to cancel plan');
-    // Update banner and buttons locally
-    const banner = document.getElementById('currentPlanBanner');
-    if (banner) banner.textContent = 'No plan selected';
-    const btn = document.getElementById('managedPricingBtn');
-    if (btn) btn.textContent = 'View plans';
-    const cancelBtn = document.getElementById('cancelPlanBtn');
-    if (cancelBtn) cancelBtn.style.display = 'none';
-    // Redirect to Shopify billing so merchant can finalize
-    await openShopifyPlans();
-  } catch (e) {
-    console.error('Cancel plan failed', e);
-    alert('Failed to cancel plan: ' + e.message);
-  }
-};
+// Activate free pro flow removed (managed in Shopify)
 
 window.activateFreePro = async function() {
   try {
@@ -1701,7 +1676,6 @@ window.activateFreePro = async function() {
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Failed to activate plan');
-    // If managed pricing path returns devActivated, reload to update banner
     window.location.reload();
   } catch (e) {
     console.error('Activate free pro failed', e);
