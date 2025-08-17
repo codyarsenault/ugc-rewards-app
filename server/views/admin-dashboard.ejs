@@ -978,6 +978,27 @@
       </div>
     </div>
 
+    <!-- Rejection Modal -->
+    <div id="rejectionModal" class="modal">
+      <div class="modal-content" style="max-width: 640px;">
+        <span class="close" onclick="closeRejectionModal()">&times;</span>
+        <h2>Send Rejection Email</h2>
+        <div class="form-group">
+          <label for="rejSubject">Subject</label>
+          <input type="text" id="rejSubject" />
+        </div>
+        <div class="form-group">
+          <label for="rejBody">Message</label>
+          <textarea id="rejBody" rows="8" placeholder="Explain clearly why this submission was rejected and how to improve."></textarea>
+          <div style="color:#999; font-size:12px; margin-top:6px;">Available variables: {type}</div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top: 10px;">
+          <button class="btn btn-secondary" onclick="closeRejectionModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="confirmRejectSubmission()">Send rejection email</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Load admin-app.js after App Bridge is initialized -->
     <script src="/public/admin-app.js"></script>
   </body>

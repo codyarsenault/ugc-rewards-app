@@ -530,7 +530,7 @@ function createSubmissionActions(sub) {
   if (sub.status === 'pending') {
     return `
       <button onclick="approveSubmission(${sub.id})" class="btn btn-primary btn-sm">Approve</button>
-      <button onclick="rejectSubmission(${sub.id})" class="btn btn-danger btn-sm">Reject</button>
+      <button onclick="openRejectionModalFor(${sub.id})" class="btn btn-danger btn-sm">Reject</button>
     `;
   }
   
@@ -609,25 +609,51 @@ window.approveSubmission = async function(submissionId) {
   }
 };
 
-// Reject submission
-window.rejectSubmission = async function(submissionId) {
-  if (!confirm('Are you sure you want to reject this submission?')) {
-    return;
-  }
-  
+// Override default reject flow to support custom email
+window.openRejectionModalFor = async function(submissionId) {
   try {
+    // Prefill with default text using {type}
+    const subjectDefault = 'Update on your submission';
+    const bodyDefault = 'Thank you for your submission. Unfortunately, your {type} submission was not approved at this time.\n\nWe encourage you to review our guidelines and submit again. We\'d love to see more content from you!';
+
+    const modal = document.getElementById('rejectionModal');
+    modal.dataset.submissionId = String(submissionId);
+    const subj = document.getElementById('rejSubject');
+    const body = document.getElementById('rejBody');
+    if (subj) subj.value = subjectDefault;
+    if (body) body.value = bodyDefault;
+    modal.classList.add('open');
+  } catch (e) {
+    console.error('Failed to open rejection modal', e);
+    alert('Unable to open rejection editor');
+  }
+};
+
+window.closeRejectionModal = function() {
+  const modal = document.getElementById('rejectionModal');
+  if (modal) modal.classList.remove('open');
+};
+
+window.confirmRejectSubmission = async function() {
+  try {
+    const modal = document.getElementById('rejectionModal');
+    const submissionId = modal?.dataset?.submissionId;
+    if (!submissionId) return closeRejectionModal();
+    const customSubject = document.getElementById('rejSubject')?.value || '';
+    const customBody = document.getElementById('rejBody')?.value || '';
+
     const response = await window.makeAuthenticatedRequest(`/api/admin/submissions/${submissionId}/reject`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ customSubject, customBody })
     });
-    
-    if (response.ok) {
-      loadSubmissions();
-    } else {
-      alert('Failed to reject submission');
-    }
-  } catch (error) {
-    console.error('Error rejecting submission:', error);
-    alert('Error rejecting submission');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || data.error || 'Failed to reject');
+    closeRejectionModal();
+    alert('Rejection email sent');
+    loadSubmissions();
+  } catch (e) {
+    console.error('Reject failed', e);
+    alert('Failed to send rejection email: ' + e.message);
   }
 };
 

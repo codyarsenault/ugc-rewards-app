@@ -348,13 +348,17 @@ adminSubmissionRoutes.post('/submissions/:id/reject', async (req, res) => {
     await SubmissionsModel.updateStatus(submissionId, 'rejected');
 
     const customizations = await CustomizationsModel.getByShop(shop) || {};
+
+    // Optional per-submission overrides
+    const customSubject = (req.body && req.body.customSubject) ? String(req.body.customSubject) : null;
+    const customBody = (req.body && req.body.customBody) ? String(req.body.customBody) : null;
     
     await sendCustomerStatusEmail({
       to: submission.customer_email,
       status: 'rejected',
       type: submission.type,
-      customSubject: customizations.email_subject_rejected,
-      customBody: customizations.email_body_rejected,
+      customSubject: customSubject ?? customizations.email_subject_rejected,
+      customBody: customBody ?? customizations.email_body_rejected,
       customizations
     });
     
