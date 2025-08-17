@@ -1459,27 +1459,60 @@ window.downloadCurrentMedia = async function() {
     return;
   }
 
-  // Detect mobile (basic heuristic); on mobile the button is hidden, but guard anyway
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (isMobile) {
-    // Do nothing; button should be hidden via CSS
     return;
   }
 
-  // Prefer secure server-side download to set Content-Disposition
-  if (currentSubmissionId) {
-    try {
-      const urlParam = currentMediaUrl ? `?url=${encodeURIComponent(currentMediaUrl)}` : '';
-      const resp = await window.makeAuthenticatedRequest(`/api/admin/submissions/${currentSubmissionId}/download${urlParam}`, {
-        method: 'GET'
-      });
-      if (!resp.ok) throw new Error('Failed to start download');
-      const cd = resp.headers.get('content-disposition') || '';
-      let filename = 'submission-media';
-      const match = cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
-      if (match) filename = decodeURIComponent(match[1] || match[2]);
+  // Show loading state on the button
+  const btn = document.getElementById('downloadMediaBtn');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.classList.add('is-loading');
+    btn.innerHTML = '<span class="spinner"></span> Downloading...';
+  }
 
+  try {
+    // Prefer secure server-side download to set Content-Disposition
+    if (currentSubmissionId) {
+      try {
+        const urlParam = currentMediaUrl ? `?url=${encodeURIComponent(currentMediaUrl)}` : '';
+        const resp = await window.makeAuthenticatedRequest(`/api/admin/submissions/${currentSubmissionId}/download${urlParam}`, {
+          method: 'GET'
+        });
+        if (!resp.ok) throw new Error('Failed to start download');
+        const cd = resp.headers.get('content-disposition') || '';
+        let filename = 'submission-media';
+        const match = cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+        if (match) filename = decodeURIComponent(match[1] || match[2]);
+
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        return;
+      } catch (e) {
+        console.error('Server download failed, falling back:', e);
+      }
+    }
+
+    // Fallback: client-side fetch and download
+    try {
+      const resp = await fetch(currentMediaUrl, { credentials: 'omit' });
+      if (!resp.ok) throw new Error('Network response was not ok');
       const blob = await resp.blob();
+
+      const urlParts = currentMediaUrl.split('?')[0].split('/');
+      let filename = urlParts[urlParts.length - 1] || `submission-media.${currentMediaType === 'video' ? 'mp4' : 'jpg'}`;
+      if (!/\.[a-zA-Z0-9]{2,6}$/.test(filename)) {
+        filename += currentMediaType === 'video' ? '.mp4' : '.jpg';
+      }
+
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
@@ -1488,42 +1521,24 @@ window.downloadCurrentMedia = async function() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
-      return;
     } catch (e) {
-      console.error('Server download failed, falling back:', e);
+      const urlParts = currentMediaUrl.split('/');
+      const filename = urlParts[urlParts.length - 1] || `submission-media.${currentMediaType === 'video' ? 'mp4' : 'jpg'}`;
+      const link = document.createElement('a');
+      link.href = currentMediaUrl;
+      link.download = filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
-  }
-
-  // Fallback: client-side fetch and download
-  try {
-    const resp = await fetch(currentMediaUrl, { credentials: 'omit' });
-    if (!resp.ok) throw new Error('Network response was not ok');
-    const blob = await resp.blob();
-
-    const urlParts = currentMediaUrl.split('?')[0].split('/');
-    let filename = urlParts[urlParts.length - 1] || `submission-media.${currentMediaType === 'video' ? 'mp4' : 'jpg'}`;
-    if (!/\.[a-zA-Z0-9]{2,6}$/.test(filename)) {
-      filename += currentMediaType === 'video' ? '.mp4' : '.jpg';
-    }
-
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(blobUrl);
   } catch (e) {
-    const urlParts = currentMediaUrl.split('/');
-    const filename = urlParts[urlParts.length - 1] || `submission-media.${currentMediaType === 'video' ? 'mp4' : 'jpg'}`;
-    const link = document.createElement('a');
-    link.href = currentMediaUrl;
-    link.download = filename;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    alert('Failed to download media');
+  } finally {
+    if (btn) {
+      btn.classList.remove('is-loading');
+      btn.innerHTML = originalHtml || '📥 Download Media';
+    }
   }
 };
 

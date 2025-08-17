@@ -795,3 +795,16 @@ video.modal-content {
 .subscription-actions .btn-secondary:hover {
   background: #ebebec;
 }
+/* Small inline spinner for loading buttons */
+@keyframes hu-spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.5);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: hu-spin 0.9s linear infinite;
+  vertical-align: middle;
+}
+.btn.is-loading { opacity: 0.8; pointer-events: none; }
