@@ -237,6 +237,15 @@ async function migrate() {
       ALTER TABLE submissions ADD COLUMN IF NOT EXISTS media_urls JSONB;
     `);
 
+    // Add columns to store last-sent email content for resends
+    console.log('Adding last-sent email content columns to submissions if needed...');
+    await client.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rejection_email_subject TEXT;`);
+    await client.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rejection_email_body TEXT;`);
+    await client.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS reward_email_subject TEXT;`);
+    await client.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS reward_email_body TEXT;`);
+    await client.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS giftcard_email_subject TEXT;`);
+    await client.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS giftcard_email_body TEXT;`);
+
     // Populate shop_submission_number for existing submissions
     console.log('Populating shop_submission_number for existing submissions...');
     await client.query(`
