@@ -382,20 +382,36 @@ export async function sendRewardCodeEmail({ to, code, value, type, submissionTyp
   return result;
 }
 
-export async function sendFreeProductEmail({ to, code, productName, customSubject, customBody, customizations }) {
+export async function sendFreeProductEmail({ to, code, productName, submissionType = null, customSubject, customBody, customizations }) {
   console.log('=== sendFreeProductEmail called ===');
-  console.log('Parameters:', { to, code, productName, customSubject, customBody });
+  console.log('Parameters:', { to, code, productName, submissionType, customSubject, customBody });
   
   const emailConfig = getEmailConfig(customizations);
   
+  // Process custom body/subject with variable substitution
+  let processedBody = customBody;
+  let processedSubject = customSubject;
+  if (customBody) {
+    processedBody = customBody
+      .replace(/\{type\}/g, submissionType || '')
+      .replace(/\{product_title\}/g, productName || '')
+      .replace(/\{discount_code\}/g, code || '');
+  }
+  if (customSubject) {
+    processedSubject = customSubject
+      .replace(/\{type\}/g, submissionType || '')
+      .replace(/\{product_title\}/g, productName || '')
+      .replace(/\{discount_code\}/g, code || '');
+  }
+
   const msg = {
     to: to,
     ...emailConfig,
-    subject: customSubject || '🎁 Your Free Product Code is Here!',
-    text: customBody ? `${customBody}\n\nDiscount code: ${code}\nProduct: ${productName}` : `Congratulations! Your free ${productName} is ready. Use discount code: ${code} at checkout for 100% off.`,
-    html: customBody ? `
+    subject: processedSubject || '🎁 Your Free Product Code is Here!',
+    text: processedBody ? `${processedBody}\n\nDiscount code: ${code}\nProduct: ${productName}` : `Congratulations! Your free ${productName} is ready. Use discount code: ${code} at checkout for 100% off.`,
+    html: processedBody ? `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <p style="font-size: 16px; line-height: 1.6;">${customBody}</p>
+        <p style="font-size: 16px; line-height: 1.6;">${processedBody.replace(/\n/g, '</p><p style="font-size: 16px; line-height: 1.6;">')}</p>
         
         <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
           <p style="color: #666; margin: 0 0 10px 0;">Your Free Product Code:</p>

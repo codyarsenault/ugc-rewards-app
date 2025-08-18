@@ -529,7 +529,7 @@ function createMediaPreview(sub) {
 function createSubmissionActions(sub) {
   if (sub.status === 'pending') {
     return `
-      <button onclick="approveSubmission(${sub.id})" class="btn btn-primary btn-sm">Approve</button>
+      <button onclick="openApprovalModalFor(${JSON.stringify(sub).replace(/"/g,'&quot;')})" class="btn btn-primary btn-sm">Approve</button>
       <button onclick="openRejectionModalFor(${sub.id})" class="btn btn-danger btn-sm">Reject</button>
     `;
   }
@@ -1721,5 +1721,61 @@ window.activateFreePro = async function() {
   } catch (e) {
     console.error('Activate free pro failed', e);
     alert('Failed to activate plan: ' + e.message);
+  }
+};
+
+window.openApprovalModalFor = async function(sub) {
+  try {
+    const modal = document.getElementById('approvalModal');
+    modal.dataset.submissionId = String(sub.id);
+    modal.dataset.rewardType = sub.reward_type || '';
+
+    const subjectDefault = '🎉 Your submission has been approved!';
+    let bodyDefault = 'Great news! Your {type} submission was approved. Your reward will be delivered shortly.';
+
+    if (sub.reward_type === 'percentage' || sub.reward_type === 'fixed') {
+      bodyDefault = 'Great news! Your {type} submission was approved. Here is your discount code:';
+    } else if (sub.reward_type === 'product') {
+      bodyDefault = 'Great news! Your {type} submission was approved. Here is your free product code:';
+    } else if (sub.reward_type === 'giftcard') {
+      bodyDefault = 'Great news! Your {type} submission was approved. We will send a gift card to you shortly.';
+    }
+
+    const subj = document.getElementById('apprSubject');
+    const body = document.getElementById('apprBody');
+    if (subj) subj.value = subjectDefault;
+    if (body) body.value = bodyDefault;
+    modal.classList.add('open');
+  } catch (e) {
+    console.error('Failed to open approval modal', e);
+    alert('Unable to open approval editor');
+  }
+};
+
+window.closeApprovalModal = function() {
+  const modal = document.getElementById('approvalModal');
+  if (modal) modal.classList.remove('open');
+};
+
+window.confirmApproveSubmission = async function() {
+  try {
+    const modal = document.getElementById('approvalModal');
+    const submissionId = modal?.dataset?.submissionId;
+    if (!submissionId) return closeApprovalModal();
+    const customSubject = document.getElementById('apprSubject')?.value || '';
+    const customBody = document.getElementById('apprBody')?.value || '';
+
+    const response = await window.makeAuthenticatedRequest(`/api/admin/submissions/${submissionId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ customSubject, customBody })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || data.error || 'Failed to approve');
+    closeApprovalModal();
+    alert('Approval email sent');
+    loadSubmissions();
+  } catch (e) {
+    console.error('Approve failed', e);
+    alert('Failed to send approval email: ' + e.message);
   }
 };

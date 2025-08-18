@@ -917,6 +917,12 @@ app.post('/api/public/submit', upload.array('media', 10), async (req, res) => {
 
     let mediaUrl = null;
     let mediaUrls = [];
+
+    // Require marketing consent
+    if (!req.body || (req.body.agreeMarketing !== 'on' && req.body.agreeMarketing !== true && req.body.agreeMarketing !== 'true')) {
+      return res.status(400).json({ success: false, message: 'You must agree to allow the business to use your content for marketing purposes.' });
+    }
+
     const files = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
     if (files.length > 0) {
       const hasS3Creds = (
@@ -1071,14 +1077,6 @@ app.post('/api/admin/email-settings', async (req, res) => {
       ...existingCustomizations,
       email_subject_confirmation: req.body.emailSubjectConfirmation,
       email_body_confirmation: req.body.emailBodyConfirmation,
-      email_subject_rejected: req.body.emailSubjectRejected,
-      email_body_rejected: req.body.emailBodyRejected,
-      email_subject_reward: req.body.emailSubjectReward,
-      email_body_reward: req.body.emailBodyReward,
-      email_subject_giftcard: req.body.emailSubjectGiftcard,
-      email_body_giftcard: req.body.emailBodyGiftcard,
-      email_subject_product: req.body.emailSubjectProduct,
-      email_body_product: req.body.emailBodyProduct,
       email_from_name: req.body.emailFromName,
       email_reply_to: req.body.emailReplyTo,
       notification_email: req.body.notificationEmail

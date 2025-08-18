@@ -64,7 +64,11 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
     if (typeof limits.monthlyApprovals === 'number' && approvedThisMonth >= limits.monthlyApprovals) {
       return res.status(402).json({ success: false, message: `Your plan allows ${limits.monthlyApprovals} approvals per month.` });
     }
-    
+
+    // Optional per-approval overrides
+    const overrideSubject = req.body?.customSubject ? String(req.body.customSubject) : null;
+    const overrideBody = req.body?.customBody ? String(req.body.customBody) : null;
+
     // Note: We need to get the shopify instance from somewhere
     // You might need to pass it through middleware or import it
     const shopify = req.app.get('shopify'); // This assumes you set it in index.js
@@ -107,8 +111,8 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
             submissionType: submission.type, // Add submission type for {type} variable
             expiresIn: '30 days',
             productTitle: job.reward_product || null,
-            customSubject: customizations.email_subject_reward,
-            customBody: customizations.email_body_reward,
+            customSubject: overrideSubject ?? customizations.email_subject_reward,
+            customBody: overrideBody ?? customizations.email_body_reward,
             customizations
           });
           console.log('✅ Reward email sent successfully');
@@ -229,8 +233,6 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
             });
           }
           
-          // For cash payouts, do not send any customer email from the system; admin will pay via PayPal
-          // Keep rewardSentSuccessfully true to mark approval but we'll keep view logic pending until fulfilled
           rewardSentSuccessfully = true;
         } catch (error) {
           console.error('Error processing cash reward:', error);
@@ -250,8 +252,9 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
             to: submission.customer_email,
             code: code,
             productName: job.reward_product,
-            customSubject: customizations.email_subject_product,
-            customBody: customizations.email_body_product,
+            submissionType: submission.type,
+            customSubject: overrideSubject ?? customizations.email_subject_product,
+            customBody: overrideBody ?? customizations.email_body_product,
             customizations
           });
 
@@ -373,7 +376,7 @@ adminSubmissionRoutes.post('/submissions/:id/reject', async (req, res) => {
 adminSubmissionRoutes.post('/rewards/:submissionId/send-giftcard', async (req, res) => {
   try {
     const { submissionId } = req.params;
-    const { giftCardCode, amount } = req.body;
+    const { giftCardCode, amount, customSubject, customBody } = req.body;
     const session = res.locals.shopify.session;
     const shop = session.shop;
     
@@ -395,8 +398,8 @@ adminSubmissionRoutes.post('/rewards/:submissionId/send-giftcard', async (req, r
       to: submission.customer_email,
       code: giftCardCode,
       amount: amount,
-      customSubject: customizations.email_subject_giftcard,
-      customBody: customizations.email_body_giftcard,
+      customSubject: customSubject ?? customizations.email_subject_giftcard,
+      customBody: customBody ?? customizations.email_body_giftcard,
       customizations
     });
     

@@ -501,7 +501,7 @@
         
         <div class="form-group">
           <label class="checkbox-label">
-            <input type="checkbox" required>
+            <input type="checkbox" id="agreeMarketing" name="agreeMarketing" required>
             I agree to allow this business to use my content for marketing purposes
           </label>
         </div>
@@ -1092,6 +1092,16 @@
     
     // Clear any previous messages
     messageDiv.innerHTML = '';
+
+    // Require marketing consent
+    const agree = document.getElementById('agreeMarketing');
+    if (agree && !agree.checked) {
+      messageDiv.innerHTML = '<div class="error">Please agree to allow the business to use your content for marketing purposes.</div>';
+      messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Submit & Get Reward';
+      return;
+    }
     
     // Create FormData object
     const formData = new FormData(form);

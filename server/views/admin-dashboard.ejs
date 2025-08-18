@@ -674,71 +674,7 @@
               <div class="form-group">
                 <label for="emailBodyConfirmation">Email Body</label>
                 <textarea id="emailBodyConfirmation" name="emailBodyConfirmation" rows="4"
-                          placeholder="Hi there, we received your {type} submission..."></textarea>
-                <small style="color: #666;">Available variables: {type}</small>
-              </div>
-            </div>
-
-            <div class="email-section">
-              <h3>✅ Approval Email with Reward</h3>
-              <p style="color: #666; margin-bottom: 20px;">Sent when submission is approved (for discount rewards)</p>
-              <div class="form-group">
-                <label for="emailSubjectReward">Subject Line</label>
-                <input type="text" id="emailSubjectReward" name="emailSubjectReward" 
-                      placeholder="Your submission was approved! Here's your reward">
-              </div>
-              <div class="form-group">
-                <label for="emailBodyReward">Email Body</label>
-                <textarea id="emailBodyReward" name="emailBodyReward" rows="4"
-                          placeholder="Congratulations! Your {type} has been approved. Use code {discount_code} for {reward_value} off..."></textarea>
-                <small style="color: #666;">Available variables: {type}, {discount_code}, {reward_value}</small>
-              </div>
-            </div>
-
-            <div class="email-section">
-              <h3>🎁 Gift Card Reward Email</h3>
-              <p style="color: #666; margin-bottom: 20px;">Sent when gift card reward is issued</p>
-              <div class="form-group">
-                <label for="emailSubjectGiftcard">Subject Line</label>
-                <input type="text" id="emailSubjectGiftcard" name="emailSubjectGiftcard" 
-                      placeholder="Your ${amount} gift card is here!">
-              </div>
-              <div class="form-group">
-                <label for="emailBodyGiftcard">Email Body</label>
-                <textarea id="emailBodyGiftcard" name="emailBodyGiftcard" rows="4"
-                          placeholder="Hi there, here's your ${amount} gift card! Code: {gift_card_code}..."></textarea>
-                <small style="color: #666;">Available variables: {gift_card_code}, {amount}</small>
-              </div>
-            </div>
-
-            <div class="email-section">
-              <h3>📦 Free Product Reward Email</h3>
-              <p style="color: #666; margin-bottom: 20px;">Sent when free product reward is approved</p>
-              <div class="form-group">
-                <label for="emailSubjectProduct">Subject Line</label>
-                <input type="text" id="emailSubjectProduct" name="emailSubjectProduct" 
-                      placeholder="Your free product is waiting!">
-              </div>
-              <div class="form-group">
-                <label for="emailBodyProduct">Email Body</label>
-                <textarea id="emailBodyProduct" name="emailBodyProduct" rows="4"
-                          placeholder="Congratulations! You've earned a free {product_title}. Use code {discount_code} at checkout..."></textarea>
-                <small style="color: #666;">Available variables: {product_title}, {discount_code}</small>
-              </div>
-            </div>
-
-            <div class="email-section">
-              <h3>❌ Rejection Email</h3>
-              <p style="color: #666; margin-bottom: 20px;">Sent when submission doesn't meet requirements</p>
-              <div class="form-group">
-                <label for="emailSubjectRejected">Subject Line</label>
-                <input type="text" id="emailSubjectRejected" name="emailSubjectRejected" 
-                      placeholder="Update on your submission">
-              </div>
-              <div class="form-group">
-                <label for="emailBodyRejected">Email Body</label>
-                <textarea id="emailBodyRejected" name="emailBodyRejected" rows="4"
-                          placeholder="Hi there, thank you for your {type} submission. Unfortunately, it doesn't meet our current requirements..."></textarea>
+                          placeholder="Thank you for sharing your experience!&#10;&#10;Your {type} submission has been received and is pending review."></textarea>
                 <small style="color: #666;">Available variables: {type}</small>
               </div>
             </div>
@@ -995,6 +931,27 @@
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top: 10px;">
           <button class="btn btn-secondary" onclick="closeRejectionModal()">Cancel</button>
           <button class="btn btn-primary" onclick="confirmRejectSubmission()">Send rejection email</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Approval Modal -->
+    <div id="approvalModal" class="modal">
+      <div class="modal-content" style="max-width: 640px;">
+        <span class="close" onclick="closeApprovalModal()">&times;</span>
+        <h2>Send Approval Email</h2>
+        <div class="form-group">
+          <label for="apprSubject">Subject</label>
+          <input type="text" id="apprSubject" />
+        </div>
+        <div class="form-group">
+          <label for="apprBody">Message</label>
+          <textarea id="apprBody" rows="8" placeholder="Customize the approval email before sending."></textarea>
+          <div style="color:#999; font-size:12px; margin-top:6px;">Available variables: {type}</div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top: 10px;">
+          <button class="btn btn-secondary" onclick="closeApprovalModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="confirmApproveSubmission()">Send approval email</button>
         </div>
       </div>
     </div>
