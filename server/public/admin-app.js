@@ -525,7 +525,39 @@ function createMediaPreview(sub) {
   return `<div class="media-thumb-grid">${thumbs}</div>`;
 }
 
-// Create submission action buttons
+// Preview modal for last-sent email
+(function(){
+  const existing = document.getElementById('emailPreviewModal');
+  if (!existing) {
+    const modal = document.createElement('div');
+    modal.id = 'emailPreviewModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 640px;">
+        <span class="close" onclick="(function(){document.getElementById('emailPreviewModal').classList.remove('open')})()">&times;</span>
+        <h2>Email preview</h2>
+        <div class="form-group">
+          <label>Subject</label>
+          <input type="text" id="emailPreviewSubject" readonly />
+        </div>
+        <div class="form-group">
+          <label>Body</label>
+          <textarea id="emailPreviewBody" rows="8" readonly></textarea>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+})();
+
+window.openEmailPreview = function(subject, body) {
+  const modal = document.getElementById('emailPreviewModal');
+  document.getElementById('emailPreviewSubject').value = subject || '';
+  document.getElementById('emailPreviewBody').value = body || '';
+  modal.classList.add('open');
+};
+
+// Update actions renderer to include preview links
 function createSubmissionActions(sub) {
   if (sub.status === 'pending') {
     return `
@@ -537,11 +569,13 @@ function createSubmissionActions(sub) {
   let actions = `<span class="status-${sub.status}">${sub.status}</span>`;
   
   if (sub.status === 'approved' && sub.reward_type === 'giftcard') {
+    const previewLink = (sub.giftcard_email_subject || sub.giftcard_email_body) ? `<div><a href="#" onclick="openEmailPreview('${(sub.giftcard_email_subject||'').replace(/'/g, '&#39;')}', '${(sub.giftcard_email_body||'').replace(/'/g, '&#39;')}'); return false;" style="font-size:12px;color:#2c6ecb;">View last sent</a></div>` : '';
     actions += `
       <div style="margin-top: 8px;">
         <button onclick="sendGiftCard(${sub.id})" class="btn btn-${sub.reward_fulfilled ? 'secondary' : 'primary'} btn-sm">
           ${sub.reward_fulfilled ? 'Resend' : 'Send'} Gift Card Email
         </button>
+        ${previewLink}
       </div>
     `;
   } else if (sub.status === 'approved' && sub.reward_type === 'cash') {
@@ -554,19 +588,22 @@ function createSubmissionActions(sub) {
       </div>
     `;
   } else if (sub.status === 'approved' && sub.reward_type) {
+    const previewLink = (sub.reward_email_subject || sub.reward_email_body) ? `<div><a href="#" onclick="openEmailPreview('${(sub.reward_email_subject||'').replace(/'/g, '&#39;')}', '${(sub.reward_email_body||'').replace(/'/g, '&#39;')}'); return false;" style="font-size:12px;color:#2c6ecb;">View last sent</a></div>` : '';
     actions += `
       <div style="margin-top: 8px;">
         <button onclick="resendRewardEmail(${sub.id})" class="btn btn-secondary btn-sm">Resend Reward Email</button>
+        ${previewLink}
       </div>
     `;
   } else if (sub.status === 'rejected') {
+    const previewLink = (sub.rejection_email_subject || sub.rejection_email_body) ? `<div><a href="#" onclick="openEmailPreview('${(sub.rejection_email_subject||'').replace(/'/g, '&#39;')}', '${(sub.rejection_email_body||'').replace(/'/g, '&#39;')}'); return false;" style="font-size:12px;color:#2c6ecb;">View last sent</a></div>` : '';
     actions += `
       <div style="margin-top: 8px;">
         <button onclick="resendRejectionEmail(${sub.id})" class="btn btn-secondary btn-sm">Resend Rejection Email</button>
+        ${previewLink}
       </div>
     `;
   }
-  
   return actions;
 }
 

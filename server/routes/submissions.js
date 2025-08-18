@@ -40,7 +40,14 @@ adminSubmissionRoutes.get('/submissions', async (req, res) => {
       job_id: sub.job_id,
       reward_type: sub.reward_type || null,
       reward_fulfilled: sub.reward_fulfilled || false,
-      reward_paypal_transaction_id: sub.reward_paypal_transaction_id || null
+      reward_paypal_transaction_id: sub.reward_paypal_transaction_id || null,
+      // last-sent email snapshots
+      rejection_email_subject: sub.rejection_email_subject || null,
+      rejection_email_body: sub.rejection_email_body || null,
+      reward_email_subject: sub.reward_email_subject || null,
+      reward_email_body: sub.reward_email_body || null,
+      giftcard_email_subject: sub.giftcard_email_subject || null,
+      giftcard_email_body: sub.giftcard_email_body || null
     }));
     
     res.json({ submissions: transformedSubmissions });
@@ -114,6 +121,11 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
             customSubject: overrideSubject ?? customizations.email_subject_reward,
             customBody: overrideBody ?? customizations.email_body_reward,
             customizations
+          });
+          // Save sent email content
+          await SubmissionsModel.update(submission.id, {
+            rewardEmailSubject: overrideSubject ?? customizations.email_subject_reward,
+            rewardEmailBody: (overrideBody ?? customizations.email_body_reward) || ''
           });
           console.log('✅ Reward email sent successfully');
 
@@ -257,6 +269,10 @@ adminSubmissionRoutes.post('/submissions/:id/approve', async (req, res) => {
             customBody: overrideBody ?? customizations.email_body_product,
             customizations
           });
+          await SubmissionsModel.update(submission.id, {
+            rewardEmailSubject: overrideSubject ?? customizations.email_subject_product,
+            rewardEmailBody: (overrideBody ?? customizations.email_body_product) || ''
+          });
 
           const reward = await RewardsModel.getBySubmissionId(submission.id);
           if (reward) {
@@ -364,6 +380,11 @@ adminSubmissionRoutes.post('/submissions/:id/reject', async (req, res) => {
       customBody: customBody ?? customizations.email_body_rejected,
       customizations
     });
+    // Store rejection email content
+    await SubmissionsModel.update(submissionId, {
+      rejectionEmailSubject: customSubject ?? customizations.email_subject_rejected,
+      rejectionEmailBody: (customBody ?? customizations.email_body_rejected) || ''
+    });
     
     res.json({ success: true, message: 'Submission rejected' });
   } catch (error) {
@@ -401,6 +422,10 @@ adminSubmissionRoutes.post('/rewards/:submissionId/send-giftcard', async (req, r
       customSubject: customSubject ?? customizations.email_subject_giftcard,
       customBody: customBody ?? customizations.email_body_giftcard,
       customizations
+    });
+    await SubmissionsModel.update(submissionId, {
+      giftcardEmailSubject: customSubject ?? customizations.email_subject_giftcard,
+      giftcardEmailBody: (customBody ?? customizations.email_body_giftcard) || ''
     });
     
     const reward = await RewardsModel.getBySubmissionId(submissionId);
@@ -488,18 +513,18 @@ adminSubmissionRoutes.post('/submissions/:id/resend-rejection', async (req, res)
       }
     }
 
-    if (submission.status !== 'rejected') {
-      return res.status(400).json({ error: 'Can only resend rejection emails for rejected submissions' });
-    }
-    
     const customizations = await CustomizationsModel.getByShop(shop) || {};
+
+    // Prefer originally sent content if present
+    const subject = submission.rejection_email_subject || customizations.email_subject_rejected;
+    const body = submission.rejection_email_body || customizations.email_body_rejected;
     
     await sendCustomerStatusEmail({
       to: submission.customer_email,
       status: 'rejected',
       type: submission.type,
-      customSubject: customizations.email_subject_rejected,
-      customBody: customizations.email_body_rejected,
+      customSubject: subject,
+      customBody: body,
       customizations
     });
     
@@ -532,7 +557,7 @@ adminSubmissionRoutes.post('/submissions/:id/resend-reward', async (req, res) =>
     if (submission.status !== 'approved') {
       return res.status(400).json({ error: 'Can only resend reward emails for approved submissions' });
     }
-
+    
     if (!submission.job_id) {
       return res.status(400).json({ error: 'No job associated with this submission' });
     }
@@ -550,6 +575,10 @@ adminSubmissionRoutes.post('/submissions/:id/resend-reward', async (req, res) =>
         return res.status(400).json({ error: 'No discount code found for this submission. The reward may need to be created first.' });
       }
 
+      // Prefer originally sent subject/body if present
+      const subject = submission.reward_email_subject || customizations.email_subject_reward;
+      const body = submission.reward_email_body || customizations.email_body_reward;
+
       await sendRewardCodeEmail({
         to: submission.customer_email,
         code: reward.code,
@@ -557,8 +586,8 @@ adminSubmissionRoutes.post('/submissions/:id/resend-reward', async (req, res) =>
         type: job.reward_type,
         submissionType: submission.type, // Add submission type for {type} variable
         expiresIn: '30 days',
-        customSubject: customizations.email_subject_reward,
-        customBody: customizations.email_body_reward,
+        customSubject: subject,
+        customBody: body,
         customizations
       });
     } else if (job.reward_type === 'product') {
@@ -567,12 +596,16 @@ adminSubmissionRoutes.post('/submissions/:id/resend-reward', async (req, res) =>
         return res.status(400).json({ error: 'No product discount code found for this submission. The reward may need to be created first.' });
       }
 
+      const subject = submission.reward_email_subject || customizations.email_subject_product;
+      const body = submission.reward_email_body || customizations.email_body_product;
+
       await sendFreeProductEmail({
         to: submission.customer_email,
         code: reward.code,
         productName: job.reward_product,
-        customSubject: customizations.email_subject_product,
-        customBody: customizations.email_body_product,
+        submissionType: submission.type,
+        customSubject: subject,
+        customBody: body,
         customizations
       });
     } else if (job.reward_type === 'giftcard') {
