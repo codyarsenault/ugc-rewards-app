@@ -557,6 +557,101 @@ window.openEmailPreview = function(subject, body) {
   modal.classList.add('open');
 };
 
+// Modal to show last-sent email when resending
+(function(){
+  const existing = document.getElementById('resendEmailModal');
+  if (!existing) {
+    const modal = document.createElement('div');
+    modal.id = 'resendEmailModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 640px;">
+        <span class="close" onclick="(function(){document.getElementById('resendEmailModal').classList.remove('open')})()">&times;</span>
+        <h2 id="resendEmailTitle">Resend Email</h2>
+        <p id="resendEmailNote" style="font-size: 13px; color: #666; margin-top: -8px;">This shows the last email we sent. Click Resend to send it again.</p>
+        <div class="form-group">
+          <label>Subject</label>
+          <input type="text" id="resendEmailSubject" readonly />
+        </div>
+        <div class="form-group">
+          <label>Body</label>
+          <textarea id="resendEmailBody" rows="8" readonly></textarea>
+        </div>
+        <div class="modal-actions" style="display:flex; gap: 8px; justify-content: flex-end;">
+          <button class="btn btn-secondary" onclick="window.closeResendEmailModal()">Cancel</button>
+          <button class="btn btn-primary" id="resendEmailConfirmBtn" onclick="window.confirmResendEmail()">Resend</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+})();
+
+window.openResendRewardModal = function(submissionId) {
+  const sub = (Array.isArray(allSubmissions) ? allSubmissions : []).find(s => s.id === submissionId);
+  const modal = document.getElementById('resendEmailModal');
+  if (!modal) return;
+  modal.dataset.submissionId = String(submissionId);
+  modal.dataset.mode = 'reward';
+  document.getElementById('resendEmailTitle').textContent = 'Resend Reward Email';
+  const subject = sub && (sub.reward_email_subject || '');
+  const body = sub && (sub.reward_email_body || '');
+  document.getElementById('resendEmailSubject').value = subject;
+  document.getElementById('resendEmailBody').value = body;
+  const note = document.getElementById('resendEmailNote');
+  note.textContent = (subject || body)
+    ? 'This shows the last reward email we sent. Click Resend to send it again.'
+    : 'No previous reward email content was stored. Resend will use your default template.';
+  modal.classList.add('open');
+};
+
+window.openResendRejectionModal = function(submissionId) {
+  const sub = (Array.isArray(allSubmissions) ? allSubmissions : []).find(s => s.id === submissionId);
+  const modal = document.getElementById('resendEmailModal');
+  if (!modal) return;
+  modal.dataset.submissionId = String(submissionId);
+  modal.dataset.mode = 'rejection';
+  document.getElementById('resendEmailTitle').textContent = 'Resend Rejection Email';
+  const subject = sub && (sub.rejection_email_subject || '');
+  const body = sub && (sub.rejection_email_body || '');
+  document.getElementById('resendEmailSubject').value = subject;
+  document.getElementById('resendEmailBody').value = body;
+  const note = document.getElementById('resendEmailNote');
+  note.textContent = (subject || body)
+    ? 'This shows the last rejection email we sent. Click Resend to send it again.'
+    : 'No previous rejection email content was stored. Resend will use your default template.';
+  modal.classList.add('open');
+};
+
+window.closeResendEmailModal = function() {
+  const modal = document.getElementById('resendEmailModal');
+  if (modal) modal.classList.remove('open');
+};
+
+window.confirmResendEmail = async function() {
+  const modal = document.getElementById('resendEmailModal');
+  if (!modal) return;
+  const submissionId = modal.dataset.submissionId;
+  const mode = modal.dataset.mode;
+  if (!submissionId || !mode) return;
+  try {
+    const url = mode === 'reward'
+      ? `/api/admin/submissions/${submissionId}/resend-reward`
+      : `/api/admin/submissions/${submissionId}/resend-rejection`;
+    const resp = await window.makeAuthenticatedRequest(url, { method: 'POST' });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      alert('Failed to resend email: ' + (data.error || 'Unknown error'));
+      return;
+    }
+    alert('Email resent successfully!');
+    window.closeResendEmailModal();
+  } catch (e) {
+    console.error('Error resending email', e);
+    alert('Error resending email');
+  }
+};
+
 // Update actions renderer to include preview links
 function createSubmissionActions(sub) {
   if (sub.status === 'pending') {
@@ -569,13 +664,11 @@ function createSubmissionActions(sub) {
   let actions = `<span class="status-${sub.status}">${sub.status}</span>`;
   
   if (sub.status === 'approved' && sub.reward_type === 'giftcard') {
-    const previewLink = (sub.giftcard_email_subject || sub.giftcard_email_body) ? `<div><a href="#" onclick="openEmailPreview('${(sub.giftcard_email_subject||'').replace(/'/g, '&#39;')}', '${(sub.giftcard_email_body||'').replace(/'/g, '&#39;')}'); return false;" style="font-size:12px;color:#2c6ecb;">View last sent</a></div>` : '';
     actions += `
       <div style="margin-top: 8px;">
         <button onclick="sendGiftCard(${sub.id})" class="btn btn-${sub.reward_fulfilled ? 'secondary' : 'primary'} btn-sm">
           ${sub.reward_fulfilled ? 'Resend' : 'Send'} Gift Card Email
         </button>
-        ${previewLink}
       </div>
     `;
   } else if (sub.status === 'approved' && sub.reward_type === 'cash') {
@@ -588,19 +681,15 @@ function createSubmissionActions(sub) {
       </div>
     `;
   } else if (sub.status === 'approved' && sub.reward_type) {
-    const previewLink = (sub.reward_email_subject || sub.reward_email_body) ? `<div><a href="#" onclick="openEmailPreview('${(sub.reward_email_subject||'').replace(/'/g, '&#39;')}', '${(sub.reward_email_body||'').replace(/'/g, '&#39;')}'); return false;" style="font-size:12px;color:#2c6ecb;">View last sent</a></div>` : '';
     actions += `
       <div style="margin-top: 8px;">
-        <button onclick="resendRewardEmail(${sub.id})" class="btn btn-secondary btn-sm">Resend Reward Email</button>
-        ${previewLink}
+        <button onclick="openResendRewardModal(${sub.id})" class="btn btn-secondary btn-sm">Resend Reward Email</button>
       </div>
     `;
   } else if (sub.status === 'rejected') {
-    const previewLink = (sub.rejection_email_subject || sub.rejection_email_body) ? `<div><a href="#" onclick="openEmailPreview('${(sub.rejection_email_subject||'').replace(/'/g, '&#39;')}', '${(sub.rejection_email_body||'').replace(/'/g, '&#39;')}'); return false;" style="font-size:12px;color:#2c6ecb;">View last sent</a></div>` : '';
     actions += `
       <div style="margin-top: 8px;">
-        <button onclick="resendRejectionEmail(${sub.id})" class="btn btn-secondary btn-sm">Resend Rejection Email</button>
-        ${previewLink}
+        <button onclick="openResendRejectionModal(${sub.id})" class="btn btn-secondary btn-sm">Resend Rejection Email</button>
       </div>
     `;
   }
