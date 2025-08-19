@@ -12,10 +12,10 @@ export const PLANS = {
     },
     features: {
       jobsCustomization: true,
-      rewards: { percentage: true, fixed: true, giftcard: true, product: true, cash: false },
+      rewards: { percentage: true, fixed: true, giftcard: true, product: true, cash: true },
       emailBasic: true,
       prioritySupport: false,
-      advancedCss: false,
+      advancedCss: true,
       exampleVideos: true
     }
   },
@@ -55,7 +55,7 @@ export const PLANS = {
       rewards: { percentage: true, fixed: true, giftcard: true, product: true, cash: true },
       emailBasic: true,
       prioritySupport: true,
-      advancedCss: false,
+      advancedCss: true,
       exampleVideos: true
     }
   }
