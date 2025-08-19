@@ -8,7 +8,7 @@ export const PLANS = {
     trialDays: 14,
     limits: {
       maxJobs: 3,
-      monthlyApprovals: 10,
+      monthlyApprovals: 3,
     },
     features: {
       jobsCustomization: true,
@@ -28,7 +28,7 @@ export const PLANS = {
     trialDays: 14,
     limits: {
       maxJobs: 10,
-      monthlyApprovals: Infinity,
+      monthlyApprovals: 10,
     },
     features: {
       jobsCustomization: true,
