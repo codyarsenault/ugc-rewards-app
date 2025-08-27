@@ -382,6 +382,35 @@
       opacity: 0;
       pointer-events: none;
     }
+
+    /* Add pause button styling to match jobs page */
+    .pause-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 30px;
+      height: 30px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 4px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 3;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .pause-button:hover { background: rgba(0, 0, 0, 0.9); transform: scale(1.1); }
+    .pause-button::before,
+    .pause-button::after {
+      content: '';
+      width: 2px;
+      height: 12px;
+      background: white;
+      display: block;
+    }
+    .pause-button::before { margin-right: 2px; }
+    .video-container.playing .pause-button { display: flex !important; }
     
     .browse-jobs p {
       margin: 0 0 15px 0;
@@ -899,11 +928,14 @@
         return `<img src="${safeUrl}" alt="Inspiration" style="width:100%;height:auto;border-radius:12px;border:1px solid #e8e5e3;" />`;
       }
       if (isDirectVideoFile(safeUrl)) {
+        // Mirror jobs page behavior: show first frame and custom controls overlay
+        const videoUrlWithTime = safeUrl + (safeUrl.includes('?') ? '&' : '#') + 't=0.1';
         return `
-          <video controls preload="metadata" playsinline webkit-playsinline style="width:100%;border-radius:12px;border:1px solid #e8e5e3;outline:none;background:#000;">
-            <source src="${safeUrl}">
-            <a href="${safeUrl}" target="_blank" rel="noopener">Open video</a>
-          </video>
+          <div class="video-container" onclick="(function(el,event){ playVideo(el, event); })(this,event)">
+            <video class="video-placeholder" src="${videoUrlWithTime}" preload="metadata" playsinline webkit-playsinline></video>
+            <div class="play-button"></div>
+            <div class="pause-button"></div>
+          </div>
         `;
       }
       // Fallback link for platforms we don't embed
@@ -936,6 +968,57 @@
           <a href="${video.src}" target="_blank" style="color: #b89685; text-decoration: none; font-weight: 600;">Open video in new tab →</a>
         </div>
       `;
+    }
+
+    // Custom video playback with no native controls (match jobs page behavior)
+    function playVideo(container, event) {
+      const video = container.querySelector('video');
+      
+      if (!video) return;
+      
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      
+      if (video.paused) {
+        video.muted = false;
+        video.volume = 1.0;
+        video.play().then(() => {
+          container.classList.add('playing');
+        }).catch(e => {
+          // Browser might block autoplay with sound, try muted fallback
+          video.muted = true;
+          video.play().then(() => {
+            container.classList.add('playing');
+            setTimeout(() => {
+              video.muted = false;
+              video.volume = 1.0;
+            }, 100);
+          }).catch(() => {
+            // Keep play button visible if failed
+          });
+        });
+      } else {
+        video.pause();
+        container.classList.remove('playing');
+      }
+      
+      // Initialize controls once
+      if (!video.hasPlayVideoListeners) {
+        video.hasPlayVideoListeners = true;
+        const pauseButton = container.querySelector('.pause-button');
+        if (pauseButton) {
+          pauseButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            playVideo(container, e);
+          });
+        }
+        video.addEventListener('play', function() { container.classList.add('playing'); });
+        video.addEventListener('pause', function() { container.classList.remove('playing'); });
+        video.addEventListener('ended', function() { container.classList.remove('playing'); });
+      }
     }
     
     // Show/hide media upload based on type
