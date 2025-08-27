@@ -354,6 +354,8 @@
       border: 1px solid #e8e5e3;
       position: relative;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
     
     .job-card::before {
@@ -390,6 +392,9 @@
       margin-bottom: 15px;
       letter-spacing: 0.5px;
     }
+
+    /* Prevent pill from stretching full width inside flex column card */
+    .job-card .job-type { align-self: flex-start; }
     
     .job-type.photo {
       background: #f5e9f3;
@@ -967,9 +972,9 @@
 
     let allJobs = [];
     let currentFilter = 'all';
-    let selectedJob = null;
     let currentDeadlineFilter = 'all';
     let currentRewardFilter = 'all';
+    let currentShop = null;
 
     // Load jobs on page load
     async function loadJobs() {
@@ -986,6 +991,7 @@
           const urlParams = new URLSearchParams(window.location.search);
           shop = urlParams.get('shop');
         }
+        currentShop = shop;
         
         // First, check if the store has email configured
         const customizationsResponse = await fetch(`/api/public/customizations?shop=${encodeURIComponent(shop)}`);
@@ -1103,9 +1109,12 @@
         const spotsLeft = job.spots_available - job.spots_filled;
         const isLowSpots = spotsLeft <= 2;
         const isDisabled = !window.emailConfigured;
+        const submitUrl = currentShop 
+          ? `/submit?jobId=${job.id}&shop=${encodeURIComponent(currentShop)}`
+          : `/submit?jobId=${job.id}`;
         
         return `
-          <div class="job-card ${isDisabled ? 'disabled' : ''}" onclick="${isDisabled ? 'showSubmissionDisabledMessage(event)' : `openJobModal(${job.id})`}">
+          <div class="job-card ${isDisabled ? 'disabled' : ''}" onclick="${isDisabled ? 'showSubmissionDisabledMessage(event)' : `goTo('${submitUrl}')`}">
             <span class="job-type ${job.type}">${job.type === 'video' ? '🎬 Video' : '📸 Photo'}</span>
             <h3 class="job-title">${job.title}</h3>
             <p class="job-description">${job.description.substring(0, 120)}${job.description.length > 120 ? '...' : ''}</p>
@@ -1115,6 +1124,7 @@
             </div>
             ${job.deadline ? `<p class="deadline">⏰ Deadline: ${new Date(job.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>` : ''}
             ${isDisabled ? '<div style="text-align: center; margin-top: 15px; color: #856404; font-weight: 600; font-size: 14px;">⚠️ Setup Required</div>' : ''}
+            ${isDisabled ? '' : `<div style="margin-top: auto; display: flex; justify-content: center;"><a class="btn btn-primary" href="${submitUrl}" onclick="event.stopPropagation();" style="padding: 10px 18px; font-size: 14px; border-radius: 22px;">I Want to Create This</a></div>`}
           </div>
         `;
       }).join('');
@@ -1185,113 +1195,9 @@
       return false;
     }
 
-    // Open job modal
-    async function openJobModal(jobId) {
-      try {
-        // Get shop from URL path or fallback to query params for backward compatibility
-        let shop = null; // no default fallback
-        
-        // First try to get shop from URL path
-        const pathParts = window.location.pathname.split('/');
-        if (pathParts.length > 2 && pathParts[1] === 'jobs' && pathParts[2] && pathParts[2].trim() !== '') {
-          shop = decodeURIComponent(pathParts[2]);
-        } else {
-          // Fallback to query params for backward compatibility
-          const urlParams = new URLSearchParams(window.location.search);
-          shop = urlParams.get('shop');
-        }
-        
-        const response = await fetch(`/api/public/jobs/${jobId}?shop=${encodeURIComponent(shop)}`);
-        const data = await response.json();
-        selectedJob = data.job;
-
-        // Populate modal
-        document.getElementById('modalJobType').textContent = selectedJob.type === 'video' ? '🎬 Video' : '📸 Photo';
-        document.getElementById('modalJobType').className = `job-type ${selectedJob.type}`;
-        document.getElementById('modalJobTitle').textContent = selectedJob.title;
-        
-        // Limit description to 50 words
-        const words = selectedJob.description.split(' ');
-        const limitedDescription = words.length > 50 
-          ? words.slice(0, 50).join(' ') + '...'
-          : selectedJob.description;
-        document.getElementById('modalJobDescription').textContent = limitedDescription;
-        
-        // Requirements - show only first 3 bullets
-        if (selectedJob.requirements) {
-          const reqList = selectedJob.requirements.split('\n').filter(r => r.trim());
-          const limitedReqList = reqList.slice(0, 3);
-          const hasMoreRequirements = reqList.length > 3;
-          
-          document.getElementById('modalRequirements').innerHTML = `
-            <h4>✨ What we're looking for:</h4>
-            <ul>
-              ${limitedReqList.map(req => `<li>${req}</li>`).join('')}
-              ${hasMoreRequirements ? '<li>...</li>' : ''}
-            </ul>
-          `;
-        } else {
-          document.getElementById('modalRequirements').innerHTML = '';
-        }
-
-        // Meta info
-        document.getElementById('modalReward').textContent = formatReward(selectedJob);
-        const spotsLeft = selectedJob.spots_available - selectedJob.spots_filled;
-        document.getElementById('modalSpots').innerHTML = `${spotsLeft} of ${selectedJob.spots_available} ${spotsLeft <= 2 ? '<span class="tag">Filling Fast!</span>' : ''}`;
-        
-        if (selectedJob.deadline) {
-          const deadline = new Date(selectedJob.deadline);
-          const daysLeft = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
-          document.getElementById('modalDeadline').innerHTML = `⏰ Deadline: ${deadline.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} <span style="color: #c06866; font-weight: normal;">(${daysLeft} days left)</span>`;
-        } else {
-          document.getElementById('modalDeadline').textContent = '';
-        }
-
-        // Example content - removed to keep modal clean
-        document.getElementById('modalExample').innerHTML = '';
-
-        // Show modal
-        document.getElementById('jobModal').style.display = 'block';
-        document.body.style.overflow = 'hidden';
-      } catch (error) {
-        console.error('Error loading job details:', error);
-        alert('Oops! Could not load job details. Please try again.');
-      }
-    }
-
-    // Close modal
-    function closeModal() {
-      document.getElementById('jobModal').style.display = 'none';
-      document.body.style.overflow = 'auto';
-      selectedJob = null;
-    }
-
-    // Submit for job
-    function submitForJob() {
-      if (selectedJob) {
-        // Get shop from URL path or fallback to query params for backward compatibility
-        let shop = null;
-        
-        // First try to get shop from URL path
-        const pathParts = window.location.pathname.split('/');
-        if (pathParts.length > 2 && pathParts[1] === 'jobs' && pathParts[2] && pathParts[2].trim() !== '') {
-          shop = decodeURIComponent(pathParts[2]);
-        } else {
-          // Fallback to query params for backward compatibility
-          const urlParams = new URLSearchParams(window.location.search);
-          shop = urlParams.get('shop');
-        }
-        
-        const submitUrl = shop ? `/submit?jobId=${selectedJob.id}&shop=${encodeURIComponent(shop)}` : `/submit?jobId=${selectedJob.id}`;
-        window.location.href = submitUrl;
-      }
-    }
-
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-      if (event.target.classList.contains('modal')) {
-        closeModal();
-      }
+    // Simple navigation helper
+    function goTo(url) {
+      window.location.href = url;
     }
 
         // Custom video playback with no native controls
