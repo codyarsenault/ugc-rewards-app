@@ -662,6 +662,11 @@
     if (form) form.setAttribute('novalidate', '');
     if (fileInput) fileInput.required = false;
     
+    // Minimum photo quality settings (for photo submissions)
+    const MIN_IMAGE_WIDTH = 1080;   // px
+    const MIN_IMAGE_HEIGHT = 1080;  // px
+    const MIN_IMAGE_MEGAPIXELS = 1.5; // width*height >= 1.5 MP
+    
     // Get URL params
     const urlParams = new URLSearchParams(window.location.search);
     const shop = urlParams.get('shop');
@@ -913,9 +918,36 @@
       return ['jpg','jpeg','png','gif','webp','bmp','tiff','svg'].includes(getFileExt(name));
     }
 
-    function addFiles(filesList) {
+    async function getImageDimensions(file) {
+      return new Promise((resolve, reject) => {
+        try {
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            const dims = { width: img.naturalWidth || img.width, height: img.naturalHeight || img.height };
+            URL.revokeObjectURL(url);
+            resolve(dims);
+          };
+          img.onerror = (e) => {
+            URL.revokeObjectURL(url);
+            reject(e);
+          };
+          img.src = url;
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+
+    function formatDims(w, h) {
+      return `${w}×${h}`;
+    }
+
+    async function addFiles(filesList) {
       const files = Array.from(filesList || []);
       if (files.length === 0) return;
+
+      const rejectedLowQuality = [];
 
       for (const f of files) {
         // Max 10 files total
@@ -923,7 +955,9 @@
 
         // Enforce accept types
         const name = f.name || '';
-        if (!isImageFile(name) && !isVideoFile(name)) continue;
+        const isImage = isImageFile(name);
+        const isVideo = isVideoFile(name);
+        if (!isImage && !isVideo) continue;
 
         // Size limit 50MB per file
         if (f.size > 50 * 1024 * 1024) continue;
@@ -932,10 +966,42 @@
         const dup = selectedFiles.find(it => it.file.name === f.name && it.file.size === f.size && it.file.type === f.type);
         if (dup) continue;
 
+        // If current submission type is photo, enforce minimum quality for images
+        if (isImage && (typeSelect?.value === 'photo')) {
+          try {
+            const { width, height } = await getImageDimensions(f);
+            const megapixels = (width * height) / 1_000_000;
+            const tooSmall = (width < MIN_IMAGE_WIDTH) || (height < MIN_IMAGE_HEIGHT);
+            const tooLowMP = megapixels < MIN_IMAGE_MEGAPIXELS;
+            if (tooSmall || tooLowMP) {
+              rejectedLowQuality.push({ name: f.name, width, height });
+              continue;
+            }
+          } catch {
+            // If we cannot read dimensions, be conservative and reject for photo submissions
+            rejectedLowQuality.push({ name: f.name, width: 0, height: 0 });
+            continue;
+          }
+        }
+
         selectedFiles.push({ id: nextFileId++, file: f });
       }
+
       renderMediaList();
       fileInput.value = '';
+
+      if (rejectedLowQuality.length > 0) {
+        const listHtml = rejectedLowQuality.map(r => `<li>${r.name}${r.width && r.height ? ` (${formatDims(r.width, r.height)})` : ''}</li>`).join('');
+        messageDiv.innerHTML = `
+          <div class="error">
+            Some photos were not added because they didn't meet the minimum quality.
+            <div style="margin-top:8px; font-size:14px; color:#4a5568;">
+              Minimum: ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT} and ≥ ${MIN_IMAGE_MEGAPIXELS.toFixed(1)} MP
+            </div>
+            <ul style="margin:10px 0 0 18px;">${listHtml}</ul>
+          </div>
+        `;
+      }
     }
 
     function removeFile(id) {
@@ -1078,8 +1144,8 @@
     }
     
     // Handle file selection
-    fileInput.addEventListener('change', (e) => {
-      addFiles(e.target.files);
+    fileInput.addEventListener('change', async (e) => {
+      await addFiles(e.target.files);
     });
     
     // Handle form submission (replace the existing form submission handler in submit.html)
@@ -1281,11 +1347,11 @@
     // Handle dropped files
     fileUploadLabel.addEventListener('drop', handleDrop, false);
     
-    function handleDrop(e) {
+    async function handleDrop(e) {
       const dt = e.dataTransfer;
       const files = dt.files;
       if (files && files.length > 0) {
-        addFiles(files);
+        await addFiles(files);
       }
     }
   </script>
