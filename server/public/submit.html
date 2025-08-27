@@ -736,9 +736,15 @@
           // Split content by newlines and filter out empty lines
           const contentLines = content.split('\n').filter(line => line.trim());
           
-          // Separate video URLs and text content
-          const videoUrls = contentLines.filter(line => isVideoUrl(line.trim()));
-          const textContent = contentLines.filter(line => !isVideoUrl(line.trim()));
+          // Separate media URLs (images or direct video files/hosts) and text content
+          const mediaUrls = contentLines.filter(line => {
+            const u = line.trim();
+            return isImageUrl(u) || isDirectVideoFile(u) || isVideoUrl(u);
+          });
+          const textContent = contentLines.filter(line => {
+            const u = line.trim();
+            return !(isImageUrl(u) || isDirectVideoFile(u) || isVideoUrl(u));
+          });
           
           let inspirationHTML = '';
           
@@ -750,23 +756,14 @@
             `;
           }
           
-          // Add video content if any
-          if (videoUrls.length > 0) {
-            const videoTitle = videoUrls.length === 1 ? '💡 Inspiration:' : '💡 Inspiration:';
-            inspirationHTML += `<h4 style="margin: 0 0 15px 0; color: #3a4152; font-size: 16px; font-weight: 600;">${videoTitle}</h4>`;
-            
-            videoUrls.forEach((videoUrl, index) => {
-              inspirationHTML += `
-                <div style="text-align: center; margin-bottom: 15px;">
-                  <a href="${videoUrl.trim()}" target="_blank" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%); color: white; text-decoration: none; border-radius: 20px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(184, 150, 133, 0.25);">
-                    🔗 Inspiration Photo/Video ${videoUrls.length > 1 ? index + 1 : ''}
-                  </a>
-                  <div style="margin-top: 8px; font-size: 12px; color: #718096;">
-                    Opens in new tab
-                  </div>
-                </div>
-              `;
+          // Add media content (images/videos) inline when possible
+          if (mediaUrls.length > 0) {
+            inspirationHTML += `<h4 style=\"margin: 0 0 15px 0; color: #3a4152; font-size: 16px; font-weight: 600;\">💡 Inspiration:</h4>`;
+            inspirationHTML += `<div class=\"inspiration-grid\" style=\"display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;\">`;
+            mediaUrls.forEach((mediaUrl) => {
+              inspirationHTML += `<div>${renderInspirationMedia(mediaUrl.trim())}</div>`;
             });
+            inspirationHTML += `</div>`;
           }
           
           inspirationDiv.innerHTML = inspirationHTML;
@@ -866,6 +863,58 @@
       }
       
       return false;
+    }
+    
+    // Helpers to detect media type even when query strings/fragments are present
+    function getUrlExtension(rawUrl) {
+      try {
+        const u = new URL(rawUrl, window.location.origin);
+        const path = u.pathname || '';
+        const idx = path.lastIndexOf('.');
+        return idx >= 0 ? path.substring(idx + 1).toLowerCase() : '';
+      } catch {
+        // Fallback: strip query/hash manually
+        const cleaned = (rawUrl || '').split('#')[0].split('?')[0];
+        const idx = cleaned.lastIndexOf('.');
+        return idx >= 0 ? cleaned.substring(idx + 1).toLowerCase() : '';
+      }
+    }
+
+    // Detect common image file URLs (ignores ?v= params etc.)
+    function isImageUrl(content) {
+      const ext = getUrlExtension((content || '').trim());
+      return ['jpg','jpeg','png','gif','webp','bmp','tiff','svg'].includes(ext);
+    }
+    
+    function isDirectVideoFile(url) {
+      const ext = getUrlExtension((url || '').trim());
+      return ['mp4','mov','avi','wmv','flv','webm','mkv'].includes(ext);
+    }
+    
+    // Render a media URL inline when possible (image or direct video file). Otherwise fallback to link.
+    function renderInspirationMedia(url) {
+      const safeUrl = (url || '').trim();
+      if (!safeUrl) return '';
+      if (isImageUrl(safeUrl)) {
+        return `<img src="${safeUrl}" alt="Inspiration" style="width:100%;height:auto;border-radius:12px;border:1px solid #e8e5e3;" />`;
+      }
+      if (isDirectVideoFile(safeUrl)) {
+        return `
+          <video controls preload="metadata" playsinline webkit-playsinline style="width:100%;border-radius:12px;border:1px solid #e8e5e3;outline:none;background:#000;">
+            <source src="${safeUrl}">
+            <a href="${safeUrl}" target="_blank" rel="noopener">Open video</a>
+          </video>
+        `;
+      }
+      // Fallback link for platforms we don't embed
+      return `
+        <div style="text-align:center;">
+          <a href="${safeUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);color:white;text-decoration:none;border-radius:20px;font-weight:600;box-shadow:0 4px 12px rgba(184,150,133,0.25);">
+            🔗 View Inspiration
+          </a>
+          <div style="margin-top:8px;font-size:12px;color:#718096;">Opens in new tab</div>
+        </div>
+      `;
     }
     
     // Play inspiration video

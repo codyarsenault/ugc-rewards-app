@@ -124,6 +124,10 @@ export const JobsModel = {
       if (value === '' && dbKey === 'reward_cash_amount') {
         processedValue = null;
       }
+      // Convert empty string to null for optional timestamp fields
+      if (value === '' && dbKey === 'deadline') {
+        processedValue = null;
+      }
       
       values.push(processedValue);
       paramCount++;
